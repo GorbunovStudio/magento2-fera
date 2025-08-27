@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @author: Sviatoslav Lashkiv
  * @email: ss.lashkiv@gmail.com

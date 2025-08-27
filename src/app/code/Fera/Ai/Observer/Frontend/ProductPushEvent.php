@@ -1,4 +1,5 @@
 <?php
+
 namespace Fera\Ai\Observer\Frontend;
 
 use Magento\Framework\Event\Observer;
@@ -14,26 +15,28 @@ class ProductPushEvent implements ObserverInterface
     /**
      * Product view constructor.
      * @param FeraHelper $helper
-      * @param ProductExporter $productExporter
+     * @param ProductExporter $productExporter
      */
     public function __construct(
         FeraHelper $helper,
-          ProductExporter $productExporter
+        ProductExporter $productExporter
     ) {
         $this->helper = $helper;
-          $this->productExporter = $productExporter;
+        $this->productExporter = $productExporter;
     }
 
     /**
-    * Use curl to push products to our server.
-    *
-    * @param Observer $observer
-    */
-   public function execute(Observer $observer)
-   {
-       if (!$this->helper->isEnabled()) { return; }
+     * Use curl to push products to our server.
+     *
+     * @param Observer $observer
+     */
+    public function execute(Observer $observer)
+    {
+        if (!$this->helper->isEnabled()) {
+            return;
+        }
 
-    $p = $observer->getProduct();
-    $this->productExporter->pushProduct($p);
-   }
+        $p = $observer->getProduct();
+        $this->productExporter->pushProduct($p);
+    }
 }

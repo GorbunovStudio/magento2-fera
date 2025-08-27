@@ -1,4 +1,5 @@
 <?php
+
 namespace Fera\Ai\Services;
 
 use Fera\Ai\Helper\Data as FeraHelper;
