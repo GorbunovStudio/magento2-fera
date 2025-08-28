@@ -6,21 +6,16 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\CatalogInventory\Api\StockStateInterface;
 use Magento\Framework\HTTP\Client\Curl as Curl;
 use Magento\Catalog\Model\Product as Product;
+use Magento\Framework\Event\ManagerInterface as EventManager;
 
 class ProductExporter
 {
-    protected $_curl;
-    protected $helper;
-    protected $stockState;
-
     public function __construct(
-        FeraHelper $helper,
-        StockStateInterface $stockState,
-        Curl $curl
+        private FeraHelper $helper,
+        private StockStateInterface $stockState,
+        private Curl $curl,
+        private EventManager $eventManager
     ) {
-        $this->stockState = $stockState;
-        $this->helper = $helper;
-        $this->_curl = $curl;
     }
 
     /**
@@ -95,6 +90,11 @@ class ProductExporter
             }
         }
 
+        $this->eventManager->dispatch('fera_export_product_data_ready', [
+            'product' => $product,
+            'productData' => $productData,
+        ]);
+
         $this->send($productData);
     }
 
@@ -104,11 +104,11 @@ class ProductExporter
     protected function send(array $data)
     {
         $url = $this->helper->getApiUrl() . 'v3/private/products.json';
-        $this->_curl->addHeader('Content-Type', 'application/json');
-        $this->_curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
-        $this->_curl->post($url, $this->helper->jsonEncode($data));
+        $this->curl->addHeader('Content-Type', 'application/json');
+        $this->curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
+        $this->curl->post($url, $this->helper->jsonEncode($data));
 
         // Intentionally ignore body; side-effect only
-        $this->_curl->getBody();
+        $this->curl->getBody();
     }
 }

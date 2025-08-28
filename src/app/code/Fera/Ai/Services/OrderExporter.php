@@ -7,6 +7,7 @@ use Magento\Framework\HTTP\Client\Curl as Curl;
 use Magento\Sales\Model\Order as Order;
 use Magento\Store\Model\StoreManagerInterface as StoreManager;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
+use Magento\Framework\Event\ManagerInterface as EventManager;
 
 class OrderExporter
 {
@@ -14,17 +15,20 @@ class OrderExporter
     protected $_curl;
     protected $helper;
     protected $directoryHelper;
+    protected $eventManager;
 
     public function __construct(
         FeraHelper $helper,
         Curl $curl,
         StoreManager $storeManager,
-        DirectoryHelperData $directoryHelper
+        DirectoryHelperData $directoryHelper,
+        EventManager $eventManager
     ) {
         $this->helper = $helper;
         $this->_curl = $curl;
         $this->_storeManager = $storeManager;
         $this->directoryHelper = $directoryHelper;
+        $this->eventManager = $eventManager;
     }
 
     /**
@@ -62,6 +66,11 @@ class OrderExporter
             $orderData['shipping_address'] = $this->getBillingData($order);
             $orderData['phone_number'] = $order->getBillingAddress()->getTelephone();
         }
+
+        $this->eventManager->dispatch('fera_export_order_data_ready', [
+            'order' => $order,
+            'orderData' => $orderData,
+        ]);
 
         $this->send($orderData);
     }
