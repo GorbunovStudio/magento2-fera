@@ -1,6 +1,6 @@
 <?php
 
-namespace Fera\Ai\Observer\Frontend;
+namespace Fera\Ai\Observer;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
@@ -26,7 +26,7 @@ class ProductPushEvent implements ObserverInterface
     }
 
     /**
-     * Use curl to push products to our server.
+     * Push product to Fera when product is saved
      *
      * @param Observer $observer
      */
@@ -36,7 +36,11 @@ class ProductPushEvent implements ObserverInterface
             return;
         }
 
-        $p = $observer->getProduct();
-        $this->productExporter->pushProduct($p);
+        $product = $observer->getEvent()->getProduct();
+        if (!$product || !$product->getId()) {
+            return;
+        }
+
+        $this->productExporter->pushProduct($product);
     }
 }

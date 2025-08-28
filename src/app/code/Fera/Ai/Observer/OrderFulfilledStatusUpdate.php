@@ -1,6 +1,6 @@
 <?php
 
-namespace Fera\Ai\Observer\Backend;
+namespace Fera\Ai\Observer;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;

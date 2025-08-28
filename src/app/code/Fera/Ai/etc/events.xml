@@ -1,11 +1,15 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="catalog_product_save_after">
+        <observer name="fera_ai_product_push" instance="Fera\Ai\Observer\ProductPushEvent" />
+    </event>
+    
     <event name="sales_order_place_after">
-        <observer name="fera_ai_order_push" instance="Fera\Ai\Observer\Frontend\OrderPushEvent" />
+        <observer name="fera_ai_order_push" instance="Fera\Ai\Observer\OrderPushEvent" />
     </event>
     
     <event name="sales_order_shipment_save_after">
         <observer name="fera_ai_order_fulfilled_status_update"
-                  instance="Fera\Ai\Observer\Backend\OrderFulfilledStatusUpdate" />
+                  instance="Fera\Ai\Observer\OrderFulfilledStatusUpdate" />
     </event>
 </config>
