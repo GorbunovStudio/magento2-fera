@@ -18,6 +18,15 @@
         </arguments>
     </type>
 
+    <!-- Console Commands -->
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="fera_export_products" xsi:type="object">Fera\Ai\Console\Command\ExportProductsCommand</item>
+            </argument>
+        </arguments>
+    </type>
+
     <!-- Queue Publishers -->
     <type name="Fera\Ai\Observer\Frontend\OrderPushEvent">
         <arguments>
