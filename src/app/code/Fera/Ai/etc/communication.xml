@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework-message-queue:etc/communication.xsd">
+    <communication topic="fera.export.order">
+        <handler name="exportOrderHandler" type="Fera\Ai\Model\Consumer\ExportOrderConsumer" method="process" />
+    </communication>
+    <communication topic="fera.export.order.status.update">
+        <handler name="exportOrderStatusUpdateHandler" type="Fera\Ai\Model\Consumer\ExportOrderStatusUpdateConsumer" method="process" />
+    </communication>
+</config>

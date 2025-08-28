@@ -3,8 +3,4 @@
     <event name="catalog_controller_product_view">
         <observer name="fera_ai_product_push" instance="Fera\Ai\Observer\Frontend\ProductPushEvent" />
     </event>
-
-    <event name="checkout_onepage_controller_success_action">
-        <observer name="fera_ai_order_push" instance="Fera\Ai\Observer\Frontend\OrderPushEvent" />
-    </event>
 </config>

@@ -4,63 +4,46 @@ namespace Fera\Ai\Observer\Backend;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
-use Magento\Framework\HTTP\Client\Curl as Curl;
-
+use Magento\Framework\MessageQueue\PublisherInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 
 class OrderFulfilledStatusUpdate implements ObserverInterface
 {
-    protected $_curl;
     protected $helper;
+    protected $publisher;
 
     /**
-     * Sales order constructor.
+     * Order fulfilled status update constructor.
      * @param FeraHelper $helper
+     * @param PublisherInterface $publisher
      */
     public function __construct(
         FeraHelper $helper,
-        Curl $curl,
+        PublisherInterface $publisher
     ) {
         $this->helper = $helper;
-        $this->_curl = $curl;
+        $this->publisher = $publisher;
     }
 
     /**
-     * Send put request to update order status
-     */
-    public function updateOrderStatus($data)
-    {
-        $url = $this->helper->getApiUrl() . "v3/private/orders/" . $data['external_id'] . "/fulfill";
-        $this->_curl->addHeader("Content-Type", "application/json");
-        $this->_curl->addHeader("SECRET-KEY", $this->helper->getSecretKey());
-        $this->_curl->setOption(CURLOPT_CUSTOMREQUEST, "PUT");
-        $this->_curl->post($url, $this->helper->jsonEncode($data));
-        $response = $this->_curl->getBody();
-        // $this->helper->log("Order status is updated for order". $response);
-        //echo $response;
-    }
-
-    /**
-     * get orders data and and send request
+     * Publish shipment ID to message queue for order status update
      *
      * @param Observer $observer
      */
-    public function execute(\Magento\Framework\Event\Observer $observer)
+    public function execute(Observer $observer)
     {
         if (!$this->helper->isEnabled()) {
             return;
         }
 
         $shipment = $observer->getEvent()->getShipment();
-        $orderId = $shipment->getOrder()->getId();
-        $shipmentData = [
-            'fulfilled_at' => $this->helper->formatDate($shipment->getCreatedAt()),
-            'external_id' => $orderId,
-        ];
-        $this->updateOrderStatus($shipmentData);
+        if (!$shipment || !$shipment->getId()) {
+            return;
+        }
 
-        // $this->helper->log("Order id is: ". $orderId);
-        //  $this->helper->log("Order created at is: ". $shipment->getCreatedAt());
+        // Publish shipment ID to the queue
+        $this->publisher->publish('fera.export.order.status.update', $shipment->getId());
+
         return;
     }
 }

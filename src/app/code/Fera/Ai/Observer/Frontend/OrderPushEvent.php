@@ -4,39 +4,29 @@ namespace Fera\Ai\Observer\Frontend;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
-use Magento\Sales\Model\Order as Order;
-use Magento\Checkout\Model\Session as CheckoutSession;
-
+use Magento\Framework\MessageQueue\PublisherInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Services\OrderExporter;
 
 class OrderPushEvent implements ObserverInterface
 {
     protected $helper;
-    protected $order;
-    protected $_checkoutSession;
-    protected $orderExporter;
+    protected $publisher;
 
     /**
-     * Sales order constructor.
+     * Order push event constructor.
      * @param FeraHelper $helper
-     * @param Order $order
-     * @param CheckoutSession $checkoutSession
+     * @param PublisherInterface $publisher
      */
     public function __construct(
         FeraHelper $helper,
-        Order $order,
-        CheckoutSession $checkoutSession,
-        OrderExporter $orderExporter
+        PublisherInterface $publisher
     ) {
         $this->helper = $helper;
-        $this->order = $order;
-        $this->_checkoutSession = $checkoutSession;
-        $this->orderExporter = $orderExporter;
+        $this->publisher = $publisher;
     }
 
     /**
-     * get orders data and and send request
+     * Publish order ID to message queue for export
      *
      * @param Observer $observer
      */
@@ -46,17 +36,13 @@ class OrderPushEvent implements ObserverInterface
             return;
         }
 
-        $orderId = $this->_checkoutSession->getLastOrderId();
-        if (!$orderId) {
-            return;
-        }
-
-        $order = $this->order->load($orderId);
+        $order = $observer->getEvent()->getOrder();
         if (!$order || !$order->getId()) {
             return;
         }
 
-        $this->orderExporter->pushOrder($order);
+        // Publish order ID to the queue
+        $this->publisher->publish('fera.export.order', $order->getId());
 
         return;
     }

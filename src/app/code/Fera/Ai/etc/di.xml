@@ -17,4 +17,16 @@
             </argument>
         </arguments>
     </type>
+
+    <!-- Queue Publishers -->
+    <type name="Fera\Ai\Observer\Frontend\OrderPushEvent">
+        <arguments>
+            <argument name="publisher" xsi:type="object">Magento\Framework\MessageQueue\PublisherInterface</argument>
+        </arguments>
+    </type>
+    <type name="Fera\Ai\Observer\Backend\OrderFulfilledStatusUpdate">
+        <arguments>
+            <argument name="publisher" xsi:type="object">Magento\Framework\MessageQueue\PublisherInterface</argument>
+        </arguments>
+    </type>
 </config>
