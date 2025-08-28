@@ -27,23 +27,15 @@ class Data extends AbstractHelper
 {
     const FORMAT_DATE = 'Y-m-d\TH:i:sP';
 
-    protected $moduleResource;
-    protected $storeManager;
-    protected $jsonHelper;
-    protected $checkoutSession;
-    protected $dateTime;
-    protected $imageBuilder;
-    protected $logger;
-
     public function __construct(
-        Context $context,
-        ModuleResourceInterface $moduleResource,
-        StoreManagerInterface $storeManager,
-        JsonHelper $jsonHelper,
-        CheckoutSession $checkoutSession,
-        DateTimeFactory $dateTime,
-        ImageBuilder $imageBuilder,
-        Logger $logger
+        private Context $context,
+        private ModuleResourceInterface $moduleResource,
+        private StoreManagerInterface $storeManager,
+        private JsonHelper $jsonHelper,
+        private CheckoutSession $checkoutSession,
+        private DateTimeFactory $dateTime,
+        private ImageBuilder $imageBuilder,
+        private Logger $logger
     )
     {
         $this->moduleResource = $moduleResource;
@@ -53,6 +45,7 @@ class Data extends AbstractHelper
         $this->dateTime = $dateTime;
         $this->imageBuilder = $imageBuilder;
         $this->logger = $logger;
+
         parent::__construct($context);
     }
 
@@ -136,6 +129,7 @@ class Data extends AbstractHelper
         $appUrl = $this->getAppUrl();
         $apiUrl = $this->getApiUrl();
         $jsUrl = $this->getJsUrl();
+
         return !empty($publicKey) && !empty($secretKey) && !empty($appUrl) && !empty($apiUrl) && !empty($jsUrl);
     }
 
@@ -189,42 +183,50 @@ class Data extends AbstractHelper
 
     public function serializeQuoteItems($items)
     {
-        $configurableItems = [];
+        $parentTypeMap = [];
         $itemMap = [];
         $childItems = [];
-        foreach ($items as $cartItem) {
 
+        foreach ($items as $cartItem) {
             if ($cartItem->getParentItemId()) {
                 $childItems[] = $cartItem;
-            } else {
-                $itemMap[$cartItem->getId()] = [
-                    'product_id' => $cartItem->getProductId(),
-                    'price' => $cartItem->getPrice(),
-                    'total' => $cartItem->getRowTotal(),
-                    'name' => $cartItem->getName()
-                ];
-                if ($cartItem->getProductType() == 'configurable') {
-                    $configurableItems[$cartItem->getId()] = $itemMap[$cartItem->getId()];
-                }
+                continue;
             }
 
+            $parentId = $cartItem->getId();
+            $parentType = $cartItem->getProductType();
+            $parentTypeMap[$parentId] = $parentType;
+
+            $itemMap[$parentId] = [
+                'product_id' => $cartItem->getProductId(),
+                'price' => $cartItem->getPrice(),
+                'total' => $cartItem->getRowTotal(),
+                'name' => $cartItem->getName()
+            ];
         }
 
         foreach ($childItems as $cartItem) {
-            if ($configurableItems[$cartItem->getParentItemId()]) {
-                // product is configurable
-                $itemMap[$cartItem->getParentItemId()]['name'] = $cartItem->getName();
-                $itemMap[$cartItem->getParentItemId()]['variant_id'] = $cartItem->getProductId();
-            } else {
-                // product is bundle or something else, just add it as a normal item
+            $parentId = $cartItem->getParentItemId();
+            $parentType = isset($parentTypeMap[$parentId]) ? $parentTypeMap[$parentId] : null;
 
-                $itemMap[$cartItem->getId()] = [
-                    'product_id' => $cartItem->getProductId(),
-                    'price' => $cartItem->getPrice(),
-                    'total' => $cartItem->getRowTotal(),
-                    'name' => $cartItem->getName()
-                ];
+            if ($parentType === 'configurable') {
+                if (isset($itemMap[$parentId])) {
+                    $itemMap[$parentId]['name'] = $cartItem->getName();
+                    $itemMap[$parentId]['variant_id'] = $cartItem->getProductId();
+                }
+                continue;
             }
+
+            if ($parentType === 'bundle') {
+                continue;
+            }
+
+            $itemMap[$cartItem->getId()] = [
+                'product_id' => $cartItem->getProductId(),
+                'price' => $cartItem->getPrice(),
+                'total' => $cartItem->getRowTotal(),
+                'name' => $cartItem->getName()
+            ];
         }
 
         return array_values($itemMap);
@@ -248,13 +250,12 @@ class Data extends AbstractHelper
         return $this->jsonEncode($data);
     }
 
-    /**
-     * @return string - JS to trigger debug mode if required.
-     */
-    public function getDebugJs() {
+    public function getDebugJs()
+    {
         if ($this->isDebugMode()) {
             return "window.feraDebugMode = true;";
         }
+
         return "";
     }
 
@@ -280,7 +281,7 @@ class Data extends AbstractHelper
     {
         $imageType = 'product_thumbnail_image';
         $image = $this->getImage($product, $imageType);
+
         return $image->getImageUrl();
     }
-
 }
