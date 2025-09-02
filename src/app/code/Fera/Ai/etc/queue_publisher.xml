@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
-<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework-message-queue:etc/queue_publisher.xsd">
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:MessageQueue/etc/queue_publisher.xsd">
     <publisher topic="fera.export.order">
-        <connection exchange="magento" />
+        <connection exchange="fera" />
     </publisher>
     <publisher topic="fera.export.order.status.update">
-        <connection exchange="magento" />
+        <connection exchange="fera" />
     </publisher>
 </config>

@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework-message-queue:etc/topology.xsd">
     <exchange name="fera">
-        <binding id="fera.all" topic="fera.#" destination="fera.queue" />
+        <binding id="fera.export.order" topic="fera.export.order" destination="fera.queue" />
+        <binding id="fera.export.order.status.update" topic="fera.export.order.status.update" destination="fera.queue" />
     </exchange>
 </config>
