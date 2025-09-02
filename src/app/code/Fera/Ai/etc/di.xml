@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="../../../../../lib/internal/Magento/Framework/ObjectManager/etc/config.xsd">
+    xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Magento\Catalog\Block\Product\View" type="Fera\Ai\Block\Footer\Product\View" />
     
     <type name="Fera\Ai\Logger\Handler">
@@ -28,12 +28,12 @@
     </type>
 
     <!-- Queue Publishers -->
-    <type name="Fera\Ai\Observer\Frontend\OrderPushEvent">
+    <type name="Fera\Ai\Observer\OrderPushEvent">
         <arguments>
             <argument name="publisher" xsi:type="object">Magento\Framework\MessageQueue\PublisherInterface</argument>
         </arguments>
     </type>
-    <type name="Fera\Ai\Observer\Backend\OrderFulfilledStatusUpdate">
+    <type name="Fera\Ai\Observer\OrderFulfilledStatusUpdate">
         <arguments>
             <argument name="publisher" xsi:type="object">Magento\Framework\MessageQueue\PublisherInterface</argument>
         </arguments>
