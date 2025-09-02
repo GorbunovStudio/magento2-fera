@@ -1,13 +1,12 @@
 <?php
 
-namespace Fera\Ai\Services;
-
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\Curl as Curl;
 use Magento\Sales\Model\Order as Order;
 use Magento\Store\Model\StoreManagerInterface as StoreManager;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Framework\Event\ManagerInterface as EventManager;
+use Magento\Framework\DataObject;
 
 class OrderExporter
 {
@@ -33,6 +32,8 @@ class OrderExporter
 
     /**
      * Build payload and push order to Fera API
+     *
+     * @param \Magento\Sales\Model\Order $order
      */
     public function pushOrder(Order $order)
     {
@@ -67,12 +68,13 @@ class OrderExporter
             $orderData['phone_number'] = $order->getBillingAddress()->getTelephone();
         }
 
+        $payload = new DataObject($orderData);
         $this->eventManager->dispatch('fera_export_order_data_ready', [
             'order' => $order,
-            'orderData' => $orderData,
+            'orderData' => $payload,
         ]);
 
-        $this->send($orderData);
+        $this->send($payload->getData());
     }
 
     protected function send(array $data)

@@ -11,64 +11,36 @@ use Psr\Log\LoggerInterface;
 
 class ExportOrderStatusUpdateConsumer
 {
-    /**
-     * @var ShipmentRepositoryInterface
-     */
-    private $shipmentRepository;
-
-    /**
-     * @var FeraHelper
-     */
-    private $helper;
-
-    /**
-     * @var Curl
-     */
-    private $curl;
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
-     * @param ShipmentRepositoryInterface $shipmentRepository
-     * @param FeraHelper $helper
-     * @param Curl $curl
-     * @param LoggerInterface $logger
-     */
     public function __construct(
-        ShipmentRepositoryInterface $shipmentRepository,
-        FeraHelper $helper,
-        Curl $curl,
-        LoggerInterface $logger
+        private ShipmentRepositoryInterface $shipmentRepository,
+        private FeraHelper $helper,
+        private Curl $curl,
+        private LoggerInterface $logger
     ) {
-        $this->shipmentRepository = $shipmentRepository;
-        $this->helper = $helper;
-        $this->curl = $curl;
-        $this->logger = $logger;
     }
 
     /**
      * Process order status update message
      *
      * @param int $shipmentId
-     * @return void
      */
-    public function process($shipmentId)
+    public function process(int $shipmentId): void
     {
         try {
             if (!$this->helper->isEnabled()) {
                 return;
             }
 
+            /** @var \Magento\Sales\Api\Data\ShipmentInterface $shipment */
             $shipment = $this->shipmentRepository->get($shipmentId);
-            if (!$shipment || !$shipment->getId()) {
+            if (!$shipment->getId()) {
                 $this->logger->warning('Fera AI: Shipment not found for status update', ['shipment_id' => $shipmentId]);
                 return;
             }
 
-            $orderId = $shipment->getOrder()->getId();
+            /** @var \Magento\Sales\Api\Data\OrderInterface $order */
+            $order = $shipment->getOrder();
+            $orderId = $order->getId();
             $shipmentData = [
                 'fulfilled_at' => $this->helper->formatDate($shipment->getCreatedAt()),
                 'external_id' => $orderId,
@@ -103,10 +75,10 @@ class ExportOrderStatusUpdateConsumer
     /**
      * Send put request to update order status
      *
-     * @param array $data
+     * @param array<string, mixed> $data
      * @return void
      */
-    private function updateOrderStatus($data)
+    private function updateOrderStatus(array $data): void
     {
         $url = $this->helper->getApiUrl() . "v3/private/orders/" . $data['external_id'] . "/fulfill";
         $this->curl->addHeader("Content-Type", "application/json");

@@ -11,51 +11,20 @@ use Psr\Log\LoggerInterface;
 
 class ExportOrderConsumer
 {
-    /**
-     * @var OrderRepositoryInterface
-     */
-    private $orderRepository;
-
-    /**
-     * @var OrderExporter
-     */
-    private $orderExporter;
-
-    /**
-     * @var FeraHelper
-     */
-    private $helper;
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
-     * @param OrderRepositoryInterface $orderRepository
-     * @param OrderExporter $orderExporter
-     * @param FeraHelper $helper
-     * @param LoggerInterface $logger
-     */
     public function __construct(
-        OrderRepositoryInterface $orderRepository,
-        OrderExporter $orderExporter,
-        FeraHelper $helper,
-        LoggerInterface $logger
+        private OrderRepositoryInterface $orderRepository,
+        private OrderExporter $orderExporter,
+        private FeraHelper $helper,
+        private LoggerInterface $logger
     ) {
-        $this->orderRepository = $orderRepository;
-        $this->orderExporter = $orderExporter;
-        $this->helper = $helper;
-        $this->logger = $logger;
     }
 
     /**
      * Process order export message
      *
      * @param int $orderId
-     * @return void
      */
-    public function process($orderId)
+    public function process(int $orderId): void
     {
         try {
             if (!$this->helper->isEnabled()) {
@@ -63,12 +32,9 @@ class ExportOrderConsumer
             }
 
             $order = $this->orderRepository->get($orderId);
-            if (!$order || !$order->getId()) {
-                $this->logger->warning('Fera AI: Order not found for export', ['order_id' => $orderId]);
-                return;
-            }
 
             $this->orderExporter->pushOrder($order);
+
             $this->logger->info('Fera AI: Order exported successfully', ['order_id' => $orderId]);
 
         } catch (NoSuchEntityException $e) {
