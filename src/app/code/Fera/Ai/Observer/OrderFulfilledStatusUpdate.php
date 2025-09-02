@@ -2,35 +2,26 @@
 
 namespace Fera\Ai\Observer;
 
+use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Interface\MessageTopicInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
-use Fera\Ai\Helper\Data as FeraHelper;
 
 class OrderFulfilledStatusUpdate implements ObserverInterface
 {
-    protected $helper;
-    protected $publisher;
-
-    /**
-     * Order fulfilled status update constructor.
-     * @param FeraHelper $helper
-     * @param PublisherInterface $publisher
-     */
     public function __construct(
-        FeraHelper $helper,
-        PublisherInterface $publisher
+        private FeraHelper $helper,
+        private PublisherInterface $publisher
     ) {
-        $this->helper = $helper;
-        $this->publisher = $publisher;
     }
 
     /**
-     * Publish shipment ID to message queue for order status update
+     * Publish shipment ID to message queue for order status update.
      *
-     * @param Observer $observer
+     * @param \Magento\Framework\Event\Observer $observer
      */
-    public function execute(Observer $observer)
+    public function execute(Observer $observer): void
     {
         if (!$this->helper->isEnabled()) {
             return;
@@ -41,9 +32,6 @@ class OrderFulfilledStatusUpdate implements ObserverInterface
             return;
         }
 
-        // Publish shipment ID to the queue
-        $this->publisher->publish('fera.export.order.status.update', $shipment->getId());
-
-        return;
+        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, (int)$shipment->getId());
     }
 }

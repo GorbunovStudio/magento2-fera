@@ -8,6 +8,10 @@
         <observer name="fera_ai_order_push" instance="Fera\Ai\Observer\OrderPushEvent" />
     </event>
     
+    <event name="sales_order_save_after">
+        <observer name="fera_ai_order_push" instance="Fera\Ai\Observer\OrderPushEvent" />
+    </event>
+    
     <event name="sales_order_shipment_save_after">
         <observer name="fera_ai_order_fulfilled_status_update"
                   instance="Fera\Ai\Observer\OrderFulfilledStatusUpdate" />
