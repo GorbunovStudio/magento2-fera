@@ -1,13 +1,14 @@
 {
-    "name": "feraai/module-fera",
-    "description": "Fera.ai Module for Magento 2",
-    "type": "magento2-module",
-    "version": "2.2.0",
-    "license": "OSL-3.0",
+    "name": "feraai/fera",
+    "type": "magento2-component",
     "autoload": {
-        "files": [ "registration.php" ],
+        "files": [
+            "src/app/code/Fera/Ai/registration.php"
+        ],
         "psr-4": {
-            "FeraAi\\ModuleFera\\": ""
+            "Fera\\Ai\\": "src/app/code/Fera/Ai"
         }
-    }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
