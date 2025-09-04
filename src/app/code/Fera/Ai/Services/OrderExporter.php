@@ -1,5 +1,7 @@
 <?php
 
+namespace Fera\Ai\Services;
+
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\Curl as Curl;
 use Magento\Sales\Model\Order as Order;
