@@ -6,4 +6,7 @@
     <publisher topic="fera.export.order.status.update">
         <connection exchange="fera" />
     </publisher>
+    <publisher topic="fera.export.product">
+        <connection exchange="fera" />
+    </publisher>
 </config>

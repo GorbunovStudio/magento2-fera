@@ -7,22 +7,40 @@ use Magento\CatalogInventory\Api\StockStateInterface;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Catalog\Model\Product as Product;
 use Magento\Framework\Event\ManagerInterface as EventManager;
-use Magento\Framework\DataObject;
+use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Exception\RuntimeException;
 use UnexpectedValueException;
 
 class ProductExporter
 {
     private const API_ENDPOINT_PRODUCTS = 'v3/private/products';
-    
-    private array $existingProductsCache = []; // [external_id => ['exists' => bool, 'fera_id' => string|null]]
+
+    /** @var FeraHelper */
+    private $helper;
+    /** @var StockStateInterface */
+    private $stockState;
+    /** @var CurlFactory */
+    private $curlFactory;
+    /** @var EventManager */
+    private $eventManager;
+    /** @var DataObjectFactory */
+    private $dataObjectFactory;
+
+    /** @var array */
+    private $existingProductsCache = []; // [external_id => ['exists' => bool, 'fera_id' => string|null]]
 
     public function __construct(
-        private FeraHelper $helper,
-        private StockStateInterface $stockState,
-        private CurlFactory $curlFactory,
-        private EventManager $eventManager
+        FeraHelper $helper,
+        StockStateInterface $stockState,
+        CurlFactory $curlFactory,
+        EventManager $eventManager,
+        DataObjectFactory $dataObjectFactory
     ) {
+        $this->helper = $helper;
+        $this->stockState = $stockState;
+        $this->curlFactory = $curlFactory;
+        $this->eventManager = $eventManager;
+        $this->dataObjectFactory = $dataObjectFactory;
     }
 
     /**
@@ -138,7 +156,7 @@ class ProductExporter
             }
         }
 
-        $payload = new DataObject($productData);
+        $payload = $this->dataObjectFactory->create(['data' => $productData]);
         $this->eventManager->dispatch('fera_export_product_data_ready', [
             'product' => $product,
             'productData' => $payload,
@@ -151,8 +169,9 @@ class ProductExporter
     {
         foreach ($products as $product) {
             if (!$product instanceof Product) {
+                $type = is_object($product) ? get_class($product) : gettype($product);
                 throw new UnexpectedValueException(
-                    'Incorrect type for Product: expected ' . Product::class . ', got ' . get_debug_type($product)
+                    'Incorrect type for Product: expected ' . Product::class . ', got ' . $type
                 );
             }
         }

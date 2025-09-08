@@ -6,4 +6,7 @@
     <topic name="fera.export.order.status.update" request="int">
         <handler name="exportOrderStatusUpdateHandler" type="Fera\Ai\Model\Consumer\ExportOrderStatusUpdateConsumer" method="process" />
     </topic>
+    <topic name="fera.export.product" request="int">
+        <handler name="exportProductHandler" type="Fera\Ai\Model\Consumer\ExportProductConsumer" method="process" />
+    </topic>
 </config>

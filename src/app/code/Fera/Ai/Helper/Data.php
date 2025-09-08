@@ -27,17 +27,31 @@ class Data extends AbstractHelper
 {
     const FORMAT_DATE = 'Y-m-d\TH:i:sP';
 
+    /** @var ModuleResourceInterface */
+    private $moduleResource;
+    /** @var StoreManagerInterface */
+    private $storeManager;
+    /** @var JsonHelper */
+    private $jsonHelper;
+    /** @var CheckoutSession */
+    private $checkoutSession;
+    /** @var DateTimeFactory */
+    private $dateTime;
+    /** @var ImageBuilder */
+    private $imageBuilder;
+    /** @var Logger */
+    private $logger;
+
     public function __construct(
-        private Context $context,
-        private ModuleResourceInterface $moduleResource,
-        private StoreManagerInterface $storeManager,
-        private JsonHelper $jsonHelper,
-        private CheckoutSession $checkoutSession,
-        private DateTimeFactory $dateTime,
-        private ImageBuilder $imageBuilder,
-        private Logger $logger
-    )
-    {
+        Context $context,
+        ModuleResourceInterface $moduleResource,
+        StoreManagerInterface $storeManager,
+        JsonHelper $jsonHelper,
+        CheckoutSession $checkoutSession,
+        DateTimeFactory $dateTime,
+        ImageBuilder $imageBuilder,
+        Logger $logger
+    ) {
         $this->moduleResource = $moduleResource;
         $this->storeManager = $storeManager;
         $this->jsonHelper = $jsonHelper;
