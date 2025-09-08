@@ -26,9 +26,6 @@ class ProductExporter
     /** @var DataObjectFactory */
     private $dataObjectFactory;
 
-    /** @var array */
-    private $existingProductsCache = []; // [external_id => ['exists' => bool, 'fera_id' => string|null]]
-
     public function __construct(
         FeraHelper $helper,
         StockStateInterface $stockState,
@@ -52,11 +49,19 @@ class ProductExporter
             return;
         }
 
-        $this->pushProducts([$product]);
+        $productData = $this->buildProductData($product);
+        $externalId = (int) $productData['external_id'];
+        
+        $existingProducts = $this->fetchExistingProducts([$externalId]);
+        $isUpdate = !empty($existingProducts);
+        
+        $this->sendProductData($productData, $isUpdate);
     }
 
     /**
      * Push multiple products to the Fera API efficiently
+     * 
+     * @param Product[] $products
      */
     public function pushProducts(array $products): void
     {
@@ -66,24 +71,41 @@ class ProductExporter
 
         $this->validateProductsArray($products);
         
-        $this->loadExistingProducts($products);
+        /** @var array<int, string> $existingProductsCache */
+        $existingProductsCache = [];
+        $this->loadExistingProducts($products, $existingProductsCache);
 
         foreach ($products as $product) {
             $productData = $this->buildProductData($product);
             $externalId = (int) $productData['external_id'];
             
-            $isUpdate = $this->isProductExists($externalId);
+            $isUpdate = isset($existingProductsCache[$externalId]);
             
-            if ($isUpdate && !$this->getFeraId($externalId)) {
-                $isUpdate = false;
-            }
-            
-            $this->sendProductData($productData, $isUpdate);
+            $this->sendProductData($productData, $isUpdate, $existingProductsCache);
         }
     }
 
     /**
      * Build product data array for API call
+     * 
+     * @return array{
+     *     id: int|string,
+     *     external_id: int|string,
+     *     name: string,
+     *     price: float,
+     *     status: string,
+     *     created_at: string,
+     *     modified_at: string,
+     *     stock: float,
+     *     in_stock: bool,
+     *     url: string,
+     *     thumbnail_url: string,
+     *     needs_shipping: bool,
+     *     hidden: bool,
+     *     tags: array,
+     *     variants: array,
+     *     platform_data: array{sku: string, type: string, regular_price: float}
+     * }
      */
     private function buildProductData(Product $product): array
     {
@@ -165,6 +187,10 @@ class ProductExporter
         return $payload->getData();
     }
 
+    /**
+     * @param array $products
+     * @phpstan-assert Product[] $products
+     */
     private function validateProductsArray(array $products): void
     {
         foreach ($products as $product) {
@@ -177,14 +203,18 @@ class ProductExporter
         }
     }
 
-    private function loadExistingProducts(array $products): void
+    /**
+     * @param Product[] $products
+     * @param array<int, string> $existingProductsCache
+     */
+    private function loadExistingProducts(array $products, array &$existingProductsCache): void
     {
         $externalIds = [];
         foreach ($products as $product) {
             $externalIds[] = (int) $product->getId();
         }
 
-        $missingIds = array_diff($externalIds, array_keys($this->existingProductsCache));
+        $missingIds = array_diff($externalIds, array_keys($existingProductsCache));
         if (empty($missingIds)) {
             return;
         }
@@ -194,19 +224,7 @@ class ProductExporter
             
             foreach ($existingProducts as $existingProduct) {
                 if (isset($existingProduct['external_id'])) {
-                    $this->existingProductsCache[(int) $existingProduct['external_id']] = [
-                        'exists' => true,
-                        'fera_id' => $existingProduct['id'] ?? null
-                    ];
-                }
-            }
-            
-            foreach ($missingIds as $externalId) {
-                if (!isset($this->existingProductsCache[$externalId])) {
-                    $this->existingProductsCache[$externalId] = [
-                        'exists' => false,
-                        'fera_id' => null
-                    ];
+                    $existingProductsCache[(int) $existingProduct['external_id']] = $existingProduct['id'] ?? null;
                 }
             }
         } catch (\Exception $e) {
@@ -214,18 +232,74 @@ class ProductExporter
         }
     }
 
-    private function isProductExists(int $externalId): bool
+    /**
+     * @param array{external_id: int|string, ...} $data
+     * @param array<int, string> $existingProductsCache
+     */
+    private function sendProductData(array $data, bool $isUpdate, array &$existingProductsCache = []): void
     {
-        $cached = $this->existingProductsCache[$externalId] ?? null;
-        return $cached['exists'] ?? false;
+        $url = $this->helper->getApiUrl() . static::API_ENDPOINT_PRODUCTS;
+        
+        if ($isUpdate) {
+            // For updates, use the Fera ID instead of Magento ID
+            $feraId = $existingProductsCache[(int) $data['external_id']] ?? null;
+            if (!$feraId) {
+                throw new RuntimeException(__(
+                    'Cannot update product: Fera ID not found for external_id %1',
+                    $data['external_id']
+                ));
+            }
+            $url = $this->helper->getApiUrl() . static::API_ENDPOINT_PRODUCTS . '/' . $feraId;
+        }
+        
+        $curl = $this->curlFactory->create();
+        $curl->addHeader('Content-Type', 'application/json');
+        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
+        
+        $jsonData = $this->helper->jsonEncode($data);
+        
+        if ($isUpdate) {
+            $curl->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
+            $curl->post($url, $jsonData);
+        } else {
+            $curl->post($url, $jsonData);
+        }
+        
+        $httpCode = $curl->getStatus();
+        $response = $curl->getBody();
+        
+        $successCodes = $isUpdate ? [200, 202, 204] : [200, 201];
+        if (!in_array($httpCode, $successCodes, true)) {
+            $method = $isUpdate ? 'PUT' : 'POST';
+            $productId = $data['external_id'] ?? 'unknown';
+            
+            throw new RuntimeException(__(
+                'Failed to %1 product %2 to Fera API. HTTP Status: %3, Response: %4',
+                $method,
+                $productId,
+                $httpCode,
+                $response
+            ));
+        }
+        
+        if (!$isUpdate && isset($data['external_id'])) {
+            // For new products, extract the Fera ID from the response and cache it
+            $responseData = json_decode($response, true);
+            $feraId = $responseData['data']['id'] ?? null;
+            
+            if ($feraId) {
+                $existingProductsCache[(int) $data['external_id']] = $feraId;
+            }
+        }
+        $successMsg = 'Successfully ' . ($isUpdate ? 'updated' : 'created') .
+                     " product {$data['external_id']} in Fera API";
+        $this->helper->debug($successMsg);
     }
 
-    private function getFeraId(int $externalId): ?string
-    {
-        $cached = $this->existingProductsCache[$externalId] ?? null;
-        return $cached['fera_id'] ?? null;
-    }
-
+    /**
+     * @param int[] $externalIds
+     * @return array<array{id: string, external_id: string}>
+     */
     private function fetchExistingProducts(array $externalIds = []): array
     {
         // Increase from default 10 to get more products per request
@@ -267,67 +341,6 @@ class ProductExporter
         }
         
         return $decodedResponse['data'] ?? [];
-    }
-
-    private function sendProductData(array $data, bool $isUpdate): void
-    {
-        $url = $this->helper->getApiUrl() . static::API_ENDPOINT_PRODUCTS;
-        
-        if ($isUpdate) {
-            // For updates, use the Fera ID instead of Magento ID
-            $feraId = $this->getFeraId((int) $data['external_id']);
-            if (!$feraId) {
-                throw new RuntimeException(__(
-                    'Cannot update product: Fera ID not found for external_id %1',
-                    $data['external_id']
-                ));
-            }
-            $url = $this->helper->getApiUrl() . static::API_ENDPOINT_PRODUCTS . '/' . $feraId;
-        }
-        
-        $curl = $this->curlFactory->create();
-        $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
-        
-        $jsonData = $this->helper->jsonEncode($data);
-        
-        if ($isUpdate) {
-            $curl->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
-            $curl->post($url, $jsonData);
-        } else {
-            $curl->post($url, $jsonData);
-        }
-        
-        $httpCode = $curl->getStatus();
-        $response = $curl->getBody();
-        
-        $successCodes = $isUpdate ? [200, 202, 204] : [200, 201];
-        if (!in_array($httpCode, $successCodes, true)) {
-            $method = $isUpdate ? 'PUT' : 'POST';
-            $productId = $data['external_id'] ?? 'unknown';
-            
-            throw new RuntimeException(__(
-                'Failed to %1 product %2 to Fera API. HTTP Status: %3, Response: %4',
-                $method,
-                $productId,
-                $httpCode,
-                $response
-            ));
-        }
-        
-        if (!$isUpdate && isset($data['external_id'])) {
-            // For new products, we need to extract the Fera ID from the response
-            $responseData = json_decode($response, true);
-            $feraId = $responseData['data']['id'] ?? null;
-            
-            $this->existingProductsCache[(int) $data['external_id']] = [
-                'exists' => true,
-                'fera_id' => $feraId
-            ];
-        }
-        $successMsg = 'Successfully ' . ($isUpdate ? 'updated' : 'created') .
-                     " product {$data['external_id']} in Fera API";
-        $this->helper->debug($successMsg);
     }
 
     /**
