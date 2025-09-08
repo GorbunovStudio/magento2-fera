@@ -2,37 +2,35 @@
 
 namespace Fera\Ai\Model\Message;
 
-class OrderStatusUpdateMessage
+use Fera\Ai\Api\Data\OrderStatusUpdateMessageInterface;
+
+class OrderStatusUpdateMessage implements OrderStatusUpdateMessageInterface
 {
-    /** @var int */
+    /** @var int|null */
     private $shipmentId;
     
-    /** @var int */
+    /** @var int|null */
     private $storeId;
 
-    /**
-     * @param int $shipmentId
-     * @param int $storeId
-     */
-    public function __construct(int $shipmentId, int $storeId)
-    {
-        $this->shipmentId = $shipmentId;
-        $this->storeId = $storeId;
-    }
-
-    /**
-     * @return int
-     */
-    public function getShipmentId(): int
+    public function getShipmentId(): ?int
     {
         return $this->shipmentId;
     }
 
-    /**
-     * @return int
-     */
-    public function getStoreId(): int
+    public function setShipmentId(int $value): static
+    {
+        $this->shipmentId = $value;
+        return $this;
+    }
+
+    public function getStoreId(): ?int
     {
         return $this->storeId;
+    }
+
+    public function setStoreId(int $value): static
+    {
+        $this->storeId = $value;
+        return $this;
     }
 }

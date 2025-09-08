@@ -2,37 +2,35 @@
 
 namespace Fera\Ai\Model\Message;
 
-class ProductExportMessage
+use Fera\Ai\Api\Data\ProductExportMessageInterface;
+
+class ProductExportMessage implements ProductExportMessageInterface
 {
-    /** @var int */
+    /** @var int|null */
     private $productId;
     
-    /** @var int */
+    /** @var int|null */
     private $storeId;
 
-    /**
-     * @param int $productId
-     * @param int $storeId
-     */
-    public function __construct(int $productId, int $storeId)
-    {
-        $this->productId = $productId;
-        $this->storeId = $storeId;
-    }
-
-    /**
-     * @return int
-     */
-    public function getProductId(): int
+    public function getProductId(): ?int
     {
         return $this->productId;
     }
 
-    /**
-     * @return int
-     */
-    public function getStoreId(): int
+    public function setProductId(int $value): static
+    {
+        $this->productId = $value;
+        return $this;
+    }
+
+    public function getStoreId(): ?int
     {
         return $this->storeId;
+    }
+
+    public function setStoreId(int $value): static
+    {
+        $this->storeId = $value;
+        return $this;
     }
 }

@@ -2,37 +2,35 @@
 
 namespace Fera\Ai\Model\Message;
 
-class OrderExportMessage
+use Fera\Ai\Api\Data\OrderExportMessageInterface;
+
+class OrderExportMessage implements OrderExportMessageInterface
 {
-    /** @var int */
+    /** @var int|null */
     private $orderId;
     
-    /** @var int */
+    /** @var int|null */
     private $storeId;
 
-    /**
-     * @param int $orderId
-     * @param int $storeId
-     */
-    public function __construct(int $orderId, int $storeId)
-    {
-        $this->orderId = $orderId;
-        $this->storeId = $storeId;
-    }
-
-    /**
-     * @return int
-     */
-    public function getOrderId(): int
+    public function getOrderId(): ?int
     {
         return $this->orderId;
     }
 
-    /**
-     * @return int
-     */
-    public function getStoreId(): int
+    public function setOrderId(int $value): static
+    {
+        $this->orderId = $value;
+        return $this;
+    }
+
+    public function getStoreId(): ?int
     {
         return $this->storeId;
+    }
+
+    public function setStoreId(int $value): static
+    {
+        $this->storeId = $value;
+        return $this;
     }
 }

@@ -41,6 +41,11 @@ class ExportOrderStatusUpdateConsumer
         $shipmentId = $message->getShipmentId();
         $storeId = $message->getStoreId();
         
+        if ($shipmentId === null || $storeId === null) {
+            $this->logger->warning("Invalid order status update message: shipmentId={$shipmentId}, storeId={$storeId}");
+            return;
+        }
+        
         try {
             if (!$this->helper->isEnabled($storeId)) {
                 return;

@@ -60,6 +60,11 @@ class ExportProductConsumer
         $productId = $message->getProductId();
         $storeId = $message->getStoreId();
         
+        if ($productId === null || $storeId === null) {
+            $this->logger->warning("Invalid product export message: productId={$productId}, storeId={$storeId}");
+            return;
+        }
+        
         try {
             if (!$this->helper->isEnabled($storeId)) {
                 return;

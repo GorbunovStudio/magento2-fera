@@ -41,6 +41,11 @@ class ExportOrderConsumer
         $orderId = $message->getOrderId();
         $storeId = $message->getStoreId();
         
+        if ($orderId === null || $storeId === null) {
+            $this->logger->warning("Invalid order export message: orderId={$orderId}, storeId={$storeId}");
+            return;
+        }
+        
         try {
             if (!$this->helper->isEnabled($storeId)) {
                 return;
