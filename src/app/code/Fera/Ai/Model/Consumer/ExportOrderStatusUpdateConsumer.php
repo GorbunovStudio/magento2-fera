@@ -6,17 +6,30 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\ShipmentRepositoryInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Magento\Framework\HTTP\Client\Curl as Curl;
+use Magento\Framework\HTTP\Client\CurlFactory;
 use Psr\Log\LoggerInterface;
 
 class ExportOrderStatusUpdateConsumer
 {
+    /** @var ShipmentRepositoryInterface */
+    private $shipmentRepository;
+    /** @var FeraHelper */
+    private $helper;
+    /** @var CurlFactory */
+    private $curlFactory;
+    /** @var LoggerInterface */
+    private $logger;
+
     public function __construct(
-        private ShipmentRepositoryInterface $shipmentRepository,
-        private FeraHelper $helper,
-        private Curl $curl,
-        private LoggerInterface $logger
+        ShipmentRepositoryInterface $shipmentRepository,
+        FeraHelper $helper,
+        CurlFactory $curlFactory,
+        LoggerInterface $logger
     ) {
+        $this->shipmentRepository = $shipmentRepository;
+        $this->helper = $helper;
+        $this->curlFactory = $curlFactory;
+        $this->logger = $logger;
     }
 
     /**
@@ -81,11 +94,12 @@ class ExportOrderStatusUpdateConsumer
     private function updateOrderStatus(array $data): void
     {
         $url = $this->helper->getApiUrl() . "v3/private/orders/" . $data['external_id'] . "/fulfill";
-        $this->curl->addHeader("Content-Type", "application/json");
-        $this->curl->addHeader("SECRET-KEY", $this->helper->getSecretKey());
-        $this->curl->setOption(CURLOPT_CUSTOMREQUEST, "PUT");
-        $this->curl->post($url, $this->helper->jsonEncode($data));
-        $response = $this->curl->getBody();
+        $curl = $this->curlFactory->create();
+        $curl->addHeader("Content-Type", "application/json");
+        $curl->addHeader("SECRET-KEY", $this->helper->getSecretKey());
+        $curl->setOption(CURLOPT_CUSTOMREQUEST, "PUT");
+        $curl->post($url, $this->helper->jsonEncode($data));
+        $response = $curl->getBody();
         // Log response if needed
         // $this->logger->info("Fera AI: Order status update response", ['response' => $response]);
     }

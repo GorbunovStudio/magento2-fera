@@ -10,10 +10,17 @@ use Magento\Framework\MessageQueue\PublisherInterface;
 
 class OrderFulfilledStatusUpdate implements ObserverInterface
 {
+    /** @var FeraHelper */
+    private $helper;
+    /** @var PublisherInterface */
+    private $publisher;
+
     public function __construct(
-        private FeraHelper $helper,
-        private PublisherInterface $publisher
+        FeraHelper $helper,
+        PublisherInterface $publisher
     ) {
+        $this->helper = $helper;
+        $this->publisher = $publisher;
     }
 
     /**

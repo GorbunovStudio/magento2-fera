@@ -11,12 +11,25 @@ use Psr\Log\LoggerInterface;
 
 class ExportOrderConsumer
 {
+    /** @var OrderRepositoryInterface */
+    private $orderRepository;
+    /** @var OrderExporter */
+    private $orderExporter;
+    /** @var FeraHelper */
+    private $helper;
+    /** @var LoggerInterface */
+    private $logger;
+
     public function __construct(
-        private OrderRepositoryInterface $orderRepository,
-        private OrderExporter $orderExporter,
-        private FeraHelper $helper,
-        private LoggerInterface $logger
+        OrderRepositoryInterface $orderRepository,
+        OrderExporter $orderExporter,
+        FeraHelper $helper,
+        LoggerInterface $logger
     ) {
+        $this->orderRepository = $orderRepository;
+        $this->orderExporter = $orderExporter;
+        $this->helper = $helper;
+        $this->logger = $logger;
     }
 
     /**

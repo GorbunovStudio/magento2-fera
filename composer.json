@@ -12,6 +12,7 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
+        "php": ">=7.4",
         "magento/framework": "^103.0.0",
         "magento/module-sales": "^103.0.0",
         "magento/module-asynchronous-operations": "^100.4.0",
