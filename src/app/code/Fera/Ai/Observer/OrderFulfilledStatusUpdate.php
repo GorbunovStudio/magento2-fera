@@ -3,7 +3,8 @@
 namespace Fera\Ai\Observer;
 
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Interface\MessageTopicInterface;
+use Fera\Ai\Interfaces\MessageTopicInterface;
+use Fera\Ai\Model\Message\OrderStatusUpdateMessage;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
@@ -39,6 +40,11 @@ class OrderFulfilledStatusUpdate implements ObserverInterface
             return;
         }
 
-        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, (int)$shipment->getId());
+        $order = $shipment->getOrder();
+        $storeId = (int)$order->getStoreId();
+        $shipmentId = (int)$shipment->getId();
+        
+        $message = new OrderStatusUpdateMessage($shipmentId, $storeId);
+        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, $message);
     }
 }

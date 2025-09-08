@@ -3,12 +3,13 @@
 namespace Fera\Ai\Observer;
 
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\Message\OrderExportMessage;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Sales\Model\Order;
 use UnexpectedValueException;
-use Fera\Ai\Interface\MessageTopicInterface;
+use Fera\Ai\Interfaces\MessageTopicInterface;
 
 class OrderPushEvent implements ObserverInterface
 {
@@ -63,6 +64,9 @@ class OrderPushEvent implements ObserverInterface
             return;
         }
 
-        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER, $orderId);
+        $storeId = (int)$order->getStoreId();
+        $message = new OrderExportMessage($orderId, $storeId);
+        
+        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER, $message);
     }
 }

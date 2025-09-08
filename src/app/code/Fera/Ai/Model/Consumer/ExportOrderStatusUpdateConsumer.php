@@ -4,6 +4,7 @@ namespace Fera\Ai\Model\Consumer;
 
 use Magento\Sales\Api\ShipmentRepositoryInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\Message\OrderStatusUpdateMessage;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Psr\Log\LoggerInterface;
 
@@ -33,19 +34,22 @@ class ExportOrderStatusUpdateConsumer
     /**
      * Process order status update message
      *
-     * @param int $shipmentId
+     * @param OrderStatusUpdateMessage $message
      */
-    public function process(int $shipmentId): void
+    public function process(OrderStatusUpdateMessage $message): void
     {
+        $shipmentId = $message->getShipmentId();
+        $storeId = $message->getStoreId();
+        
         try {
-            if (!$this->helper->isEnabled()) {
+            if (!$this->helper->isEnabled($storeId)) {
                 return;
             }
 
             /** @var \Magento\Sales\Api\Data\ShipmentInterface $shipment */
             $shipment = $this->shipmentRepository->get($shipmentId);
             if (!$shipment->getId()) {
-                $this->logger->warning('Fera AI: Shipment not found for status update', ['shipment_id' => $shipmentId]);
+                $this->logger->warning("Shipment not found for status update: {$shipmentId} (store: {$storeId})");
                 return;
             }
 
@@ -57,33 +61,25 @@ class ExportOrderStatusUpdateConsumer
                 'external_id' => $orderId,
             ];
 
-            $this->updateOrderStatus($shipmentData);
+            $this->updateOrderStatus($shipmentData, $storeId);
             
-            $this->logger->info("Successfully updated order status: {$orderId} (shipment: {$shipmentId})");
+            $this->logger->info("Successfully updated order status: {$orderId} (shipment: {$shipmentId}, store: {$storeId})");
         } catch (\Throwable $e) {
             $this->logger->error(
-                "Failed to update order status for shipment: {$shipmentId}. Error: {$e->getMessage()}",
+                "Failed to update order status for shipment: {$shipmentId} (store: {$storeId}). Error: {$e->getMessage()}",
                 ['exception' => $e]
             );
         }
     }
 
-    /**
-     * Send put request to update order status
-     *
-     * @param array<string, mixed> $data
-     * @return void
-     */
-    private function updateOrderStatus(array $data): void
+    private function updateOrderStatus(array $data, int $storeId): void
     {
-        $url = $this->helper->getApiUrl() . "v3/private/orders/" . $data['external_id'] . "/fulfill";
+        $url = $this->helper->getApiUrl($storeId) . "v3/private/orders/" . $data['external_id'] . "/fulfill";
         $curl = $this->curlFactory->create();
         $curl->addHeader("Content-Type", "application/json");
-        $curl->addHeader("SECRET-KEY", $this->helper->getSecretKey());
+        $curl->addHeader("SECRET-KEY", $this->helper->getSecretKey($storeId));
         $curl->setOption(CURLOPT_CUSTOMREQUEST, "PUT");
         $curl->post($url, $this->helper->jsonEncode($data));
         $response = $curl->getBody();
-        // Log response if needed
-        // $this->logger->info("Fera AI: Order status update response", ['response' => $response]);
     }
 }

@@ -5,6 +5,7 @@ namespace Fera\Ai\Model\Consumer;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Fera\Ai\Services\ProductExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\Message\ProductExportMessage;
 use Psr\Log\LoggerInterface;
 
 class ExportProductConsumer
@@ -52,23 +53,26 @@ class ExportProductConsumer
     /**
      * Process product export message
      *
-     * @param int $productId
+     * @param ProductExportMessage $message
      */
-    public function process(int $productId): void
+    public function process(ProductExportMessage $message): void
     {
+        $productId = $message->getProductId();
+        $storeId = $message->getStoreId();
+        
         try {
-            if (!$this->helper->isEnabled()) {
+            if (!$this->helper->isEnabled($storeId)) {
                 return;
             }
 
-            $product = $this->productRepository->getById($productId);
+            $product = $this->productRepository->getById($productId, false, $storeId);
 
-            $this->productExporter->pushProduct($product);
+            $this->productExporter->pushProduct($product, $storeId);
 
-            $this->logger->info("Successfully exported product: {$productId}");
+            $this->logger->info("Successfully exported product: {$productId} for store: {$storeId}");
         } catch (\Throwable $e) {
             $this->logger->error(
-                "Failed to export product: {$productId}. Error: {$e->getMessage()}",
+                "Failed to export product: {$productId} for store: {$storeId}. Error: {$e->getMessage()}",
                 ['exception' => $e]
             );
         }

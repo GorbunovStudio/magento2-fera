@@ -43,29 +43,34 @@ class ProductExporter
     /**
      * Push a single product to the Fera API
      */
-    public function pushProduct(Product $product): void
+    public function pushProduct(Product $product, $storeId = null): void
     {
-        if (!$this->helper->isEnabled()) {
+        if ($storeId === null) {
+            $storeId = $product->getStoreId();
+        }
+        
+        if (!$this->helper->isEnabled($storeId)) {
             return;
         }
 
-        $productData = $this->buildProductData($product);
+        $productData = $this->buildProductData($product, $storeId);
         $externalId = (int) $productData['external_id'];
         
-        $existingProducts = $this->fetchExistingProducts([$externalId]);
+        $existingProducts = $this->fetchExistingProducts([$externalId], $storeId);
         $isUpdate = !empty($existingProducts);
         
-        $this->sendProductData($productData, $isUpdate);
+        $this->sendProductData($productData, $isUpdate, [], $storeId);
     }
 
     /**
      * Push multiple products to the Fera API efficiently
      * 
      * @param Product[] $products
+     * @param int|null $storeId
      */
-    public function pushProducts(array $products): void
+    public function pushProducts(array $products, $storeId = null): void
     {
-        if (!$this->helper->isEnabled() || empty($products)) {
+        if (!$this->helper->isEnabled($storeId) || empty($products)) {
             return;
         }
 
@@ -73,15 +78,15 @@ class ProductExporter
         
         /** @var array<int, string> $existingProductsCache */
         $existingProductsCache = [];
-        $this->loadExistingProducts($products, $existingProductsCache);
+        $this->loadExistingProducts($products, $existingProductsCache, $storeId);
 
         foreach ($products as $product) {
-            $productData = $this->buildProductData($product);
+            $productData = $this->buildProductData($product, $storeId);
             $externalId = (int) $productData['external_id'];
             
             $isUpdate = isset($existingProductsCache[$externalId]);
             
-            $this->sendProductData($productData, $isUpdate, $existingProductsCache);
+            $this->sendProductData($productData, $isUpdate, $existingProductsCache, $storeId);
         }
     }
 
@@ -107,7 +112,7 @@ class ProductExporter
      *     platform_data: array{sku: string, type: string, regular_price: float}
      * }
      */
-    private function buildProductData(Product $product): array
+    private function buildProductData(Product $product, $storeId = null): array
     {
         $thumb = $this->helper->getProductThumbnailUrl($product);
 
@@ -206,8 +211,9 @@ class ProductExporter
     /**
      * @param Product[] $products
      * @param array<int, string> $existingProductsCache
+     * @param int|null $storeId
      */
-    private function loadExistingProducts(array $products, array &$existingProductsCache): void
+    private function loadExistingProducts(array $products, array &$existingProductsCache, $storeId = null): void
     {
         $externalIds = [];
         foreach ($products as $product) {
@@ -220,7 +226,7 @@ class ProductExporter
         }
 
         try {
-            $existingProducts = $this->fetchExistingProducts($missingIds);
+            $existingProducts = $this->fetchExistingProducts($missingIds, $storeId);
             
             foreach ($existingProducts as $existingProduct) {
                 if (isset($existingProduct['external_id'])) {
@@ -235,10 +241,11 @@ class ProductExporter
     /**
      * @param array{external_id: int|string, ...} $data
      * @param array<int, string> $existingProductsCache
+     * @param int|null $storeId
      */
-    private function sendProductData(array $data, bool $isUpdate, array &$existingProductsCache = []): void
+    private function sendProductData(array $data, bool $isUpdate, array &$existingProductsCache = [], $storeId = null): void
     {
-        $url = $this->helper->getApiUrl() . static::API_ENDPOINT_PRODUCTS;
+        $url = $this->helper->getApiUrl($storeId) . static::API_ENDPOINT_PRODUCTS;
         
         if ($isUpdate) {
             // For updates, use the Fera ID instead of Magento ID
@@ -249,12 +256,12 @@ class ProductExporter
                     $data['external_id']
                 ));
             }
-            $url = $this->helper->getApiUrl() . static::API_ENDPOINT_PRODUCTS . '/' . $feraId;
+            $url = $this->helper->getApiUrl($storeId) . static::API_ENDPOINT_PRODUCTS . '/' . $feraId;
         }
         
         $curl = $this->curlFactory->create();
         $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
+        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
         
         $jsonData = $this->helper->jsonEncode($data);
         
@@ -298,9 +305,10 @@ class ProductExporter
 
     /**
      * @param int[] $externalIds
+     * @param int|null $storeId
      * @return array<array{id: string, external_id: string}>
      */
-    private function fetchExistingProducts(array $externalIds = []): array
+    private function fetchExistingProducts(array $externalIds = [], $storeId = null): array
     {
         // Increase from default 10 to get more products per request
         $queryParams = ['limit' => 50];
@@ -309,11 +317,11 @@ class ProductExporter
             $queryParams['external_ids'] = implode(',', $externalIds);
         }
         
-        $url = $this->helper->getApiUrl() . static::API_ENDPOINT_PRODUCTS . '?' . http_build_query($queryParams);
+        $url = $this->helper->getApiUrl($storeId) . static::API_ENDPOINT_PRODUCTS . '?' . http_build_query($queryParams);
         
         $curl = $this->curlFactory->create();
         $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
+        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
         
         $curl->get($url);
         
@@ -348,10 +356,12 @@ class ProductExporter
      * Send post request to push products
      *
      * @param array<string, mixed> $data Product data to send
+     * @param int|null $storeId
      * @deprecated Use sendProductData() instead
      */
-    protected function send(array $data): void
+    protected function send(array $data, $storeId = null): void
     {
-        $this->sendProductData($data, false);
+        $emptyCache = [];
+        $this->sendProductData($data, false, $emptyCache, $storeId);
     }
 }

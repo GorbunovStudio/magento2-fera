@@ -1,6 +1,6 @@
 <?php
 
-namespace Fera\Ai\Interface;
+namespace Fera\Ai\Interfaces;
 
 interface MessageTopicInterface
 {

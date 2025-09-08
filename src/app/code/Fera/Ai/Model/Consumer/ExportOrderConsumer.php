@@ -5,6 +5,7 @@ namespace Fera\Ai\Model\Consumer;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\Message\OrderExportMessage;
 use Psr\Log\LoggerInterface;
 
 class ExportOrderConsumer
@@ -33,23 +34,26 @@ class ExportOrderConsumer
     /**
      * Process order export message
      *
-     * @param int $orderId
+     * @param OrderExportMessage $message
      */
-    public function process(int $orderId): void
+    public function process(OrderExportMessage $message): void
     {
+        $orderId = $message->getOrderId();
+        $storeId = $message->getStoreId();
+        
         try {
-            if (!$this->helper->isEnabled()) {
+            if (!$this->helper->isEnabled($storeId)) {
                 return;
             }
 
             $order = $this->orderRepository->get($orderId);
 
-            $this->orderExporter->pushOrder($order);
+            $this->orderExporter->pushOrder($order, $storeId);
 
-            $this->logger->info("Successfully exported order: {$orderId}");
+            $this->logger->info("Successfully exported order: {$orderId} for store: {$storeId}");
         } catch (\Throwable $e) {
             $this->logger->error(
-                "Failed to export order: {$orderId}. Error: {$e->getMessage()}",
+                "Failed to export order: {$orderId} for store: {$storeId}. Error: {$e->getMessage()}",
                 ['exception' => $e]
             );
         }

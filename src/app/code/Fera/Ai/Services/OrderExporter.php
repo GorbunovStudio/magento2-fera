@@ -39,14 +39,20 @@ class OrderExporter
      * Build payload and push order to Fera API
      *
      * @param \Magento\Sales\Model\Order $order
+     * @param int|null $storeId
      */
-    public function pushOrder(Order $order)
+    public function pushOrder(Order $order, $storeId = null)
     {
-        if (!$this->helper->isEnabled()) {
+        if ($storeId === null) {
+            $storeId = $order->getStoreId();
+        }
+        
+        if (!$this->helper->isEnabled($storeId)) {
             return;
         }
 
-        $currencyCode = $this->_storeManager->getStore()->getCurrentCurrencyCode();
+        $store = $this->_storeManager->getStore($storeId);
+        $currencyCode = $store->getCurrentCurrencyCode();
         $total = $order->getGrandTotal();
         $totalUsd = $this->directoryHelper->currencyConvert($total, $currencyCode, 'USD');
 
@@ -68,7 +74,6 @@ class OrderExporter
             $orderData['shipping_address'] = $this->getShippingData($order);
         }
         if (!empty($order->getBillingAddress())) {
-            // Match original observer behavior: overwrite shipping with billing and set phone
             $orderData['shipping_address'] = $this->getBillingData($order);
             $orderData['phone_number'] = $order->getBillingAddress()->getTelephone();
         }
@@ -79,15 +84,15 @@ class OrderExporter
             'orderData' => $payload,
         ]);
 
-        $this->send($payload->getData());
+        $this->send($payload->getData(), $storeId);
     }
 
-    protected function send(array $data)
+    protected function send(array $data, $storeId = null)
     {
-        $url = $this->helper->getApiUrl() . 'v3/private/orders.json';
+        $url = $this->helper->getApiUrl($storeId) . 'v3/private/orders.json';
         $curl = $this->_curlFactory->create();
         $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
+        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
         $curl->post($url, $this->helper->jsonEncode($data));
         $curl->getBody();
     }

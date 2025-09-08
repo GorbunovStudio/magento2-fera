@@ -98,88 +98,100 @@ class Data extends AbstractHelper
 
     /**
      * Fera Ai public key either from the store config or the environment files
+     * @param int|null $storeId
      * @return string
      */
-    public function getPublicKey()
+    public function getPublicKey($storeId = null)
     {
         return $this->scopeConfig->getValue(
             'fera_ai/fera_ai_group/public_key',
-            ScopeInterface::SCOPE_STORE
+            ScopeInterface::SCOPE_STORE,
+            $storeId
         );
     }
 
     /**
      * Fera Ai secret (private) key, either from the environment fiels or the store config
+     * @param int|null $storeId
      * @return string
      */
-    public function getSecretKey()
+    public function getSecretKey($storeId = null)
     {
         return $this->scopeConfig->getValue(
             'fera_ai/fera_ai_group/secret_key',
-            ScopeInterface::SCOPE_STORE
+            ScopeInterface::SCOPE_STORE,
+            $storeId
         );
     }
 
-    public function isEnabled()
+    public function isEnabled($storeId = null)
     {
-        if (!$this->isConfigured()) {
+        if (!$this->isConfigured($storeId)) {
             return false;
         }
 
         return $this->scopeConfig->getValue(
             'fera_ai/general/enabled',
-            ScopeInterface::SCOPE_STORE
+            ScopeInterface::SCOPE_STORE,
+            $storeId
         );
     }
 
     /**
      * True if the current Fera Ai configuration is setup to work properly
+     * @param int|null $storeId
      * @return boolean false if it is not ready for use
      */
-    public function isConfigured()
+    public function isConfigured($storeId = null)
     {
-        $publicKey = $this->getPublicKey();
-        $secretKey = $this->getSecretKey();
-        $appUrl = $this->getAppUrl();
-        $apiUrl = $this->getApiUrl();
-        $jsUrl = $this->getJsUrl();
+        $publicKey = $this->getPublicKey($storeId);
+        $secretKey = $this->getSecretKey($storeId);
+        $appUrl = $this->getAppUrl($storeId);
+        $apiUrl = $this->getApiUrl($storeId);
+        $jsUrl = $this->getJsUrl($storeId);
 
         return !empty($publicKey) && !empty($secretKey) && !empty($appUrl) && !empty($apiUrl) && !empty($jsUrl);
     }
 
     /**
      * The URL path to the APP (https). For example: https://app.fera.ai
+     * @param int|null $storeId
      * @return string
      */
-    public function getAppUrl()
+    public function getAppUrl($storeId = null)
     {
         return $this->scopeConfig->getValue(
             'fera_ai/fera_ai_group/app_url',
-            ScopeInterface::SCOPE_STORE
+            ScopeInterface::SCOPE_STORE,
+            $storeId
         );
     }
 
     /**
      * The URL path to the API (https). For example: https://api.fera.ai/api/v1
+     * @param int|null $storeId
      * @return string
      */
-    public function getApiUrl()
+    public function getApiUrl($storeId = null)
     {
         return $this->scopeConfig->getValue(
             'fera_ai/fera_ai_group/api_url',
-            ScopeInterface::SCOPE_STORE
+            ScopeInterface::SCOPE_STORE,
+            $storeId
         );
     }
 
     /**
      * The URL to the javascript file on the Fera CDN. For example: https://cdn.fera.ai/js/bananastand.js
+     * @param int|null $storeId
      * @return string
      */
-    public function getJsUrl()
+    public function getJsUrl($storeId = null)
     {
         return $this->scopeConfig->getValue(
             'fera_ai/fera_ai_group/js_url',
-            ScopeInterface::SCOPE_STORE
+            ScopeInterface::SCOPE_STORE,
+            $storeId
         );
     }
 
