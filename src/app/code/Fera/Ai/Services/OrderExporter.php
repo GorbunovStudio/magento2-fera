@@ -3,33 +3,36 @@
 namespace Fera\Ai\Services;
 
 use Fera\Ai\Helper\Data as FeraHelper;
-use Magento\Framework\HTTP\Client\Curl as Curl;
-use Magento\Sales\Model\Order as Order;
-use Magento\Store\Model\StoreManagerInterface as StoreManager;
+use Magento\Framework\HTTP\Client\CurlFactory;
+use Magento\Sales\Model\Order;
+use Magento\Store\Model\StoreManagerInterface;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Framework\Event\ManagerInterface as EventManager;
-use Magento\Framework\DataObject;
+use Magento\Framework\DataObjectFactory;
 
 class OrderExporter
 {
     protected $_storeManager;
-    protected $_curl;
+    protected $_curlFactory;
     protected $helper;
     protected $directoryHelper;
     protected $eventManager;
+    protected $dataObjectFactory;
 
     public function __construct(
         FeraHelper $helper,
-        Curl $curl,
-        StoreManager $storeManager,
+        CurlFactory $curlFactory,
+        StoreManagerInterface $storeManager,
         DirectoryHelperData $directoryHelper,
-        EventManager $eventManager
+        EventManager $eventManager,
+        DataObjectFactory $dataObjectFactory
     ) {
         $this->helper = $helper;
-        $this->_curl = $curl;
+        $this->_curlFactory = $curlFactory;
         $this->_storeManager = $storeManager;
         $this->directoryHelper = $directoryHelper;
         $this->eventManager = $eventManager;
+        $this->dataObjectFactory = $dataObjectFactory;
     }
 
     /**
@@ -70,7 +73,7 @@ class OrderExporter
             $orderData['phone_number'] = $order->getBillingAddress()->getTelephone();
         }
 
-        $payload = new DataObject($orderData);
+        $payload = $this->dataObjectFactory->create(['data' => $orderData]);
         $this->eventManager->dispatch('fera_export_order_data_ready', [
             'order' => $order,
             'orderData' => $payload,
@@ -82,10 +85,11 @@ class OrderExporter
     protected function send(array $data)
     {
         $url = $this->helper->getApiUrl() . 'v3/private/orders.json';
-        $this->_curl->addHeader('Content-Type', 'application/json');
-        $this->_curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
-        $this->_curl->post($url, $this->helper->jsonEncode($data));
-        $this->_curl->getBody();
+        $curl = $this->_curlFactory->create();
+        $curl->addHeader('Content-Type', 'application/json');
+        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey());
+        $curl->post($url, $this->helper->jsonEncode($data));
+        $curl->getBody();
     }
 
     protected function getCustomerData(Order $order)
