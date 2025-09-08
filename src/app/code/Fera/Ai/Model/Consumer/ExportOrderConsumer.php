@@ -2,8 +2,6 @@
 
 namespace Fera\Ai\Model\Consumer;
 
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
@@ -48,25 +46,12 @@ class ExportOrderConsumer
 
             $this->orderExporter->pushOrder($order);
 
-            $this->logger->info('Fera AI: Order exported successfully', ['order_id' => $orderId]);
-
-        } catch (NoSuchEntityException $e) {
-            $this->logger->error('Fera AI: Order not found for export', [
-                'order_id' => $orderId,
-                'error' => $e->getMessage()
-            ]);
-        } catch (LocalizedException $e) {
-            $this->logger->error('Fera AI: Error exporting order', [
-                'order_id' => $orderId,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        } catch (\Exception $e) {
-            $this->logger->error('Fera AI: Unexpected error exporting order', [
-                'order_id' => $orderId,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
+            $this->logger->info("Successfully exported order: {$orderId}");
+        } catch (\Throwable $e) {
+            $this->logger->error(
+                "Failed to export order: {$orderId}. Error: {$e->getMessage()}",
+                ['exception' => $e]
+            );
         }
     }
 }

@@ -2,8 +2,6 @@
 
 namespace Fera\Ai\Model\Consumer;
 
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Fera\Ai\Services\ProductExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
@@ -67,25 +65,12 @@ class ExportProductConsumer
 
             $this->productExporter->pushProduct($product);
 
-            $this->logger->info('Fera AI: Product exported successfully', ['product_id' => $productId]);
-
-        } catch (NoSuchEntityException $e) {
-            $this->logger->error('Fera AI: Product not found for export', [
-                'product_id' => $productId,
-                'error' => $e->getMessage()
-            ]);
-        } catch (LocalizedException $e) {
-            $this->logger->error('Fera AI: Error exporting product', [
-                'product_id' => $productId,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        } catch (\Exception $e) {
-            $this->logger->error('Fera AI: Unexpected error exporting product', [
-                'product_id' => $productId,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
+            $this->logger->info("Successfully exported product: {$productId}");
+        } catch (\Throwable $e) {
+            $this->logger->error(
+                "Failed to export product: {$productId}. Error: {$e->getMessage()}",
+                ['exception' => $e]
+            );
         }
     }
 }

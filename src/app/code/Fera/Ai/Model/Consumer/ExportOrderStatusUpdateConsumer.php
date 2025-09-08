@@ -2,8 +2,6 @@
 
 namespace Fera\Ai\Model\Consumer;
 
-use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\ShipmentRepositoryInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\CurlFactory;
@@ -60,28 +58,13 @@ class ExportOrderStatusUpdateConsumer
             ];
 
             $this->updateOrderStatus($shipmentData);
-            $this->logger->info('Fera AI: Order status updated successfully', [
-                'order_id' => $orderId,
-                'shipment_id' => $shipmentId
-            ]);
-
-        } catch (NoSuchEntityException $e) {
-            $this->logger->error('Fera AI: Shipment not found for status update', [
-                'shipment_id' => $shipmentId,
-                'error' => $e->getMessage()
-            ]);
-        } catch (LocalizedException $e) {
-            $this->logger->error('Fera AI: Error updating order status', [
-                'shipment_id' => $shipmentId,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        } catch (\Exception $e) {
-            $this->logger->error('Fera AI: Unexpected error updating order status', [
-                'shipment_id' => $shipmentId,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
+            
+            $this->logger->info("Successfully updated order status: {$orderId} (shipment: {$shipmentId})");
+        } catch (\Throwable $e) {
+            $this->logger->error(
+                "Failed to update order status for shipment: {$shipmentId}. Error: {$e->getMessage()}",
+                ['exception' => $e]
+            );
         }
     }
 
