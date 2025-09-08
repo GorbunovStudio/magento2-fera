@@ -100,8 +100,8 @@ class ExportProductsCommand extends Command
 
                 $this->emulation->startEnvironmentEmulation($storeId, Area::AREA_FRONTEND, true);
                 try {
-                    $productCollection = $this->getProductCollection($storeId, $limit);
-                    $totalProducts = $productCollection->getSize();
+                    $baseCollection = $this->getProductCollection($storeId, null);
+                    $totalProducts = $baseCollection->getSize();
 
                     if ($totalProducts === 0) {
                         $output->writeln('<comment>No products found to export in this store.</comment>');
@@ -115,24 +115,43 @@ class ExportProductsCommand extends Command
 
                     $exported = 0;
                     $errors = 0;
-                    $batchSize = 50;
-                    $productBatch = [];
+                    $currentPage = 1;
+                    $processedCount = 0;
+                    $pageSize = 50;
 
-                    foreach ($productCollection as $product) {
-                        $productBatch[] = $product;
+                    while ($processedCount < $productsToExport) {
+                        $remainingProducts = $productsToExport - $processedCount;
+                        $currentPageSize = min($pageSize, $remainingProducts);
                         
-                        if (count($productBatch) >= $batchSize) {
-                            $result = $this->processBatch($productBatch, $output);
-                            $exported += $result['exported'];
-                            $errors += $result['errors'];
-                            $productBatch = [];
+                        $pageCollection = $this->getProductCollection($storeId, null);
+                        $pageCollection->setPageSize($currentPageSize);
+                        $pageCollection->setCurPage($currentPage);
+                        
+                        $pageProducts = $pageCollection->getItems();
+                        
+                        if (empty($pageProducts)) {
+                            // No more products to process
+                            break;
                         }
-                    }
-                    
-                    if (!empty($productBatch)) {
-                        $result = $this->processBatch($productBatch, $output);
+                        
+                        $output->writeln(sprintf(
+                            'Processing page %d: %d products (processed %d/%d)',
+                            $currentPage,
+                            count($pageProducts),
+                            $processedCount,
+                            $productsToExport
+                        ));
+                        
+                        $result = $this->processBatch($pageProducts, $output);
                         $exported += $result['exported'];
                         $errors += $result['errors'];
+                        
+                        $processedCount += count($pageProducts);
+                        $currentPage++;
+                        
+                        // Clear the collection to free memory
+                        $pageCollection->clear();
+                        unset($pageCollection, $pageProducts);
                     }
 
                     $output->writeln(
