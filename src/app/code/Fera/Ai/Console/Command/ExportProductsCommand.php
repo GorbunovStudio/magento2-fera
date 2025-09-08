@@ -238,31 +238,13 @@ class ExportProductsCommand extends Command
             $this->productExporter->pushProducts($productBatch);
             $exported = count($productBatch);
         } catch (Exception $e) {
-            // If batch processing fails, fall back to individual processing
-            $this->feraHelper->log('Batch export failed, falling back to individual processing: ' . $e->getMessage());
-            
-            foreach ($productBatch as $product) {
-                try {
-                    $this->productExporter->pushProduct($product);
-                    $exported++;
-                } catch (Exception $individualException) {
-                    $errors++;
-                    $output->writeln(sprintf(
-                        '<error>Error exporting product ID %d (SKU %s): %s</error>',
-                        (int) $product->getId(),
-                        (string) $product->getSku(),
-                        $individualException->getMessage()
-                    ));
-                    $this->feraHelper->log(
-                        sprintf(
-                            'Error exporting product %d (SKU %s): %s',
-                            (int) $product->getId(),
-                            (string) $product->getSku(),
-                            $individualException->getMessage()
-                        )
-                    );
-                }
-            }
+            $errors = count($productBatch);
+            $output->writeln(sprintf(
+                '<error>Batch export failed for %d products: %s</error>',
+                count($productBatch),
+                $e->getMessage()
+            ));
+            $this->feraHelper->log('Batch export failed: ' . $e->getMessage());
         }
 
         return ['exported' => $exported, 'errors' => $errors];
