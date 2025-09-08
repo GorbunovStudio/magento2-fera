@@ -37,21 +37,18 @@ class OrderPushEvent implements ObserverInterface
         $event = $observer->getEvent();
         $eventName = (string)$event->getName();
 
-        if ($eventName === 'sales_order_place_after') {
-            /** @var Order|null $order */
-            $order = $event->getData('order');
-            if ($order instanceof Order) {
-                $this->newOrders[] = $order;
-            }
-            return;
-        }
-
-        /** @var mixed $order */
         $order = $event->getOrder();
         if (!$order instanceof Order) {
+            $type = is_object($order) ? get_class($order) : gettype($order);
             throw new UnexpectedValueException(
-                'Incorrect type for Order, expected ' . Order::class . ', got ' . get_debug_type($order)
+                'Incorrect type for Order, expected ' . Order::class . ', got ' . $type
             );
+        }
+
+        if ($eventName === 'sales_order_place_after') {
+            $this->newOrders[] = $order;
+            
+            return;
         }
 
         $idx = array_search($order, $this->newOrders, true);
@@ -60,10 +57,6 @@ class OrderPushEvent implements ObserverInterface
         }
 
         unset($this->newOrders[$idx]);
-
-        if (!$this->helper->isEnabled()) {
-            return;
-        }
 
         $orderId = (int)$order->getId();
         if ($orderId <= 0) {
