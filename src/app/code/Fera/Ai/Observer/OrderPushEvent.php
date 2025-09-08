@@ -3,7 +3,7 @@
 namespace Fera\Ai\Observer;
 
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Model\Message\OrderExportMessage;
+use Fera\Ai\Api\Data\OrderExportMessageDataInterfaceFactory;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
@@ -19,13 +19,17 @@ class OrderPushEvent implements ObserverInterface
     private $helper;
     /** @var PublisherInterface */
     private $publisher;
+    /** @var OrderExportMessageDataInterfaceFactory */
+    private $messageDataFactory;
 
     public function __construct(
         FeraHelper $helper,
-        PublisherInterface $publisher
+        PublisherInterface $publisher,
+        OrderExportMessageDataInterfaceFactory $messageDataFactory
     ) {
         $this->helper = $helper;
         $this->publisher = $publisher;
+        $this->messageDataFactory = $messageDataFactory;
     }
 
     /**
@@ -59,13 +63,17 @@ class OrderPushEvent implements ObserverInterface
 
         unset($this->newOrders[$idx]);
 
-        $orderId = (int)$order->getId();
-        if ($orderId <= 0) {
+        $orderIdRaw = $order->getId();
+        if ($orderIdRaw === null || $orderIdRaw <= 0) {
             return;
         }
 
+        $orderId = (int)$orderIdRaw;
         $storeId = (int)$order->getStoreId();
-        $message = new OrderExportMessage($orderId, $storeId);
+        
+        $message = $this->messageDataFactory->create();
+        $message->setOrderId($orderId);
+        $message->setStoreId($storeId);
         
         $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER, $message);
     }

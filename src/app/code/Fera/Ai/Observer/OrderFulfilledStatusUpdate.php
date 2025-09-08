@@ -4,7 +4,7 @@ namespace Fera\Ai\Observer;
 
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Interfaces\MessageTopicInterface;
-use Fera\Ai\Model\Message\OrderStatusUpdateMessage;
+use Fera\Ai\Api\Data\OrderStatusUpdateMessageDataInterfaceFactory;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
@@ -15,13 +15,17 @@ class OrderFulfilledStatusUpdate implements ObserverInterface
     private $helper;
     /** @var PublisherInterface */
     private $publisher;
+    /** @var OrderStatusUpdateMessageDataInterfaceFactory */
+    private $messageDataFactory;
 
     public function __construct(
         FeraHelper $helper,
-        PublisherInterface $publisher
+        PublisherInterface $publisher,
+        OrderStatusUpdateMessageDataInterfaceFactory $messageDataFactory
     ) {
         $this->helper = $helper;
         $this->publisher = $publisher;
+        $this->messageDataFactory = $messageDataFactory;
     }
 
     /**
@@ -36,15 +40,23 @@ class OrderFulfilledStatusUpdate implements ObserverInterface
         }
 
         $shipment = $observer->getEvent()->getShipment();
-        if (!$shipment || !$shipment->getId()) {
+        if (!$shipment) {
+            return;
+        }
+
+        $shipmentIdRaw = $shipment->getId();
+        if ($shipmentIdRaw === null || $shipmentIdRaw <= 0) {
             return;
         }
 
         $order = $shipment->getOrder();
         $storeId = (int)$order->getStoreId();
-        $shipmentId = (int)$shipment->getId();
+        $shipmentId = (int)$shipmentIdRaw;
         
-        $message = new OrderStatusUpdateMessage($shipmentId, $storeId);
+        $message = $this->messageDataFactory->create();
+        $message->setShipmentId($shipmentId);
+        $message->setStoreId($storeId);
+        
         $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, $message);
     }
 }

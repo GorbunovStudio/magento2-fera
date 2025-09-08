@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Api\Data;
 
-interface OrderExportMessageInterface
+interface OrderStatusUpdateMessageDataInterface
 {
     /**
      * @return int|null
      */
-    public function getOrderId(): ?int;
+    public function getShipmentId(): ?int;
 
     /**
      * @param int $value
      * @return static
      */
-    public function setOrderId(int $value): static;
+    public function setShipmentId(int $value): static;
 
     /**
      * @return int|null

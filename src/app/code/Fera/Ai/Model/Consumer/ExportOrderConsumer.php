@@ -5,7 +5,7 @@ namespace Fera\Ai\Model\Consumer;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Model\Message\OrderExportMessage;
+use Fera\Ai\Api\Data\OrderExportMessageDataInterface;
 use Psr\Log\LoggerInterface;
 
 class ExportOrderConsumer
@@ -34,9 +34,9 @@ class ExportOrderConsumer
     /**
      * Process order export message
      *
-     * @param OrderExportMessage $message
+     * @param OrderExportMessageDataInterface $message
      */
-    public function process(OrderExportMessage $message): void
+    public function process(OrderExportMessageDataInterface $message): void
     {
         $orderId = $message->getOrderId();
         $storeId = $message->getStoreId();

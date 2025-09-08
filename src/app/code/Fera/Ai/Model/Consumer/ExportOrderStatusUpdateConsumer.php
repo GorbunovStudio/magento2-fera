@@ -4,7 +4,7 @@ namespace Fera\Ai\Model\Consumer;
 
 use Magento\Sales\Api\ShipmentRepositoryInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Model\Message\OrderStatusUpdateMessage;
+use Fera\Ai\Api\Data\OrderStatusUpdateMessageDataInterface;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Psr\Log\LoggerInterface;
 
@@ -34,9 +34,9 @@ class ExportOrderStatusUpdateConsumer
     /**
      * Process order status update message
      *
-     * @param OrderStatusUpdateMessage $message
+     * @param OrderStatusUpdateMessageDataInterface $message
      */
-    public function process(OrderStatusUpdateMessage $message): void
+    public function process(OrderStatusUpdateMessageDataInterface $message): void
     {
         $shipmentId = $message->getShipmentId();
         $storeId = $message->getStoreId();

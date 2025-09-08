@@ -2,9 +2,9 @@
 
 namespace Fera\Ai\Model\Message;
 
-use Fera\Ai\Api\Data\OrderExportMessageInterface;
+use Fera\Ai\Api\Data\OrderExportMessageDataInterface;
 
-class OrderExportMessage implements OrderExportMessageInterface
+class OrderExportMessageData implements OrderExportMessageDataInterface
 {
     /** @var int|null */
     private $orderId;

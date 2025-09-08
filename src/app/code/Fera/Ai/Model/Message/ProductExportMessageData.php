@@ -2,24 +2,24 @@
 
 namespace Fera\Ai\Model\Message;
 
-use Fera\Ai\Api\Data\OrderStatusUpdateMessageInterface;
+use Fera\Ai\Api\Data\ProductExportMessageDataInterface;
 
-class OrderStatusUpdateMessage implements OrderStatusUpdateMessageInterface
+class ProductExportMessageData implements ProductExportMessageDataInterface
 {
     /** @var int|null */
-    private $shipmentId;
+    private $productId;
     
     /** @var int|null */
     private $storeId;
 
-    public function getShipmentId(): ?int
+    public function getProductId(): ?int
     {
-        return $this->shipmentId;
+        return $this->productId;
     }
 
-    public function setShipmentId(int $value): static
+    public function setProductId(int $value): static
     {
-        $this->shipmentId = $value;
+        $this->productId = $value;
         return $this;
     }
 

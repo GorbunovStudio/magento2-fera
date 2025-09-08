@@ -8,7 +8,7 @@ use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Interfaces\MessageTopicInterface;
-use Fera\Ai\Model\Message\ProductExportMessage;
+use Fera\Ai\Api\Data\ProductExportMessageDataInterfaceFactory;
 use Psr\Log\LoggerInterface;
 
 class ProductPushEvent implements ObserverInterface
@@ -34,23 +34,31 @@ class ProductPushEvent implements ObserverInterface
     private $logger;
 
     /**
+     * @var ProductExportMessageDataInterfaceFactory
+     */
+    private $messageDataFactory;
+
+    /**
      * ProductPushEvent constructor.
      *
      * @param StoreManagerInterface $storeManager
      * @param FeraHelper $helper
      * @param PublisherInterface $publisher
      * @param LoggerInterface $logger
+     * @param ProductExportMessageDataInterfaceFactory $messageDataFactory
      */
     public function __construct(
         StoreManagerInterface $storeManager,
         FeraHelper $helper,
         PublisherInterface $publisher,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        ProductExportMessageDataInterfaceFactory $messageDataFactory
     ) {
         $this->storeManager = $storeManager;
         $this->helper = $helper;
         $this->publisher = $publisher;
         $this->logger = $logger;
+        $this->messageDataFactory = $messageDataFactory;
     }
 
     /**
@@ -61,14 +69,16 @@ class ProductPushEvent implements ObserverInterface
     public function execute(Observer $observer)
     {
         $product = $observer->getEvent()->getProduct();
-        if (!$product || !$product->getId()) {
+        if (!$product) {
             return;
         }
 
-        $productId = (int)$product->getId();
-        if ($productId <= 0) {
+        $productIdRaw = $product->getId();
+        if ($productIdRaw === null || $productIdRaw <= 0) {
             return;
         }
+
+        $productId = (int)$productIdRaw;
 
         try {
             $storeIds = $this->getRelevantStoreIds($product);
@@ -78,7 +88,10 @@ class ProductPushEvent implements ObserverInterface
                     continue;
                 }
                 
-                $message = new ProductExportMessage($productId, $storeId);
+                $message = $this->messageDataFactory->create();
+                $message->setProductId($productId);
+                $message->setStoreId($storeId);
+                
                 $this->publisher->publish(MessageTopicInterface::EXPORT_PRODUCT, $message);
                 
                 $this->logger->info("Product export message published: {$productId} for store: {$storeId}");

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Api\Data;
 
-interface ProductExportMessageInterface
+interface ProductExportMessageDataInterface
 {
     /**
      * @return int|null
