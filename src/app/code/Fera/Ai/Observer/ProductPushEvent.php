@@ -96,10 +96,12 @@ class ProductPushEvent implements ObserverInterface
                 
                 $this->logger->info("Product export message published: {$productId} for store: {$storeId}");
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error("Failed to publish product export messages: {$productId}. Error: {$e->getMessage()}", [
                 'exception' => $e
             ]);
+
+            throw $e;
         }
     }
 
@@ -124,12 +126,12 @@ class ProductPushEvent implements ObserverInterface
                     $storeIds[] = $storeId;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error("Failed to get relevant store IDs for product: {$product->getId()}. Error: {$e->getMessage()}", [
                 'exception' => $e
             ]);
-            
-            $storeIds = [$product->getStoreId() ?: 1];
+
+            throw $e;
         }
         
         return $storeIds;

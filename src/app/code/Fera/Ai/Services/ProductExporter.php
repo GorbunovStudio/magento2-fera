@@ -234,8 +234,10 @@ class ProductExporter
                     $existingProductsCache[(int) $existingProduct['external_id']] = $existingProduct['id'] ?? null;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->helper->log('Error loading existing products from Fera API: ' . $e->getMessage());
+            
+            throw $e;
         }
     }
 
