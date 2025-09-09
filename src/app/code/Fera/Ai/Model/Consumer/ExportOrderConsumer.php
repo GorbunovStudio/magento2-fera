@@ -5,7 +5,6 @@ namespace Fera\Ai\Model\Consumer;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Api\Data\OrderExportMessageDataInterface;
 use Magento\Framework\App\ResourceConnection;
 use Psr\Log\LoggerInterface;
 
@@ -39,15 +38,12 @@ class ExportOrderConsumer
     /**
      * Process order export message
      *
-     * @param OrderExportMessageDataInterface $message
+     * @param int $orderId
      */
-    public function process(OrderExportMessageDataInterface $message): void
+    public function process(int $orderId): void
     {
-        $orderId = $message->getOrderId();
-        $storeId = $message->getStoreId();
-        
-        if ($orderId === null || $storeId === null) {
-            $this->logger->warning("Invalid order export message: orderId={$orderId}, storeId={$storeId}");
+        if ($orderId <= 0) {
+            $this->logger->warning("Invalid order ID: {$orderId}");
             return;
         }
 
@@ -55,14 +51,15 @@ class ExportOrderConsumer
         $dbConnection->beginTransaction();
 
         try {
+            $order = $this->orderRepository->get($orderId);
+            $storeId = $order->getStoreId();
+
             if (!$this->helper->isEnabled($storeId)) {
                 $dbConnection->rollBack();
                 return;
             }
 
-            $order = $this->orderRepository->get($orderId);
-
-            $this->orderExporter->pushOrder($order, $storeId);
+            $this->orderExporter->pushOrder($order);
 
             $dbConnection->commit();
             $this->logger->info("Successfully exported order: {$orderId} for store: {$storeId}");

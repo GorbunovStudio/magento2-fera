@@ -38,14 +38,11 @@ class OrderExporter
     /**
      * Build payload and push order to Fera API
      *
-     * @param \Magento\Sales\Model\Order $order
-     * @param int|null $storeId
+     * @param Order $order
      */
-    public function pushOrder(Order $order, $storeId = null)
+    public function pushOrder(Order $order)
     {
-        if ($storeId === null) {
-            $storeId = $order->getStoreId();
-        }
+        $storeId = $order->getStoreId();
         
         if (!$this->helper->isEnabled($storeId)) {
             return;

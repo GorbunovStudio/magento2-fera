@@ -4,7 +4,6 @@ namespace Fera\Ai\Model\Consumer;
 
 use Magento\Sales\Api\ShipmentRepositoryInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Api\Data\OrderStatusUpdateMessageDataInterface;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Framework\App\ResourceConnection;
 use Psr\Log\LoggerInterface;
@@ -39,15 +38,12 @@ class ExportOrderStatusUpdateConsumer
     /**
      * Process order status update message
      *
-     * @param OrderStatusUpdateMessageDataInterface $message
+     * @param int $shipmentId
      */
-    public function process(OrderStatusUpdateMessageDataInterface $message): void
+    public function process(int $shipmentId): void
     {
-        $shipmentId = $message->getShipmentId();
-        $storeId = $message->getStoreId();
-        
-        if ($shipmentId === null || $storeId === null) {
-            $this->logger->warning("Invalid order status update message: shipmentId={$shipmentId}, storeId={$storeId}");
+        if ($shipmentId <= 0) {
+            $this->logger->warning("Invalid shipment ID: {$shipmentId}");
             return;
         }
 
@@ -55,21 +51,23 @@ class ExportOrderStatusUpdateConsumer
         $dbConnection->beginTransaction();
 
         try {
-            if (!$this->helper->isEnabled($storeId)) {
-                $dbConnection->rollBack();
-                return;
-            }
-
             /** @var \Magento\Sales\Api\Data\ShipmentInterface $shipment */
             $shipment = $this->shipmentRepository->get($shipmentId);
             if (!$shipment->getId()) {
-                $this->logger->warning("Shipment not found for status update: {$shipmentId} (store: {$storeId})");
+                $this->logger->warning("Shipment not found for status update: {$shipmentId}");
                 $dbConnection->rollBack();
                 return;
             }
 
             /** @var \Magento\Sales\Api\Data\OrderInterface $order */
             $order = $shipment->getOrder();
+            $storeId = $order->getStoreId();
+
+            if (!$this->helper->isEnabled($storeId)) {
+                $dbConnection->rollBack();
+                return;
+            }
+
             $orderId = $order->getId();
             $shipmentData = [
                 'fulfilled_at' => $this->helper->formatDate($shipment->getCreatedAt()),

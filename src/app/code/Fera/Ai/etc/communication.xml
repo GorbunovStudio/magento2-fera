@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Communication/etc/communication.xsd">
-    <topic name="fera.export.order" request="Fera\Ai\Api\Data\OrderExportMessageDataInterface">
+    <topic name="fera.export.order" request="int">
         <handler name="exportOrderHandler" type="Fera\Ai\Model\Consumer\ExportOrderConsumer" method="process" />
     </topic>
-    <topic name="fera.export.order.status.update" request="Fera\Ai\Api\Data\OrderStatusUpdateMessageDataInterface">
+    <topic name="fera.export.order.status.update" request="int">
         <handler name="exportOrderStatusUpdateHandler" type="Fera\Ai\Model\Consumer\ExportOrderStatusUpdateConsumer" method="process" />
     </topic>
     <topic name="fera.export.product" request="Fera\Ai\Api\Data\ProductExportMessageDataInterface">

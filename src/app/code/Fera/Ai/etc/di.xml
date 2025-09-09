@@ -4,8 +4,6 @@
     xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Magento\Catalog\Block\Product\View" type="Fera\Ai\Block\Footer\Product\View" />
     
-    <preference for="Fera\Ai\Api\Data\OrderExportMessageDataInterface" type="Fera\Ai\Model\Message\OrderExportMessageData" />
-    <preference for="Fera\Ai\Api\Data\OrderStatusUpdateMessageDataInterface" type="Fera\Ai\Model\Message\OrderStatusUpdateMessageData" />
     <preference for="Fera\Ai\Api\Data\ProductExportMessageDataInterface" type="Fera\Ai\Model\Message\ProductExportMessageData" />
     
     <type name="Fera\Ai\Logger\Handler">
