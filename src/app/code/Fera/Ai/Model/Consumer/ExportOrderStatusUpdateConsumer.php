@@ -6,6 +6,7 @@ use Magento\Sales\Api\ShipmentRepositoryInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Api\Data\OrderStatusUpdateMessageDataInterface;
 use Magento\Framework\HTTP\Client\CurlFactory;
+use Magento\Framework\App\ResourceConnection;
 use Psr\Log\LoggerInterface;
 
 class ExportOrderStatusUpdateConsumer
@@ -18,17 +19,21 @@ class ExportOrderStatusUpdateConsumer
     private $curlFactory;
     /** @var LoggerInterface */
     private $logger;
+    /** @var ResourceConnection */
+    private $resourceConnection;
 
     public function __construct(
         ShipmentRepositoryInterface $shipmentRepository,
         FeraHelper $helper,
         CurlFactory $curlFactory,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        ResourceConnection $resourceConnection
     ) {
         $this->shipmentRepository = $shipmentRepository;
         $this->helper = $helper;
         $this->curlFactory = $curlFactory;
         $this->logger = $logger;
+        $this->resourceConnection = $resourceConnection;
     }
 
     /**
@@ -45,9 +50,13 @@ class ExportOrderStatusUpdateConsumer
             $this->logger->warning("Invalid order status update message: shipmentId={$shipmentId}, storeId={$storeId}");
             return;
         }
-        
+
+        $dbConnection = $this->resourceConnection->getConnection();
+        $dbConnection->beginTransaction();
+
         try {
             if (!$this->helper->isEnabled($storeId)) {
+                $dbConnection->rollBack();
                 return;
             }
 
@@ -55,6 +64,7 @@ class ExportOrderStatusUpdateConsumer
             $shipment = $this->shipmentRepository->get($shipmentId);
             if (!$shipment->getId()) {
                 $this->logger->warning("Shipment not found for status update: {$shipmentId} (store: {$storeId})");
+                $dbConnection->rollBack();
                 return;
             }
 
@@ -67,12 +77,21 @@ class ExportOrderStatusUpdateConsumer
             ];
 
             $this->updateOrderStatus($shipmentData, $storeId);
-            
+
+            $dbConnection->commit();
             $this->logger->info("Successfully updated order status: {$orderId} (shipment: {$shipmentId}, store: {$storeId})");
-        } catch (\Throwable $e) {
+        } catch (\Throwable $exception) {
+            $dbConnection->rollBack();
+
             $this->logger->error(
-                "Failed to update order status for shipment: {$shipmentId} (store: {$storeId}). Error: {$e->getMessage()}",
-                ['exception' => $e]
+                $exception->getMessage(),
+                ['exception' => $exception, 'trace' => $exception->getTrace()]
+            );
+            
+            throw new \RuntimeException(
+                'Unable to process the queue message: ' . $exception->getMessage(),
+                $exception->getCode(),
+                $exception
             );
         }
     }
