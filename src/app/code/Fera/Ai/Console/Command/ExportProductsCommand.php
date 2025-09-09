@@ -67,11 +67,6 @@ class ExportProductsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        if (!$this->feraHelper->isEnabled()) {
-            $output->writeln('<error>Fera.ai module is not enabled or not properly configured.</error>');
-            return 1;
-        }
-
         $storeId = (int) $input->getOption('store-id');
         $limit = $input->getOption('limit') ? (int) $input->getOption('limit') : null;
 
@@ -91,12 +86,21 @@ class ExportProductsCommand extends Command
 
             $totalExported = 0;
             $totalErrors = 0;
+            $processedStores = 0;
 
             foreach ($stores as $store) {
                 $storeId = (int) $store->getId();
                 $storeName = (string) $store->getName();
                 $storeCode = (string) $store->getCode();
                 $output->writeln(sprintf('<info>Processing store: %s (%s)</info>', $storeName, $storeCode));
+
+                // Check if Fera is enabled for this specific store
+                if (!$this->feraHelper->isEnabled($storeId)) {
+                    $output->writeln(sprintf('<comment>Fera.ai module is not enabled for store %s (%s). Skipping.</comment>', $storeName, $storeCode));
+                    continue;
+                }
+
+                $processedStores++;
 
                 $this->emulation->startEnvironmentEmulation($storeId, Area::AREA_FRONTEND, true);
                 try {
@@ -170,6 +174,11 @@ class ExportProductsCommand extends Command
                         $this->feraHelper->debug('Failed to stop environment emulation: ' . $e->getMessage());
                     }
                 }
+            }
+
+            if ($processedStores === 0) {
+                $output->writeln('<error>No stores processed. Fera.ai module is not enabled for any of the selected stores.</error>');
+                return 1;
             }
 
             $output->writeln("Export completed across stores. Total exported: {$totalExported} products");
