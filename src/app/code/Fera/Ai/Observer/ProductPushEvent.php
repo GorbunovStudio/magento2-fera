@@ -73,12 +73,7 @@ class ProductPushEvent implements ObserverInterface
             return;
         }
 
-        $productIdRaw = $product->getId();
-        if ($productIdRaw === null || $productIdRaw <= 0) {
-            return;
-        }
-
-        $productId = (int)$productIdRaw;
+        $productId = (int)$product->getId();
 
         try {
             $storeIds = $this->getRelevantStoreIds($product);

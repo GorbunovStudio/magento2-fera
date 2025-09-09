@@ -63,12 +63,7 @@ class OrderPushEvent implements ObserverInterface
 
         unset($this->newOrders[$idx]);
 
-        $orderIdRaw = $order->getId();
-        if ($orderIdRaw === null || $orderIdRaw <= 0) {
-            return;
-        }
-
-        $orderId = (int)$orderIdRaw;
+        $orderId = (int)$order->getId();
         $storeId = (int)$order->getStoreId();
         
         $message = $this->messageDataFactory->create();

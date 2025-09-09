@@ -44,14 +44,9 @@ class OrderFulfilledStatusUpdate implements ObserverInterface
             return;
         }
 
-        $shipmentIdRaw = $shipment->getId();
-        if ($shipmentIdRaw === null || $shipmentIdRaw <= 0) {
-            return;
-        }
-
         $order = $shipment->getOrder();
         $storeId = (int)$order->getStoreId();
-        $shipmentId = (int)$shipmentIdRaw;
+        $shipmentId = (int)$shipment->getId();
         
         $message = $this->messageDataFactory->create();
         $message->setShipmentId($shipmentId);
