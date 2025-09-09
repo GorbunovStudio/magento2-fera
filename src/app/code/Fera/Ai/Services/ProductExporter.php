@@ -48,18 +48,19 @@ class ProductExporter
         if ($storeId === null) {
             $storeId = $product->getStoreId();
         }
-        
-        if (!$this->helper->isEnabled($storeId)) {
-            return;
-        }
 
         $productData = $this->buildProductData($product, $storeId);
         $externalId = (int) $productData['external_id'];
         
         $existingProducts = $this->fetchExistingProducts([$externalId], $storeId);
-        $isUpdate = !empty($existingProducts);
-        
-        $this->sendProductData($productData, $isUpdate, [], $storeId);
+
+        $existingProductsCache = [];
+        if (isset($existingProducts[0]['external_id']) && (int)$existingProducts[0]['external_id'] === $externalId) {
+            $existingProductsCache[$externalId] = $existingProducts[0]['id'] ?? null;
+        }
+        $isUpdate = !empty($existingProductsCache);
+
+        $this->sendProductData($productData, $isUpdate, $existingProductsCache, $storeId);
     }
 
     /**
@@ -70,7 +71,7 @@ class ProductExporter
      */
     public function pushProducts(array $products, $storeId = null): void
     {
-        if (!$this->helper->isEnabled($storeId) || empty($products)) {
+        if (empty($products)) {
             return;
         }
 
