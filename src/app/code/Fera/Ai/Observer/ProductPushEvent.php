@@ -10,6 +10,7 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Interfaces\MessageTopicInterface;
 use Fera\Ai\Api\Data\ProductExportMessageDataInterfaceFactory;
 use Psr\Log\LoggerInterface;
+use UnexpectedValueException;
 
 class ProductPushEvent implements ObserverInterface
 {
@@ -69,8 +70,12 @@ class ProductPushEvent implements ObserverInterface
     public function execute(Observer $observer)
     {
         $product = $observer->getEvent()->getProduct();
-        if (!$product) {
-            return;
+
+        if (!$product instanceof Product) {
+            $type = is_object($product) ? get_class($product) : gettype($product);
+            throw new UnexpectedValueException(
+                'Incorrect type for Product, expected ' . Product::class . ', got ' . $type
+            );
         }
 
         $productId = (int)$product->getId();
@@ -102,6 +107,8 @@ class ProductPushEvent implements ObserverInterface
 
     private function getRelevantStoreIds($product): array
     {
+        $productWebsiteIds = $product->getWebsiteIds();
+
         $storeIds = [];
         
         try {
@@ -110,14 +117,9 @@ class ProductPushEvent implements ObserverInterface
             foreach ($stores as $store) {
                 $storeId = (int)$store->getId();
                 
-                if ($storeId === 0) {
-                    continue;
-                }
-                
-                $websiteIds = $product->getWebsiteIds();
                 $storeWebsiteId = $store->getWebsiteId();
                 
-                if (in_array($storeWebsiteId, $websiteIds)) {
+                if (in_array($storeWebsiteId, $productWebsiteIds)) {
                     $storeIds[] = $storeId;
                 }
             }

@@ -50,6 +50,10 @@ class OrderPushEvent implements ObserverInterface
             );
         }
 
+        if (!$this->helper->isEnabled((int)$order->getStoreId())) {
+            return;
+        }
+
         if ($eventName === 'sales_order_place_after') {
             $this->newOrders[] = $order;
             
