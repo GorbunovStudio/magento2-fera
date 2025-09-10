@@ -3,10 +3,12 @@
 namespace Fera\Ai\Model\Consumer;
 
 use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Order;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 class ExportOrderStatusUpdateConsumer
 {
@@ -40,6 +42,16 @@ class ExportOrderStatusUpdateConsumer
     {
         try {
             $order = $this->orderRepository->get($orderId);
+
+            if (!$this->orderRepository instanceof OrderRepository) {
+                $type = is_object($this->orderRepository) ? get_class($this->orderRepository) : gettype($this->orderRepository);
+                throw new RuntimeException(
+                    'Incorrect type for OrderRepository, expected ' . OrderRepositoryInterface::class . ', got ' . $type
+                );
+            }
+            // Reset the repository state to avoid stale data issues
+            $this->orderRepository->_resetState();
+
             $storeId = $order->getStoreId();
 
             if (!$this->helper->isEnabled($storeId)) {
@@ -47,7 +59,7 @@ class ExportOrderStatusUpdateConsumer
             }
 
             if ($order->getState() !== Order::STATE_COMPLETE) {
-                return;
+                throw new RuntimeException("Order {$orderId} is not complete. Current state: {$order->getState()}");
             }
 
             $orderData = [
@@ -62,7 +74,7 @@ class ExportOrderStatusUpdateConsumer
                 ['exception' => $exception, 'trace' => $exception->getTrace()]
             );
             
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 'Unable to process the queue message: ' . $exception->getMessage(),
                 $exception->getCode(),
                 $exception

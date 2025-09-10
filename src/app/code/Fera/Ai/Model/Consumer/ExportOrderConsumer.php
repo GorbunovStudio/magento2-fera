@@ -3,9 +3,11 @@
 namespace Fera\Ai\Model\Consumer;
 
 use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\OrderRepository;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 class ExportOrderConsumer
 {
@@ -39,6 +41,16 @@ class ExportOrderConsumer
     {
         try {
             $order = $this->orderRepository->get($orderId);
+
+            if (!$this->orderRepository instanceof OrderRepository) {
+                $type = is_object($this->orderRepository) ? get_class($this->orderRepository) : gettype($this->orderRepository);
+                throw new RuntimeException(
+                    'Incorrect type for OrderRepository, expected ' . OrderRepositoryInterface::class . ', got ' . $type
+                );
+            }
+            // Reset the repository state to avoid stale data issues
+            $this->orderRepository->_resetState();
+
             $storeId = $order->getStoreId();
 
             if (!$this->helper->isEnabled($storeId)) {
@@ -46,15 +58,13 @@ class ExportOrderConsumer
             }
 
             $this->orderExporter->pushOrder($order);
-
-            $this->logger->info("Successfully exported order: {$orderId} for store: {$storeId}");
         } catch (\Throwable $exception) {
             $this->logger->error(
                 $exception->getMessage(),
                 ['exception' => $exception, 'trace' => $exception->getTrace()]
             );
             
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 'Unable to process the queue message: ' . $exception->getMessage(),
                 $exception->getCode(),
                 $exception

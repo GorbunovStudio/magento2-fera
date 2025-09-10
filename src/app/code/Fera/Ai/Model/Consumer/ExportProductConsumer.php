@@ -3,11 +3,13 @@
 namespace Fera\Ai\Model\Consumer;
 
 use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Catalog\Model\ProductRepository;
 use Fera\Ai\Services\ProductExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Api\Data\ProductExportMessageDataInterface;
 use Psr\Log\LoggerInterface;
 use InvalidArgumentException;
+use RuntimeException;
 
 class ExportProductConsumer
 {
@@ -72,9 +74,16 @@ class ExportProductConsumer
 
             $product = $this->productRepository->getById($productId, false, $storeId);
 
-            $this->productExporter->pushProduct($product, $storeId);
+            if (!$this->productRepository instanceof ProductRepository) {
+                $type = is_object($this->productRepository) ? get_class($this->productRepository) : gettype($this->productRepository);
+                throw new RuntimeException(
+                    'Incorrect type for ProductRepository, expected ' . ProductRepositoryInterface::class . ', got ' . $type
+                );
+            }
+            // Reset the repository state to avoid stale data issues
+            $this->productRepository->_resetState();
 
-            $this->logger->info("Successfully exported product: {$productId} for store: {$storeId}");
+            $this->productExporter->pushProduct($product, $storeId);
         } catch (\Throwable $exception) {
             $this->logger->error(
                 $exception->getMessage(),
