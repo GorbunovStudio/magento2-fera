@@ -74,15 +74,6 @@ class ExportProductConsumer
 
             $product = $this->productRepository->getById($productId, false, $storeId);
 
-            if (!$this->productRepository instanceof ProductRepository) {
-                $type = is_object($this->productRepository) ? get_class($this->productRepository) : gettype($this->productRepository);
-                throw new RuntimeException(
-                    'Incorrect type for ProductRepository, expected ' . ProductRepositoryInterface::class . ', got ' . $type
-                );
-            }
-            // Reset the repository state to avoid stale data issues
-            $this->productRepository->_resetState();
-
             $this->productExporter->pushProduct($product, $storeId);
         } catch (\Throwable $exception) {
             $this->logger->error(
@@ -95,6 +86,16 @@ class ExportProductConsumer
                 $exception->getCode(),
                 $exception
             );
+        } finally {
+            if (!$this->productRepository instanceof ProductRepository) {
+                $type = is_object($this->productRepository) ? get_class($this->productRepository) : gettype($this->productRepository);
+                throw new RuntimeException(
+                    'Incorrect type for ProductRepository, expected ' . ProductRepositoryInterface::class . ', got ' . $type
+                );
+            }
+            
+            // Reset the repository state to avoid stale data issues
+            $this->productRepository->_resetState();
         }
     }
 }

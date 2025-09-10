@@ -42,15 +42,6 @@ class ExportOrderConsumer
         try {
             $order = $this->orderRepository->get($orderId);
 
-            if (!$this->orderRepository instanceof OrderRepository) {
-                $type = is_object($this->orderRepository) ? get_class($this->orderRepository) : gettype($this->orderRepository);
-                throw new RuntimeException(
-                    'Incorrect type for OrderRepository, expected ' . OrderRepositoryInterface::class . ', got ' . $type
-                );
-            }
-            // Reset the repository state to avoid stale data issues
-            $this->orderRepository->_resetState();
-
             $storeId = $order->getStoreId();
 
             if (!$this->helper->isEnabled($storeId)) {
@@ -69,6 +60,16 @@ class ExportOrderConsumer
                 $exception->getCode(),
                 $exception
             );
+        } finally {
+            if (!$this->orderRepository instanceof OrderRepository) {
+                $type = is_object($this->orderRepository) ? get_class($this->orderRepository) : gettype($this->orderRepository);
+                throw new RuntimeException(
+                    'Incorrect type for OrderRepository, expected ' . OrderRepositoryInterface::class . ', got ' . $type
+                );
+            }
+
+            // Reset the repository state to avoid stale data issues
+            $this->orderRepository->_resetState();
         }
     }
 }

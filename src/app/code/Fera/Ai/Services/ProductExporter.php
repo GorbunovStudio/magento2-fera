@@ -7,6 +7,7 @@ use Magento\CatalogInventory\Api\StockStateInterface;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Catalog\Model\Product as Product;
 use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Catalog\Model\ProductRepository;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Exception\RuntimeException;
@@ -82,6 +83,16 @@ class ProductExporter
             
             $this->sendProductData($productData, $isUpdate, $existingProductsCache, $storeId);
         }
+
+        if (!$this->productRepository instanceof ProductRepository) {
+            $type = is_object($this->productRepository) ? get_class($this->productRepository) : gettype($this->productRepository);
+            throw new RuntimeException(__(
+                'Incorrect type for ProductRepository, expected ' . ProductRepositoryInterface::class . ', got ' . $type
+            ));
+        }
+
+        // Reset the repository state to avoid stale data issues
+        $this->productRepository->_resetState();
     }
 
     /**
