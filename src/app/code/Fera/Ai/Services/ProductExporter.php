@@ -6,6 +6,7 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\CatalogInventory\Api\StockStateInterface;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Catalog\Model\Product as Product;
+use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Exception\RuntimeException;
@@ -25,19 +26,23 @@ class ProductExporter
     private $eventManager;
     /** @var DataObjectFactory */
     private $dataObjectFactory;
+    /** @var ProductRepositoryInterface */
+    private $productRepository;
 
     public function __construct(
         FeraHelper $helper,
         StockStateInterface $stockState,
         CurlFactory $curlFactory,
         EventManager $eventManager,
-        DataObjectFactory $dataObjectFactory
+        DataObjectFactory $dataObjectFactory,
+        ProductRepositoryInterface $productRepository
     ) {
         $this->helper = $helper;
         $this->stockState = $stockState;
         $this->curlFactory = $curlFactory;
         $this->eventManager = $eventManager;
         $this->dataObjectFactory = $dataObjectFactory;
+        $this->productRepository = $productRepository;
     }
 
     /**
@@ -45,22 +50,7 @@ class ProductExporter
      */
     public function pushProduct(Product $product, $storeId = null): void
     {
-        if ($storeId === null) {
-            $storeId = $product->getStoreId();
-        }
-
-        $productData = $this->buildProductData($product, $storeId);
-        $externalId = (int) $productData['external_id'];
-        
-        $existingProducts = $this->fetchExistingProducts([$externalId], $storeId);
-
-        $existingProductsCache = [];
-        if (isset($existingProducts[0]['external_id']) && (int)$existingProducts[0]['external_id'] === $externalId) {
-            $existingProductsCache[$externalId] = $existingProducts[0]['id'] ?? null;
-        }
-        $isUpdate = !empty($existingProductsCache);
-
-        $this->sendProductData($productData, $isUpdate, $existingProductsCache, $storeId);
+        $this->pushProducts([$product], $storeId);
     }
 
     /**
@@ -77,11 +67,14 @@ class ProductExporter
 
         $this->validateProductsArray($products);
         
-        /** @var array<int, string> $existingProductsCache */
-        $existingProductsCache = [];
-        $this->loadExistingProducts($products, $existingProductsCache, $storeId);
+        $existingProductsCache = $this->loadExistingProducts($products, $storeId);
 
         foreach ($products as $product) {
+            // Reload the product to ensure the correct store context
+            if ($storeId !== $product->getData('store_id')) {
+                $product = $this->productRepository->getById($product->getId(), false, $storeId);
+            }
+            
             $productData = $this->buildProductData($product, $storeId);
             $externalId = (int) $productData['external_id'];
             
@@ -146,7 +139,13 @@ class ProductExporter
             $cfgAttr = $typeInstance->getConfigurableAttributesAsArray($product);
 
             foreach ($typeInstance->getUsedProducts($product) as $subProduct) {
-                /** @var Product $subProduct */
+                if (!$subProduct instanceof Product) {
+                    $type = is_object($subProduct) ? get_class($subProduct) : gettype($subProduct);
+                    throw new UnexpectedValueException(
+                        'Incorrect type for Product: expected ' . Product::class . ', got ' . $type
+                    );
+                }
+
                 $variant = [
                     'id' => $subProduct->getId(),
                     'name' => $subProduct->getName(),
@@ -211,23 +210,23 @@ class ProductExporter
 
     /**
      * @param Product[] $products
-     * @param array<int, string> $existingProductsCache
      * @param int|null $storeId
+     * @return array<int, string>
      */
-    private function loadExistingProducts(array $products, array &$existingProductsCache, $storeId = null): void
+    private function loadExistingProducts(array $products, $storeId = null): array
     {
+        $existingProductsCache = [];
         $externalIds = [];
         foreach ($products as $product) {
             $externalIds[] = (int) $product->getId();
         }
 
-        $missingIds = array_diff($externalIds, array_keys($existingProductsCache));
-        if (empty($missingIds)) {
-            return;
+        if (empty($externalIds)) {
+            return $existingProductsCache;
         }
 
         try {
-            $existingProducts = $this->fetchExistingProducts($missingIds, $storeId);
+            $existingProducts = $this->fetchExistingProducts($externalIds, $storeId);
             
             foreach ($existingProducts as $existingProduct) {
                 if (isset($existingProduct['external_id'])) {
@@ -239,6 +238,8 @@ class ProductExporter
             
             throw $e;
         }
+
+        return $existingProductsCache;
     }
 
     /**
@@ -246,7 +247,7 @@ class ProductExporter
      * @param array<int, string> $existingProductsCache
      * @param int|null $storeId
      */
-    private function sendProductData(array $data, bool $isUpdate, array &$existingProductsCache = [], $storeId = null): void
+    private function sendProductData(array $data, bool $isUpdate, array $existingProductsCache = [], $storeId = null): void
     {
         $url = $this->helper->getApiUrl($storeId) . static::API_ENDPOINT_PRODUCTS;
         
@@ -292,15 +293,6 @@ class ProductExporter
             ));
         }
         
-        if (!$isUpdate && isset($data['external_id'])) {
-            // For new products, extract the Fera ID from the response and cache it
-            $responseData = json_decode($response, true);
-            $feraId = $responseData['data']['id'] ?? null;
-            
-            if ($feraId) {
-                $existingProductsCache[(int) $data['external_id']] = $feraId;
-            }
-        }
         $successMsg = 'Successfully ' . ($isUpdate ? 'updated' : 'created') .
                      " product {$data['external_id']} in Fera API";
         $this->helper->debug($successMsg);
