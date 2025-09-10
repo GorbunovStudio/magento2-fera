@@ -6,7 +6,6 @@ use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\CurlFactory;
-use Magento\Framework\App\ResourceConnection;
 use Psr\Log\LoggerInterface;
 
 class ExportOrderStatusUpdateConsumer
@@ -19,21 +18,17 @@ class ExportOrderStatusUpdateConsumer
     private $curlFactory;
     /** @var LoggerInterface */
     private $logger;
-    /** @var ResourceConnection */
-    private $resourceConnection;
 
     public function __construct(
         OrderRepositoryInterface $orderRepository,
         FeraHelper $helper,
         CurlFactory $curlFactory,
-        LoggerInterface $logger,
-        ResourceConnection $resourceConnection
+        LoggerInterface $logger
     ) {
         $this->orderRepository = $orderRepository;
         $this->helper = $helper;
         $this->curlFactory = $curlFactory;
         $this->logger = $logger;
-        $this->resourceConnection = $resourceConnection;
     }
 
     /**
@@ -43,27 +38,15 @@ class ExportOrderStatusUpdateConsumer
      */
     public function process(int $orderId): void
     {
-        if ($orderId <= 0) {
-            $this->logger->warning("Invalid order ID: {$orderId}");
-            return;
-        }
-
-        $dbConnection = $this->resourceConnection->getConnection();
-        $dbConnection->beginTransaction();
-
         try {
             $order = $this->orderRepository->get($orderId);
             $storeId = $order->getStoreId();
 
             if (!$this->helper->isEnabled($storeId)) {
-                $dbConnection->rollBack();
-
                 return;
             }
 
             if ($order->getState() !== Order::STATE_COMPLETE) {
-                $dbConnection->rollBack();
-
                 return;
             }
 
@@ -73,11 +56,7 @@ class ExportOrderStatusUpdateConsumer
             ];
 
             $this->updateOrderStatus($orderData, $storeId);
-
-            $dbConnection->commit();
         } catch (\Throwable $exception) {
-            $dbConnection->rollBack();
-
             $this->logger->error(
                 $exception->getMessage(),
                 ['exception' => $exception, 'trace' => $exception->getTrace()]

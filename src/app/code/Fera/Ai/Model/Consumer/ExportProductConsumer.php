@@ -6,8 +6,8 @@ use Magento\Catalog\Api\ProductRepositoryInterface;
 use Fera\Ai\Services\ProductExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Api\Data\ProductExportMessageDataInterface;
-use Magento\Framework\App\ResourceConnection;
 use Psr\Log\LoggerInterface;
+use InvalidArgumentException;
 
 class ExportProductConsumer
 {
@@ -32,31 +32,23 @@ class ExportProductConsumer
     private $logger;
 
     /**
-     * @var ResourceConnection
-     */
-    private $resourceConnection;
-
-    /**
      * ExportProductConsumer constructor.
      *
      * @param ProductRepositoryInterface $productRepository
      * @param ProductExporter $productExporter
      * @param FeraHelper $helper
      * @param LoggerInterface $logger
-     * @param ResourceConnection $resourceConnection
      */
     public function __construct(
         ProductRepositoryInterface $productRepository,
         ProductExporter $productExporter,
         FeraHelper $helper,
-        LoggerInterface $logger,
-        ResourceConnection $resourceConnection
+        LoggerInterface $logger
     ) {
         $this->productRepository = $productRepository;
         $this->productExporter = $productExporter;
         $this->helper = $helper;
         $this->logger = $logger;
-        $this->resourceConnection = $resourceConnection;
     }
 
     /**
@@ -68,18 +60,13 @@ class ExportProductConsumer
     {
         $productId = $message->getProductId();
         $storeId = $message->getStoreId();
-        
-        if ($productId === null || $storeId === null) {
-            $this->logger->warning("Invalid product export message: productId={$productId}, storeId={$storeId}");
-            return;
-        }
-
-        $dbConnection = $this->resourceConnection->getConnection();
-        $dbConnection->beginTransaction();
 
         try {
+            if ($productId === null || $storeId === null) {
+                throw new InvalidArgumentException("Invalid product export message: productId={$productId}, storeId={$storeId}");
+            }
+
             if (!$this->helper->isEnabled($storeId)) {
-                $dbConnection->rollBack();
                 return;
             }
 
@@ -87,11 +74,8 @@ class ExportProductConsumer
 
             $this->productExporter->pushProduct($product, $storeId);
 
-            $dbConnection->commit();
             $this->logger->info("Successfully exported product: {$productId} for store: {$storeId}");
         } catch (\Throwable $exception) {
-            $dbConnection->rollBack();
-
             $this->logger->error(
                 $exception->getMessage(),
                 ['exception' => $exception, 'trace' => $exception->getTrace()]
