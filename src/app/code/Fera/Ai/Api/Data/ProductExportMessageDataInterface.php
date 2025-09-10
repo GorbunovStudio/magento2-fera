@@ -13,9 +13,9 @@ interface ProductExportMessageDataInterface
 
     /**
      * @param int $value
-     * @return static
+     * @return self
      */
-    public function setProductId(int $value): static;
+    public function setProductId(int $value): self;
 
     /**
      * @return int|null
@@ -24,7 +24,7 @@ interface ProductExportMessageDataInterface
 
     /**
      * @param int $value
-     * @return static
+     * @return self
      */
-    public function setStoreId(int $value): static;
+    public function setStoreId(int $value): self;
 }

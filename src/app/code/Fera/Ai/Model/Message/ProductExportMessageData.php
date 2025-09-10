@@ -17,7 +17,7 @@ class ProductExportMessageData implements ProductExportMessageDataInterface
         return $this->productId;
     }
 
-    public function setProductId(int $value): static
+    public function setProductId(int $value): self
     {
         $this->productId = $value;
         return $this;
@@ -28,7 +28,7 @@ class ProductExportMessageData implements ProductExportMessageDataInterface
         return $this->storeId;
     }
 
-    public function setStoreId(int $value): static
+    public function setStoreId(int $value): self
     {
         $this->storeId = $value;
         return $this;
