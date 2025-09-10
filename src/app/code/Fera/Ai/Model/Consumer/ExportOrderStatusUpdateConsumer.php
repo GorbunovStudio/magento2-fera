@@ -2,8 +2,8 @@
 
 namespace Fera\Ai\Model\Consumer;
 
-use Magento\Sales\Api\ShipmentRepositoryInterface;
-use Magento\Sales\Model\Order\Shipment;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\Order;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Framework\App\ResourceConnection;
@@ -11,8 +11,8 @@ use Psr\Log\LoggerInterface;
 
 class ExportOrderStatusUpdateConsumer
 {
-    /** @var ShipmentRepositoryInterface */
-    private $shipmentRepository;
+    /** @var OrderRepositoryInterface */
+    private $orderRepository;
     /** @var FeraHelper */
     private $helper;
     /** @var CurlFactory */
@@ -23,13 +23,13 @@ class ExportOrderStatusUpdateConsumer
     private $resourceConnection;
 
     public function __construct(
-        ShipmentRepositoryInterface $shipmentRepository,
+        OrderRepositoryInterface $orderRepository,
         FeraHelper $helper,
         CurlFactory $curlFactory,
         LoggerInterface $logger,
         ResourceConnection $resourceConnection
     ) {
-        $this->shipmentRepository = $shipmentRepository;
+        $this->orderRepository = $orderRepository;
         $this->helper = $helper;
         $this->curlFactory = $curlFactory;
         $this->logger = $logger;
@@ -39,12 +39,12 @@ class ExportOrderStatusUpdateConsumer
     /**
      * Process order status update message
      *
-     * @param int $shipmentId
+     * @param int $orderId
      */
-    public function process(int $shipmentId): void
+    public function process(int $orderId): void
     {
-        if ($shipmentId <= 0) {
-            $this->logger->warning("Invalid shipment ID: {$shipmentId}");
+        if ($orderId <= 0) {
+            $this->logger->warning("Invalid order ID: {$orderId}");
             return;
         }
 
@@ -52,32 +52,29 @@ class ExportOrderStatusUpdateConsumer
         $dbConnection->beginTransaction();
 
         try {
-            $shipment = $this->shipmentRepository->get($shipmentId);
-            if (!$shipment instanceof Shipment) {
-                $type = is_object($shipment) ? get_class($shipment) : gettype($shipment);
-                throw new \UnexpectedValueException(
-                    'Incorrect type for Shipment: expected ' . Shipment::class . ', got ' . $type
-                );
-            }
-
-            $order = $shipment->getOrder();
+            $order = $this->orderRepository->get($orderId);
             $storeId = $order->getStoreId();
 
             if (!$this->helper->isEnabled($storeId)) {
                 $dbConnection->rollBack();
+
                 return;
             }
 
-            $orderId = $order->getId();
-            $shipmentData = [
-                'fulfilled_at' => $this->helper->formatDate($shipment->getCreatedAt()),
+            if ($order->getState() !== Order::STATE_COMPLETE) {
+                $dbConnection->rollBack();
+
+                return;
+            }
+
+            $orderData = [
+                'fulfilled_at' => $this->helper->formatDate($order->getUpdatedAt()),
                 'external_id' => $orderId,
             ];
 
-            $this->updateOrderStatus($shipmentData, $storeId);
+            $this->updateOrderStatus($orderData, $storeId);
 
             $dbConnection->commit();
-            $this->logger->info("Successfully updated order status: {$orderId} (shipment: {$shipmentId}, store: {$storeId})");
         } catch (\Throwable $exception) {
             $dbConnection->rollBack();
 

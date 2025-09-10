@@ -7,7 +7,7 @@ use Fera\Ai\Interfaces\MessageTopicInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
-use Magento\Sales\Model\Order\Shipment;
+use Magento\Sales\Model\Order;
 use UnexpectedValueException;
 
 class OrderFulfilledStatusUpdate implements ObserverInterface
@@ -26,28 +26,43 @@ class OrderFulfilledStatusUpdate implements ObserverInterface
     }
 
     /**
-     * Publish shipment ID to message queue for order status update.
+     * Publish order to message queue for order status completion.
      *
      * @param \Magento\Framework\Event\Observer $observer
      */
     public function execute(Observer $observer): void
     {
-        $shipment = $observer->getEvent()->getShipment();
-        if (!$shipment) {
+        $order = $observer->getEvent()->getOrder();
+        if (!$order) {
             return;
         }
 
-        if (!$shipment instanceof Shipment) {
-            $type = is_object($shipment) ? get_class($shipment) : gettype($shipment);
+        if (!$order instanceof Order) {
+            $type = is_object($order) ? get_class($order) : gettype($order);
             throw new UnexpectedValueException(
-                'Incorrect type for Shipment: expected ' . Shipment::class . ', got ' . $type
+                'Incorrect type for Order: expected ' . Order::class . ', got ' . $type
             );
         }
 
-        if (!$this->helper->isEnabled($shipment->getStoreId())) {
+        if (!$this->helper->isEnabled($order->getStoreId())) {
             return;
         }
+
+        if ($this->hasOrderBecomeComplete($order)) {
+            $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, (int)$order->getId());
+        }
+    }
+
+    /**
+     * @param Order $order
+     * @return bool
+     */
+    private function hasOrderBecomeComplete(Order $order): bool
+    {
+        $currentState = $order->getState();
+        $originalState = $order->getOrigData('state');
         
-        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, (int)$shipment->getId());
+        return $currentState === Order::STATE_COMPLETE && 
+               $originalState !== Order::STATE_COMPLETE;
     }
 }
