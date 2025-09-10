@@ -5,10 +5,13 @@ namespace Fera\Ai\Services;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Sales\Model\Order;
+use Magento\Store\Model\Store;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Framework\DataObjectFactory;
+use Magento\Sales\Model\Order\Address;
+use UnexpectedValueException;
 
 class OrderExporter
 {
@@ -43,13 +46,18 @@ class OrderExporter
     public function pushOrder(Order $order)
     {
         $storeId = $order->getStoreId();
-        
-        if (!$this->helper->isEnabled($storeId)) {
-            return;
-        }
 
         $store = $this->_storeManager->getStore($storeId);
+        if (!$store instanceof Store) {
+            $type = is_object($store) ? get_class($store) : gettype($store);
+            throw new UnexpectedValueException(
+                'Incorrect type for Store: expected ' . Store::class . ', got ' . $type
+            );
+        }
+
         $currencyCode = $store->getCurrentCurrencyCode();
+
+
         $total = $order->getGrandTotal();
         $totalUsd = $this->directoryHelper->currencyConvert($total, $currencyCode, 'USD');
 
@@ -122,6 +130,14 @@ class OrderExporter
     protected function getBillingData(Order $order)
     {
         $billingAddress = $order->getBillingAddress();
+
+        if (!$billingAddress instanceof Address) {
+            $type = is_object($billingAddress) ? get_class($billingAddress) : gettype($billingAddress);
+            throw new UnexpectedValueException(
+                'Incorrect type for Billing Address, expected ' . Address::class . ', got ' . $type
+            );
+        }
+
         return [
             'name' => $billingAddress->getData('firstname') . ' ' . $billingAddress->getData('lastname'),
             'address1' => $billingAddress->getData('street'),

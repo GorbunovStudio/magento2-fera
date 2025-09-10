@@ -7,6 +7,8 @@ use Fera\Ai\Interfaces\MessageTopicInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
+use Magento\Sales\Model\Order\Shipment;
+use UnexpectedValueException;
 
 class OrderFulfilledStatusUpdate implements ObserverInterface
 {
@@ -30,18 +32,22 @@ class OrderFulfilledStatusUpdate implements ObserverInterface
      */
     public function execute(Observer $observer): void
     {
-        if (!$this->helper->isEnabled()) {
-            return;
-        }
-
         $shipment = $observer->getEvent()->getShipment();
         if (!$shipment) {
             return;
         }
 
-        $order = $shipment->getOrder();
-        $shipmentId = (int)$shipment->getId();
+        if (!$shipment instanceof Shipment) {
+            $type = is_object($shipment) ? get_class($shipment) : gettype($shipment);
+            throw new UnexpectedValueException(
+                'Incorrect type for Shipment: expected ' . Shipment::class . ', got ' . $type
+            );
+        }
+
+        if (!$this->helper->isEnabled($shipment->getStoreId())) {
+            return;
+        }
         
-        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, $shipmentId);
+        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, (int)$shipment->getId());
     }
 }
