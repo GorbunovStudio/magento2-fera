@@ -3,6 +3,7 @@
 namespace Fera\Ai\Model\Consumer;
 
 use Magento\Sales\Api\ShipmentRepositoryInterface;
+use Magento\Sales\Model\Order\Shipment;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Framework\App\ResourceConnection;
@@ -51,15 +52,14 @@ class ExportOrderStatusUpdateConsumer
         $dbConnection->beginTransaction();
 
         try {
-            /** @var \Magento\Sales\Api\Data\ShipmentInterface $shipment */
             $shipment = $this->shipmentRepository->get($shipmentId);
-            if (!$shipment->getId()) {
-                $this->logger->warning("Shipment not found for status update: {$shipmentId}");
-                $dbConnection->rollBack();
-                return;
+            if (!$shipment instanceof Shipment) {
+                $type = is_object($shipment) ? get_class($shipment) : gettype($shipment);
+                throw new \UnexpectedValueException(
+                    'Incorrect type for Shipment: expected ' . Shipment::class . ', got ' . $type
+                );
             }
 
-            /** @var \Magento\Sales\Api\Data\OrderInterface $order */
             $order = $shipment->getOrder();
             $storeId = $order->getStoreId();
 

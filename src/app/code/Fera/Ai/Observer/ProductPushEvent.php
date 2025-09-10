@@ -9,6 +9,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Interfaces\MessageTopicInterface;
 use Fera\Ai\Api\Data\ProductExportMessageDataInterfaceFactory;
+use Magento\Catalog\Model\Product;
 use Psr\Log\LoggerInterface;
 use UnexpectedValueException;
 
@@ -81,7 +82,7 @@ class ProductPushEvent implements ObserverInterface
         $productId = (int)$product->getId();
 
         try {
-            $storeIds = $this->getRelevantStoreIds($product);
+            $storeIds = $this->getAffectedStoreIds($product);
             
             foreach ($storeIds as $storeId) {
                 if (!$this->helper->isEnabled($storeId)) {
@@ -93,8 +94,6 @@ class ProductPushEvent implements ObserverInterface
                 $message->setStoreId($storeId);
                 
                 $this->publisher->publish(MessageTopicInterface::EXPORT_PRODUCT, $message);
-                
-                $this->logger->info("Product export message published: {$productId} for store: {$storeId}");
             }
         } catch (\Throwable $e) {
             $this->logger->error("Failed to publish product export messages: {$productId}. Error: {$e->getMessage()}", [
@@ -105,32 +104,43 @@ class ProductPushEvent implements ObserverInterface
         }
     }
 
-    private function getRelevantStoreIds($product): array
+    /**
+     * Get store IDs that are affected by the current product save operation
+     * This method checks the product's store ID to determine the scope
+     * 
+     * @param Product $product
+     * @return array
+     */
+    private function getAffectedStoreIds($product): array
     {
+        $productStoreId = (int)$product->getStoreId();
         $productWebsiteIds = $product->getWebsiteIds();
-
-        $storeIds = [];
         
-        try {
+        if ($productStoreId === 0) {
+            // Global scope (All Store Views) - schedule for all stores where product is assigned
+            $storeIds = [];
             $stores = $this->storeManager->getStores(true);
             
             foreach ($stores as $store) {
                 $storeId = (int)$store->getId();
-                
                 $storeWebsiteId = $store->getWebsiteId();
                 
                 if (in_array($storeWebsiteId, $productWebsiteIds)) {
                     $storeIds[] = $storeId;
                 }
             }
-        } catch (\Throwable $e) {
-            $this->logger->error("Failed to get relevant store IDs for product: {$product->getId()}. Error: {$e->getMessage()}", [
-                'exception' => $e
-            ]);
-
-            throw $e;
+            
+            return $storeIds;
+        } else {
+            // Specific store view - only schedule for this store if it's enabled and product is assigned to its website
+            $store = $this->storeManager->getStore($productStoreId);
+            
+            if (in_array($store->getWebsiteId(), $productWebsiteIds)) {
+                return [$productStoreId];
+            } else {
+                // Product not assigned to this store's website - no stores to update
+                return [];
+            }
         }
-        
-        return $storeIds;
     }
 }
