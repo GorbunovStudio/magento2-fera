@@ -146,7 +146,7 @@ class ExportProductsCommand extends Command
                             $productsToExport
                         ));
                         
-                        $result = $this->processBatch($pageProducts, $output);
+                        $result = $this->processBatch($pageProducts, $output, $storeId);
                         $exported += $result['exported'];
                         $errors += $result['errors'];
                         
@@ -255,15 +255,16 @@ class ExportProductsCommand extends Command
      *
      * @param array $productBatch
      * @param \Symfony\Component\Console\Output\OutputInterface $output
+     * @param int $storeId
      * @return array
      */
-    private function processBatch(array $productBatch, OutputInterface $output): array
+    private function processBatch(array $productBatch, OutputInterface $output, int $storeId): array
     {
         $exported = 0;
         $errors = 0;
 
         try {
-            $this->productExporter->pushProducts($productBatch);
+            $this->productExporter->pushProducts($productBatch, $storeId);
             $exported = count($productBatch);
         } catch (Exception $e) {
             $errors = count($productBatch);
