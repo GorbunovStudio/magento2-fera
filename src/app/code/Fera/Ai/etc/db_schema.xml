@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="fera_orders" resource="default" engine="innodb" comment="Fera Exported Orders">
+        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="ID"/>
+        <column xsi:type="int" name="order_id" padding="10" unsigned="true" nullable="false" comment="Magento Order ID"/>
+        <column xsi:type="varchar" name="fera_id" nullable="false" length="64" comment="Fera Order ID"/>
+        <column xsi:type="timestamp" name="exported_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="false" comment="Exported At"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="FERA_ORDERS_ORDER_ID_UNQ">
+            <column name="order_id"/>
+        </constraint>
+        <index referenceId="FERA_ORDERS_FERA_ID_IDX">
+            <column name="fera_id"/>
+        </index>
+    </table>
+</schema>

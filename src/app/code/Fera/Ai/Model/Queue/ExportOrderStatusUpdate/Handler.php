@@ -5,32 +5,32 @@ namespace Fera\Ai\Model\Queue\ExportOrderStatusUpdate;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\Order;
-use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\HTTP\Client\CurlFactory;
+use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\OrderExportManager;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 class Handler
 {
-    /** @var OrderRepositoryInterface */
-    private $orderRepository;
-    /** @var FeraHelper */
-    private $helper;
-    /** @var CurlFactory */
-    private $curlFactory;
-    /** @var LoggerInterface */
-    private $logger;
+    private OrderRepositoryInterface $orderRepository;
+    private FeraHelper $helper;
+    private CurlFactory $curlFactory;
+    private LoggerInterface $logger;
+    private OrderExportManager $orderExportManager;
 
     public function __construct(
         OrderRepositoryInterface $orderRepository,
         FeraHelper $helper,
         CurlFactory $curlFactory,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        OrderExportManager $orderExportManager
     ) {
         $this->orderRepository = $orderRepository;
         $this->helper = $helper;
         $this->curlFactory = $curlFactory;
         $this->logger = $logger;
+        $this->orderExportManager = $orderExportManager;
     }
 
     /**
@@ -53,12 +53,13 @@ class Handler
                 throw new RuntimeException("Order {$orderId} is not complete. Current state: {$order->getState()}");
             }
 
+            $feraId = $this->orderExportManager->getFeraId($orderId);
             $orderData = [
                 'fulfilled_at' => $this->helper->formatDate($order->getUpdatedAt()),
                 'external_id' => $orderId,
             ];
 
-            $this->updateOrderStatus($orderData, $storeId);
+            $this->updateOrderStatus($orderData, $storeId, $feraId);
         } catch (\Throwable $exception) {
             $this->logger->error(
                 $exception->getMessage(),
@@ -83,9 +84,13 @@ class Handler
         }
     }
 
-    private function updateOrderStatus(array $data, int $storeId): void
+    private function updateOrderStatus(array $data, int $storeId, ?string $feraId = null): void
     {
-        $url = $this->helper->getApiUrl($storeId) . "v3/private/orders/" . $data['external_id'] . "/fulfill";
+        if ($feraId) {
+            $url = $this->helper->getApiUrl($storeId) . 'v3/private/orders/' . $feraId . '/fulfill';
+        } else {
+            $url = $this->helper->getApiUrl($storeId) . 'v3/private/orders/' . $data['external_id'] . '/fulfill';
+        }
         $curl = $this->curlFactory->create();
         $curl->addHeader("Content-Type", "application/json");
         $curl->addHeader("SECRET-KEY", $this->helper->getSecretKey($storeId));

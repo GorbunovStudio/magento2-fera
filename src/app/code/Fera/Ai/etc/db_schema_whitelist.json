@@ -1,0 +1,17 @@
+{
+    "fera_orders": {
+        "column": {
+            "id": true,
+            "order_id": true,
+            "fera_id": true,
+            "exported_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "FERA_ORDERS_ORDER_ID_UNQ": true
+        },
+        "index": {
+            "FERA_ORDERS_FERA_ID_IDX": true
+        }
+    }
+}

@@ -11,6 +11,8 @@ use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Framework\DataObjectFactory;
 use Magento\Sales\Model\Order\Address;
+use Fera\Ai\Model\OrderExportManager;
+use RuntimeException;
 use UnexpectedValueException;
 
 class OrderExporter
@@ -21,6 +23,7 @@ class OrderExporter
     protected $directoryHelper;
     protected $eventManager;
     protected $dataObjectFactory;
+    private $orderExportManager;
 
     public function __construct(
         FeraHelper $helper,
@@ -28,7 +31,8 @@ class OrderExporter
         StoreManagerInterface $storeManager,
         DirectoryHelperData $directoryHelper,
         EventManager $eventManager,
-        DataObjectFactory $dataObjectFactory
+        DataObjectFactory $dataObjectFactory,
+        OrderExportManager $orderExportManager
     ) {
         $this->helper = $helper;
         $this->_curlFactory = $curlFactory;
@@ -36,6 +40,7 @@ class OrderExporter
         $this->directoryHelper = $directoryHelper;
         $this->eventManager = $eventManager;
         $this->dataObjectFactory = $dataObjectFactory;
+        $this->orderExportManager = $orderExportManager;
     }
 
     /**
@@ -89,17 +94,45 @@ class OrderExporter
             'orderData' => $payload,
         ]);
 
-        $this->send($payload->getData(), $storeId);
+        $feraId = $this->send($payload->getData(), (int)$storeId);
+
+        if (!is_string($feraId) || $feraId === '') {
+            throw new RuntimeException(sprintf('Invalid Fera ID received for order %d', (int)$order->getId()));
+        }
+
+        $this->orderExportManager->saveSuccessfulExport($order, $feraId);
     }
 
-    protected function send(array $data, $storeId = null)
+    protected function send(array $data, ?int $storeId = null)
     {
         $url = $this->helper->getApiUrl($storeId) . 'v3/private/orders.json';
         $curl = $this->_curlFactory->create();
         $curl->addHeader('Content-Type', 'application/json');
         $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
         $curl->post($url, $this->helper->jsonEncode($data));
-        $curl->getBody();
+        $response = $curl->getBody();
+        $httpCode = (int)$curl->getStatus();
+
+        if (!in_array($httpCode, [200, 201], true)) {
+            throw new RuntimeException(sprintf(
+                'Failed to create order %d in Fera API. HTTP Status: %d, Response: %s',
+                (int)($data['external_id'] ?? 0),
+                $httpCode,
+                (string)$response
+            ));
+        }
+
+        $decoded = json_decode($response, true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException(sprintf('Invalid JSON from Fera API when creating order %d', (int)($data['external_id'] ?? 0)));
+        }
+
+        $feraId = $decoded['id'] ?? ($decoded['data']['id'] ?? null);
+        if (!is_string($feraId)) {
+            throw new RuntimeException(sprintf('Fera ID is missing in API response for order %d', (int)($data['external_id'] ?? 0)));
+        }
+
+        return $feraId;
     }
 
     protected function getCustomerData(Order $order)

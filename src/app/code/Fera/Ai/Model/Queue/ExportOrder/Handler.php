@@ -6,30 +6,30 @@ use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\OrderRepository;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\OrderExportManager;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 class Handler
 {
-    /** @var OrderRepositoryInterface */
-    private $orderRepository;
-    /** @var OrderExporter */
-    private $orderExporter;
-    /** @var FeraHelper */
-    private $helper;
-    /** @var LoggerInterface */
-    private $logger;
+    private OrderRepositoryInterface $orderRepository;
+    private OrderExporter $orderExporter;
+    private FeraHelper $helper;
+    private LoggerInterface $logger;
+    private OrderExportManager $orderExportManager;
 
     public function __construct(
         OrderRepositoryInterface $orderRepository,
         OrderExporter $orderExporter,
         FeraHelper $helper,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        OrderExportManager $orderExportManager
     ) {
         $this->orderRepository = $orderRepository;
         $this->orderExporter = $orderExporter;
         $this->helper = $helper;
         $this->logger = $logger;
+        $this->orderExportManager = $orderExportManager;
     }
 
     /**
@@ -46,6 +46,11 @@ class Handler
 
             if (!$this->helper->isEnabled($storeId)) {
                 return;
+            }
+
+            $orderId = (int)$order->getEntityId();
+            if ($this->orderExportManager->isExported($orderId)) {
+                throw new RuntimeException('Order ' . $orderId . ' has already been exported to Fera.');
             }
 
             $this->orderExporter->pushOrder($order);
