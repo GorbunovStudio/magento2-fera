@@ -6,6 +6,8 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use Magento\Bundle\Model\Product\Type as BundleType;
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Interfaces\MessageTopicInterface;
 use Fera\Ai\Api\Data\ProductExportMessageDataInterfaceFactory;
@@ -19,6 +21,11 @@ class ProductPushEvent implements ObserverInterface
      * @var StoreManagerInterface
      */
     private $storeManager;
+
+    /**
+     * @var BundleType
+     */
+    private $bundleType;
 
     /**
      * @var FeraHelper
@@ -44,6 +51,7 @@ class ProductPushEvent implements ObserverInterface
      * ProductPushEvent constructor.
      *
      * @param StoreManagerInterface $storeManager
+     * @param BundleType $bundleType
      * @param FeraHelper $helper
      * @param PublisherInterface $publisher
      * @param LoggerInterface $logger
@@ -51,12 +59,14 @@ class ProductPushEvent implements ObserverInterface
      */
     public function __construct(
         StoreManagerInterface $storeManager,
+        BundleType $bundleType,
         FeraHelper $helper,
         PublisherInterface $publisher,
         LoggerInterface $logger,
         ProductExportMessageDataInterfaceFactory $messageDataFactory
     ) {
         $this->storeManager = $storeManager;
+        $this->bundleType = $bundleType;
         $this->helper = $helper;
         $this->publisher = $publisher;
         $this->logger = $logger;
@@ -72,16 +82,28 @@ class ProductPushEvent implements ObserverInterface
     {
         $product = $observer->getEvent()->getProduct();
 
-        if (!$product instanceof Product) {
-            $type = is_object($product) ? get_class($product) : gettype($product);
-            throw new UnexpectedValueException(
-                'Incorrect type for Product, expected ' . Product::class . ', got ' . $type
-            );
-        }
-
-        $productId = (int)$product->getId();
-
         try {
+            if (!$product instanceof Product) {
+                $type = is_object($product) ? get_class($product) : gettype($product);
+                throw new UnexpectedValueException(
+                    'Incorrect type for Product, expected ' . Product::class . ', got ' . $type
+                );
+            }
+
+            $productId = (int)$product->getId();
+
+            if ((int)$product->getStatus() !== Status::STATUS_ENABLED) {
+                return;
+            }
+
+            // Skip simple products that are part of bundle products
+            if ($product->getTypeId() === 'simple') {
+                $parentIds = $this->bundleType->getParentIdsByChild($product->getId());
+                if (!empty($parentIds)) {
+                    return;
+                }
+            }
+
             $storeIds = $this->getAffectedStoreIds($product);
             
             foreach ($storeIds as $storeId) {
