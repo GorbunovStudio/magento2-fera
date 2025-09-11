@@ -79,7 +79,7 @@ class OrderExporter
             $orderData['shipping_address'] = $this->getShippingData($order);
         }
         if (!empty($order->getBillingAddress())) {
-            $orderData['shipping_address'] = $this->getBillingData($order);
+            $orderData['billing_address'] = $this->getBillingData($order);
             $orderData['phone_number'] = $order->getBillingAddress()->getTelephone();
         }
 
