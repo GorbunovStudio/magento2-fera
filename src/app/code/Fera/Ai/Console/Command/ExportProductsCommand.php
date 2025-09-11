@@ -16,6 +16,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
 
 class ExportProductsCommand extends Command
 {
@@ -213,7 +214,7 @@ class ExportProductsCommand extends Command
             'name', 'sku', 'price', 'status', 'visibility', 'type_id', 'created_at', 'updated_at',
         ]);
 
-        $collection->addAttributeToFilter('status', 1);
+        $collection->addAttributeToFilter('status', Status::STATUS_ENABLED);
 
         $this->excludeSimpleProductsInBundles($collection);
 

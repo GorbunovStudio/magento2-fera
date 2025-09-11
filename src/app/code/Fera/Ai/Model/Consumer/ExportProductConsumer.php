@@ -4,6 +4,8 @@ namespace Fera\Ai\Model\Consumer;
 
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\ProductRepository;
+use Magento\Bundle\Model\Product\Type as BundleType;
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Fera\Ai\Services\ProductExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Api\Data\ProductExportMessageDataInterface;
@@ -17,6 +19,11 @@ class ExportProductConsumer
      * @var ProductRepositoryInterface
      */
     private $productRepository;
+
+    /**
+     * @var BundleType
+     */
+    private $bundleType;
 
     /**
      * @var ProductExporter
@@ -37,17 +44,20 @@ class ExportProductConsumer
      * ExportProductConsumer constructor.
      *
      * @param ProductRepositoryInterface $productRepository
+     * @param BundleType $bundleType
      * @param ProductExporter $productExporter
      * @param FeraHelper $helper
      * @param LoggerInterface $logger
      */
     public function __construct(
         ProductRepositoryInterface $productRepository,
+        BundleType $bundleType,
         ProductExporter $productExporter,
         FeraHelper $helper,
         LoggerInterface $logger
     ) {
         $this->productRepository = $productRepository;
+        $this->bundleType = $bundleType;
         $this->productExporter = $productExporter;
         $this->helper = $helper;
         $this->logger = $logger;
@@ -73,6 +83,18 @@ class ExportProductConsumer
             }
 
             $product = $this->productRepository->getById($productId, false, $storeId);
+
+            if ((int)$product->getStatus() !== Status::STATUS_ENABLED) {
+                return;
+            }
+
+            // Skip simple products that are part of bundle products
+            if ($product->getTypeId() === 'simple') {
+                $parentIds = $this->bundleType->getParentIdsByChild($product->getId());
+                if (!empty($parentIds)) {
+                    return;
+                }
+            }
 
             $this->productExporter->pushProduct($product, $storeId);
         } catch (\Throwable $exception) {
