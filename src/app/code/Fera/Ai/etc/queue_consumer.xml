@@ -1,7 +1,4 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:MessageQueue/etc/queue_consumer.xsd">
-    <consumer name="feraExportOrderConsumer" queue="fera.export.order" handler="Fera\Ai\Model\Consumer\ExportOrderConsumer::process"/>
-    <consumer name="feraExportOrderStatusUpdateConsumer" queue="fera.export.order.status.update" handler="Fera\Ai\Model\Consumer\ExportOrderStatusUpdateConsumer::process"/>
-    <consumer name="feraExportProductConsumer" queue="fera.export.product" handler="Fera\Ai\Model\Consumer\ExportProductConsumer::process"/>
     <consumer name="fera.all" queue="fera.queue" />
 </config>
