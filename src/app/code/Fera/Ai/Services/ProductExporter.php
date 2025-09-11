@@ -307,16 +307,12 @@ class ProductExporter
     private function fetchExistingProducts(array $externalIds, $storeId = null): array
     {
         $results = [];
-        $page = 1;
-        $maxEndpointLimit = 100;
-        $pageSize = min(max(count($externalIds), 1), $maxEndpointLimit);
-        $maxPages = 25;
+        $chunkSize = 100;
+        $chunks = array_chunk($externalIds, $chunkSize);
 
-        do {
+        foreach ($chunks as $chunk) {
             $queryParams = [
-                'external_ids' => implode(',', $externalIds),
-                'page' => $page,
-                'page_size' => $pageSize,
+                'external_ids' => implode(',', $chunk),
             ];
 
             $url = $this->helper->getApiUrl($storeId) . static::API_ENDPOINT_PRODUCTS . '?' . http_build_query($queryParams);
@@ -331,9 +327,8 @@ class ProductExporter
 
             if ($httpCode !== 200) {
                 throw new RuntimeException(__(
-                    'Failed to fetch existing products from Fera API (filtered by external_ids: %1, page: %2). HTTP Status: %3, Response: %4',
-                    implode(',', $externalIds),
-                    $page,
+                    'Failed to fetch existing products from Fera API (filtered by external_ids: %1). HTTP Status: %2, Response: %3',
+                    implode(',', $chunk),
                     $httpCode,
                     $response
                 ));
@@ -342,18 +337,14 @@ class ProductExporter
             $decoded = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new RuntimeException(__(
-                    'Invalid JSON response from Fera API (page: %1): %2',
-                    $page,
+                    'Invalid JSON response from Fera API: %1',
                     json_last_error_msg()
                 ));
             }
 
-            $pageData = $decoded['data'] ?? [];
-            $results = array_merge($results, is_array($pageData) ? $pageData : []);
-
-            $count = is_array($pageData) ? count($pageData) : 0;
-            $page++;
-        } while ($count === $pageSize && $page <= $maxPages);
+            $chunkData = $decoded['data'] ?? [];
+            $results = array_merge($results, is_array($chunkData) ? $chunkData : []);
+        }
 
         return $results;
     }
