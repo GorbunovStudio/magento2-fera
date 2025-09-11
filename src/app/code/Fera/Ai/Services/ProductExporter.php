@@ -10,6 +10,7 @@ use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Exception\RuntimeException;
+use Magento\Catalog\Model\Product\Visibility;
 use UnexpectedValueException;
 
 class ProductExporter
@@ -123,7 +124,7 @@ class ProductExporter
             'url' => $product->getProductUrl(),
             'thumbnail_url' => $thumb,
             'needs_shipping' => $product->getTypeId() != 'virtual',
-            'hidden' => $product->getVisibility() == '1',
+            'hidden' => (int) $product->getVisibility() ===  Visibility::VISIBILITY_NOT_VISIBLE,
             'tags' => [],
             'variants' => [],
             'platform_data' => [
