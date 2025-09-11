@@ -303,47 +303,57 @@ class ProductExporter
      * @param int|null $storeId
      * @return array<array{id: string, external_id: string}>
      */
-    private function fetchExistingProducts(array $externalIds = [], $storeId = null): array
+    private function fetchExistingProducts(array $externalIds, $storeId = null): array
     {
-        // Increase from default 10 to get more products per request
-        $queryParams = ['limit' => 50];
-        
-        if (!empty($externalIds)) {
-            $queryParams['external_ids'] = implode(',', $externalIds);
-        }
-        
-        $url = $this->helper->getApiUrl($storeId) . static::API_ENDPOINT_PRODUCTS . '?' . http_build_query($queryParams);
-        
-        $curl = $this->curlFactory->create();
-        $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
-        
-        $curl->get($url);
-        
-        $response = $curl->getBody();
-        $httpCode = $curl->getStatus();
-        
-        if ($httpCode !== 200) {
-            $filterInfo = !empty($externalIds)
-                ? sprintf(' (filtered by external_ids: %s)', implode(',', $externalIds))
-                : '';
-            throw new RuntimeException(__(
-                'Failed to fetch existing products from Fera API%1. HTTP Status: %2, Response: %3',
-                $filterInfo,
-                $httpCode,
-                $response
-            ));
-        }
-        
-        $decodedResponse = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException(__(
-                'Invalid JSON response from Fera API: %1',
-                json_last_error_msg()
-            ));
-        }
-        
-        return $decodedResponse['data'] ?? [];
+        $results = [];
+        $page = 1;
+        $pageSize = max(count($externalIds), 1);
+        $maxPages = 25;
+
+        do {
+            $queryParams = [
+                'external_ids' => implode(',', $externalIds),
+                'page' => $page,
+                'page_size' => $pageSize,
+            ];
+
+            $url = $this->helper->getApiUrl($storeId) . static::API_ENDPOINT_PRODUCTS . '?' . http_build_query($queryParams);
+
+            $curl = $this->curlFactory->create();
+            $curl->addHeader('Content-Type', 'application/json');
+            $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
+            $curl->get($url);
+
+            $response = $curl->getBody();
+            $httpCode = $curl->getStatus();
+
+            if ($httpCode !== 200) {
+                throw new RuntimeException(__(
+                    'Failed to fetch existing products from Fera API (filtered by external_ids: %1, page: %2). HTTP Status: %3, Response: %4',
+                    implode(',', $externalIds),
+                    $page,
+                    $httpCode,
+                    $response
+                ));
+            }
+
+            $decoded = json_decode($response, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new RuntimeException(__(
+                    'Invalid JSON response from Fera API (page: %1): %2',
+                    $page,
+                    json_last_error_msg()
+                ));
+            }
+
+            $pageData = $decoded['data'] ?? [];
+            $results = array_merge($results, is_array($pageData) ? $pageData : []);
+
+            $count = is_array($pageData) ? count($pageData) : 0;
+            $page++;
+        } while ($count === $pageSize && $page <= $maxPages);
+
+        return $results;
     }
 
     /**
