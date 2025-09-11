@@ -307,7 +307,8 @@ class ProductExporter
     {
         $results = [];
         $page = 1;
-        $pageSize = max(count($externalIds), 1);
+        $maxEndpointLimit = 100;
+        $pageSize = min(max(count($externalIds), 1), $maxEndpointLimit);
         $maxPages = 25;
 
         do {
