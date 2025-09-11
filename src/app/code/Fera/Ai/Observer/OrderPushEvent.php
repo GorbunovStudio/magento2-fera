@@ -8,7 +8,7 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Sales\Model\Order;
 use UnexpectedValueException;
-use Fera\Ai\Interfaces\MessageTopicInterface;
+use Fera\Ai\Api\Data\Queue\TopicInterface;
 
 class OrderPushEvent implements ObserverInterface
 {
@@ -64,6 +64,6 @@ class OrderPushEvent implements ObserverInterface
 
         $orderId = (int)$order->getId();
         
-        $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER, $orderId);
+        $this->publisher->publish(TopicInterface::EXPORT_ORDER, $orderId);
     }
 }

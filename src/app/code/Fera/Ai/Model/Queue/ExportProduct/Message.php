@@ -1,10 +1,10 @@
 <?php
 
-namespace Fera\Ai\Model\Message;
+namespace Fera\Ai\Model\Queue\ExportProduct;
 
-use Fera\Ai\Api\Data\ProductExportMessageDataInterface;
+use Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface;
 
-class ProductExportMessageData implements ProductExportMessageDataInterface
+class Message implements MessageInterface
 {
     /** @var int|null */
     private $productId;

@@ -3,7 +3,7 @@
 namespace Fera\Ai\Observer;
 
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Interfaces\MessageTopicInterface;
+use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
@@ -49,7 +49,7 @@ class OrderFulfilledStatusUpdate implements ObserverInterface
         }
 
         if ($this->hasOrderBecomeComplete($order)) {
-            $this->publisher->publish(MessageTopicInterface::EXPORT_ORDER_STATUS_UPDATE, (int)$order->getId());
+            $this->publisher->publish(TopicInterface::EXPORT_ORDER_STATUS_UPDATE, (int)$order->getId());
         }
     }
 

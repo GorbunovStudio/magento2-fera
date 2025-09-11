@@ -1,39 +1,40 @@
 <?php
 
-namespace Fera\Ai\Model\Consumer;
+namespace Fera\Ai\Model\Queue\ExportOrderStatusUpdate;
 
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\OrderRepository;
-use Fera\Ai\Services\OrderExporter;
+use Magento\Sales\Model\Order;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Magento\Framework\HTTP\Client\CurlFactory;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
-class ExportOrderConsumer
+class Handler
 {
     /** @var OrderRepositoryInterface */
     private $orderRepository;
-    /** @var OrderExporter */
-    private $orderExporter;
     /** @var FeraHelper */
     private $helper;
+    /** @var CurlFactory */
+    private $curlFactory;
     /** @var LoggerInterface */
     private $logger;
 
     public function __construct(
         OrderRepositoryInterface $orderRepository,
-        OrderExporter $orderExporter,
         FeraHelper $helper,
+        CurlFactory $curlFactory,
         LoggerInterface $logger
     ) {
         $this->orderRepository = $orderRepository;
-        $this->orderExporter = $orderExporter;
         $this->helper = $helper;
+        $this->curlFactory = $curlFactory;
         $this->logger = $logger;
     }
 
     /**
-     * Process order export message
+     * Process order status update message
      *
      * @param int $orderId
      */
@@ -48,7 +49,16 @@ class ExportOrderConsumer
                 return;
             }
 
-            $this->orderExporter->pushOrder($order);
+            if ($order->getState() !== Order::STATE_COMPLETE) {
+                throw new RuntimeException("Order {$orderId} is not complete. Current state: {$order->getState()}");
+            }
+
+            $orderData = [
+                'fulfilled_at' => $this->helper->formatDate($order->getUpdatedAt()),
+                'external_id' => $orderId,
+            ];
+
+            $this->updateOrderStatus($orderData, $storeId);
         } catch (\Throwable $exception) {
             $this->logger->error(
                 $exception->getMessage(),
@@ -71,5 +81,16 @@ class ExportOrderConsumer
             // Reset the repository state to avoid stale data issues
             $this->orderRepository->_resetState();
         }
+    }
+
+    private function updateOrderStatus(array $data, int $storeId): void
+    {
+        $url = $this->helper->getApiUrl($storeId) . "v3/private/orders/" . $data['external_id'] . "/fulfill";
+        $curl = $this->curlFactory->create();
+        $curl->addHeader("Content-Type", "application/json");
+        $curl->addHeader("SECRET-KEY", $this->helper->getSecretKey($storeId));
+        $curl->setOption(CURLOPT_CUSTOMREQUEST, "PUT");
+        $curl->post($url, $this->helper->jsonEncode($data));
+        $response = $curl->getBody();
     }
 }

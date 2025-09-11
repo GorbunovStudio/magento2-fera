@@ -1,17 +1,17 @@
 <?php
 
-namespace Fera\Ai\Model\Consumer;
+namespace Fera\Ai\Model\Queue\ExportProduct;
 
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\ProductRepository;
 use Fera\Ai\Services\ProductExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Api\Data\ProductExportMessageDataInterface;
+use Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface;
 use Psr\Log\LoggerInterface;
 use InvalidArgumentException;
 use RuntimeException;
 
-class ExportProductConsumer
+class Handler
 {
     /**
      * @var ProductRepositoryInterface
@@ -56,9 +56,9 @@ class ExportProductConsumer
     /**
      * Process product export message
      *
-     * @param ProductExportMessageDataInterface $message
+     * @param MessageInterface $message
      */
-    public function process(ProductExportMessageDataInterface $message): void
+    public function process(MessageInterface $message): void
     {
         $productId = $message->getProductId();
         $storeId = $message->getStoreId();

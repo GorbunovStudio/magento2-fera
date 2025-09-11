@@ -1,8 +1,8 @@
 <?php
 
-namespace Fera\Ai\Interfaces;
+namespace Fera\Ai\Api\Data\Queue;
 
-interface MessageTopicInterface
+interface TopicInterface
 {
     public const EXPORT_ORDER = 'fera.export.order';
     public const EXPORT_ORDER_STATUS_UPDATE = 'fera.export.order.status.update';

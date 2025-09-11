@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Fera\Ai\Api\Data;
+namespace Fera\Ai\Api\Data\Queue\ExportProduct;
 
-interface ProductExportMessageDataInterface
+interface MessageInterface
 {
     /**
      * @return int|null

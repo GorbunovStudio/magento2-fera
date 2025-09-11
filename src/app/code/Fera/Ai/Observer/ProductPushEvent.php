@@ -9,8 +9,8 @@ use Magento\Store\Model\StoreManagerInterface;
 use Magento\Bundle\Model\Product\Type as BundleType;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Interfaces\MessageTopicInterface;
-use Fera\Ai\Api\Data\ProductExportMessageDataInterfaceFactory;
+use Fera\Ai\Api\Data\Queue\TopicInterface;
+use Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterfaceFactory;
 use Magento\Catalog\Model\Product;
 use Psr\Log\LoggerInterface;
 use UnexpectedValueException;
@@ -63,7 +63,7 @@ class ProductPushEvent implements ObserverInterface
         FeraHelper $helper,
         PublisherInterface $publisher,
         LoggerInterface $logger,
-        ProductExportMessageDataInterfaceFactory $messageDataFactory
+        MessageInterfaceFactory $messageDataFactory
     ) {
         $this->storeManager = $storeManager;
         $this->bundleType = $bundleType;
@@ -115,7 +115,7 @@ class ProductPushEvent implements ObserverInterface
                 $message->setProductId($productId);
                 $message->setStoreId($storeId);
                 
-                $this->publisher->publish(MessageTopicInterface::EXPORT_PRODUCT, $message);
+                $this->publisher->publish(TopicInterface::EXPORT_PRODUCT, $message);
             }
         } catch (\Throwable $e) {
             $this->logger->error("Failed to publish product export messages: {$productId}. Error: {$e->getMessage()}", [
