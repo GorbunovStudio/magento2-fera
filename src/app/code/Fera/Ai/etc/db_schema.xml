@@ -16,4 +16,20 @@
             <column name="fera_id"/>
         </index>
     </table>
+    <table name="fera_products" resource="default" engine="innodb" comment="Fera Exported Products">
+        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="ID"/>
+        <column xsi:type="int" name="product_id" padding="10" unsigned="true" nullable="false" comment="Magento Product ID"/>
+        <column xsi:type="varchar" name="fera_id" nullable="false" length="64" comment="Fera Product ID"/>
+        <column xsi:type="timestamp" name="exported_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="false" comment="Exported At"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="FERA_PRODUCTS_PRODUCT_ID_UNQ">
+            <column name="product_id"/>
+        </constraint>
+        <index referenceId="FERA_PRODUCTS_FERA_ID_IDX">
+            <column name="fera_id"/>
+        </index>
+    </table>
 </schema>
