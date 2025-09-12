@@ -331,7 +331,7 @@ class Data extends AbstractHelper
         $quote = $this->checkoutSession->getQuote();
 
         $data = [
-            'currency' => $this->storeManager->getStore()->getCurrentCurrency()->getCode(),
+            'currency' => (string) $quote->getQuoteCurrencyCode(),
             'total' => $quote->getSubtotal(),
             'grand_total' => $quote->getGrandTotal()
         ];

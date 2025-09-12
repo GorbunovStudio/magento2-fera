@@ -60,7 +60,7 @@ class OrderExporter
             );
         }
 
-        $currencyCode = $store->getCurrentCurrencyCode();
+        $currencyCode = $order->getOrderCurrencyCode();
 
         $total = $order->getGrandTotal() - $order->getTotalCanceled() - $order->getTotalRefunded();
         $totalUsd = $this->directoryHelper->currencyConvert($total, $currencyCode, 'USD');
