@@ -118,7 +118,7 @@ class Data extends AbstractHelper
     public function getPublicKey($storeId = null)
     {
         return $this->scopeConfig->getValue(
-            'fera_ai/fera_ai_group/public_key',
+            ConfigOptionInterface::PUBLIC_KEY,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -133,7 +133,7 @@ class Data extends AbstractHelper
     public function getSecretKey($storeId = null)
     {
         return $this->scopeConfig->getValue(
-            'fera_ai/fera_ai_group/secret_key',
+            ConfigOptionInterface::SECRET_KEY,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -146,7 +146,7 @@ class Data extends AbstractHelper
         }
 
         return $this->scopeConfig->getValue(
-            'fera_ai/general/enabled',
+            ConfigOptionInterface::ENABLED,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -187,7 +187,7 @@ class Data extends AbstractHelper
     public function getAppUrl($storeId = null)
     {
         return $this->scopeConfig->getValue(
-            'fera_ai/fera_ai_group/app_url',
+            ConfigOptionInterface::APP_URL,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -202,7 +202,7 @@ class Data extends AbstractHelper
     public function getApiUrl($storeId = null)
     {
         return $this->scopeConfig->getValue(
-            'fera_ai/fera_ai_group/api_url',
+            ConfigOptionInterface::API_URL,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -217,7 +217,7 @@ class Data extends AbstractHelper
     public function getJsUrl($storeId = null)
     {
         return $this->scopeConfig->getValue(
-            'fera_ai/fera_ai_group/js_url',
+            ConfigOptionInterface::JS_URL,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -231,7 +231,7 @@ class Data extends AbstractHelper
     public function isDebugMode()
     {
         return $this->scopeConfig->isSetFlag(
-            'fera_ai/general/debug_mode',
+            ConfigOptionInterface::DEBUG_MODE,
             ScopeInterface::SCOPE_STORE
         );
     }
