@@ -16,30 +16,39 @@ use Magento\Store\Model\StoreManagerInterface;
 use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Intl\DateTimeFactory;
 use Magento\Catalog\Block\Product\ImageBuilder;
-use Magento\Catalog\Helper\Image;
 use Fera\Ai\Logger\Logger;
 
-/**
- * Class Data
- * @package Fera\Ai\Helper
- */
 class Data extends AbstractHelper
 {
     const FORMAT_DATE = 'Y-m-d\TH:i:sP';
 
-    /** @var ModuleResourceInterface */
+    /**
+     * @var ModuleResourceInterface
+     */
     private $moduleResource;
-    /** @var StoreManagerInterface */
+    /**
+     * @var StoreManagerInterface
+     */
     private $storeManager;
-    /** @var JsonHelper */
+    /**
+     * @var JsonHelper
+     */
     private $jsonHelper;
-    /** @var CheckoutSession */
+    /**
+     * @var CheckoutSession
+     */
     private $checkoutSession;
-    /** @var DateTimeFactory */
+    /**
+     * @var DateTimeFactory
+     */
     private $dateTime;
-    /** @var ImageBuilder */
+    /**
+     * @var ImageBuilder
+     */
     private $imageBuilder;
-    /** @var Logger */
+    /**
+     * @var Logger
+     */
     private $logger;
 
     public function __construct(
@@ -65,6 +74,7 @@ class Data extends AbstractHelper
 
     /**
      * Write to the Fera.ai log file
+     *
      * @param  mixed $msg message to log
      * @return $this
      */
@@ -76,6 +86,7 @@ class Data extends AbstractHelper
 
     /**
      * Write to the debug output ONLY if the debug mode is enabled
+     *
      * @param  mixed $msg Message to log
      * @return $this
      */
@@ -98,7 +109,8 @@ class Data extends AbstractHelper
 
     /**
      * Fera Ai public key either from the store config or the environment files
-     * @param int|null $storeId
+     *
+     * @param  int|null $storeId
      * @return string
      */
     public function getPublicKey($storeId = null)
@@ -112,7 +124,8 @@ class Data extends AbstractHelper
 
     /**
      * Fera Ai secret (private) key, either from the environment fiels or the store config
-     * @param int|null $storeId
+     *
+     * @param  int|null $storeId
      * @return string
      */
     public function getSecretKey($storeId = null)
@@ -139,7 +152,8 @@ class Data extends AbstractHelper
 
     /**
      * True if the current Fera Ai configuration is setup to work properly
-     * @param int|null $storeId
+     *
+     * @param  int|null $storeId
      * @return boolean false if it is not ready for use
      */
     public function isConfigured($storeId = null)
@@ -155,7 +169,8 @@ class Data extends AbstractHelper
 
     /**
      * The URL path to the APP (https). For example: https://app.fera.ai
-     * @param int|null $storeId
+     *
+     * @param  int|null $storeId
      * @return string
      */
     public function getAppUrl($storeId = null)
@@ -169,7 +184,8 @@ class Data extends AbstractHelper
 
     /**
      * The URL path to the API (https). For example: https://api.fera.ai/api/v1
-     * @param int|null $storeId
+     *
+     * @param  int|null $storeId
      * @return string
      */
     public function getApiUrl($storeId = null)
@@ -183,7 +199,8 @@ class Data extends AbstractHelper
 
     /**
      * The URL to the javascript file on the Fera CDN. For example: https://cdn.fera.ai/js/bananastand.js
-     * @param int|null $storeId
+     *
+     * @param  int|null $storeId
      * @return string
      */
     public function getJsUrl($storeId = null)
@@ -197,6 +214,7 @@ class Data extends AbstractHelper
 
     /**
      * Is debug mode enabled? If so we will output much more extra info to the logs to help developers.
+     *
      * @return boolean
      */
     public function isDebugMode()
