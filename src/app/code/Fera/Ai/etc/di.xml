@@ -25,6 +25,7 @@
         <arguments>
             <argument name="commands" xsi:type="array">
                 <item name="fera_export_products" xsi:type="object">Fera\Ai\Console\Command\ExportProductsCommand</item>
+                <item name="fera_backfill_product_mappings" xsi:type="object">Fera\Ai\Console\Command\BackfillProductMappingsCommand</item>
             </argument>
         </arguments>
     </type>
