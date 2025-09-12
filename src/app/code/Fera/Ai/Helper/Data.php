@@ -225,7 +225,11 @@ class Data extends AbstractHelper
         );
     }
 
-    public function serializeQuoteItems($items)
+    /**
+     * @param \Magento\Sales\Model\Order\Item[]|\Magento\Quote\Model\Quote\Item[] $items
+     * @return array<int, array{product_id: int, price: float, total: float, name: string, variant_id?: int}>
+     */
+    public function serializeQuoteItems($items): array
     {
         $parentTypeMap = [];
         $itemMap = [];
@@ -242,10 +246,10 @@ class Data extends AbstractHelper
             $parentTypeMap[$parentId] = $parentType;
 
             $itemMap[$parentId] = [
-                'product_id' => $cartItem->getProductId(),
-                'price' => $cartItem->getPrice(),
-                'total' => $cartItem->getRowTotal(),
-                'name' => $cartItem->getName()
+                'product_id' => (int) $cartItem->getProductId(),
+                'price' => $cartItem->getPrice() ?? 0.0,
+                'total' => $cartItem->getRowTotal() ?? 0.0,
+                'name' => $cartItem->getName() ?? ''
             ];
         }
 
@@ -255,8 +259,8 @@ class Data extends AbstractHelper
 
             if ($parentType === 'configurable') {
                 if (isset($itemMap[$parentId])) {
-                    $itemMap[$parentId]['name'] = $cartItem->getName();
-                    $itemMap[$parentId]['variant_id'] = $cartItem->getProductId();
+                    $itemMap[$parentId]['name'] = $cartItem->getName() ?? '';
+                    $itemMap[$parentId]['variant_id'] = (int) $cartItem->getProductId();
                 }
                 continue;
             }
@@ -266,10 +270,10 @@ class Data extends AbstractHelper
             }
 
             $itemMap[$cartItem->getId()] = [
-                'product_id' => $cartItem->getProductId(),
-                'price' => $cartItem->getPrice(),
-                'total' => $cartItem->getRowTotal(),
-                'name' => $cartItem->getName()
+                'product_id' => (int) $cartItem->getProductId(),
+                'price' => $cartItem->getPrice() ?? 0.0,
+                'total' => $cartItem->getRowTotal() ?? 0.0,
+                'name' => $cartItem->getName() ?? ''
             ];
         }
 
