@@ -18,6 +18,7 @@ use Magento\Framework\Intl\DateTimeFactory;
 use Magento\Catalog\Block\Product\ImageBuilder;
 use Magento\Sales\Model\Order\Item;
 use Fera\Ai\Logger\Logger;
+use Fera\Ai\Interfaces\ConfigOptionInterface;
 
 class Data extends AbstractHelper
 {
@@ -146,6 +147,15 @@ class Data extends AbstractHelper
 
         return $this->scopeConfig->getValue(
             'fera_ai/general/enabled',
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    public function shouldExportOrderOnCreation(int $storeId): bool
+    {
+        return (bool) $this->scopeConfig->getValue(
+            ConfigOptionInterface::EXPORT_ORDER_ON_CREATION,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -289,7 +299,7 @@ class Data extends AbstractHelper
             $left = (int) max(0, (int) round($qtyOrdered) - (int) round($qtyRefunded) - (int) round($qtyCanceled));
             return $left;
         }
-        
+
         $qty = (float) $item->getQty();
         return (int) max(0, (int) round($qty));
     }

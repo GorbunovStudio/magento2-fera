@@ -13,6 +13,9 @@
                 <api_url>https://app.fera.ai/api/</api_url>
                 <js_url>https://cdn.fera.ai/js/v3/fera.js</js_url>
             </fera_ai_group>
+            <sync_settings>
+                <orders_export_on_creation>1</orders_export_on_creation>
+            </sync_settings>
         </fera_ai>
     </default>
 </config>

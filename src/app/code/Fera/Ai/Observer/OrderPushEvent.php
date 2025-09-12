@@ -49,6 +49,10 @@ class OrderPushEvent implements ObserverInterface
             return;
         }
 
+        if (!$this->helper->shouldExportOrderOnCreation((int)$order->getStoreId())) {
+            return;
+        }
+
         if ($eventName === 'sales_order_place_after') {
             $this->newOrders[] = $order;
             

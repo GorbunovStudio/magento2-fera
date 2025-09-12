@@ -41,6 +41,14 @@
                     <label>Js Url</label>
                 </field>
             </group>
+            <group id="sync_settings" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Sync Settings</label>
+                <field id="orders_export_on_creation" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Export orders on creation</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>When enabled, orders are exported to Fera.ai immediately after creation. When disabled, orders are only exported when they are marked as complete.</comment>
+                </field>
+            </group>
          </section>
     </system>
 </config>
