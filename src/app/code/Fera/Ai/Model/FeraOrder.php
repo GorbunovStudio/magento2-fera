@@ -28,18 +28,18 @@ class FeraOrder extends AbstractModel implements FeraOrderInterface
         return (string) $this->_getData(self::EXPORTED_AT);
     }
 
-    public function setOrderId(int $orderId): self
+    public function setOrderId(int $value): self
     {
-        return $this->setData(self::ORDER_ID, $orderId);
+        return $this->setData(self::ORDER_ID, $value);
     }
 
-    public function setFeraId(string $feraId): self
+    public function setFeraId(string $value): self
     {
-        return $this->setData(self::FERA_ID, $feraId);
+        return $this->setData(self::FERA_ID, $value);
     }
 
-    public function setExportedAt(string $exportedAt): self
+    public function setExportedAt(string $value): self
     {
-        return $this->setData(self::EXPORTED_AT, $exportedAt);
+        return $this->setData(self::EXPORTED_AT, $value);
     }
 }

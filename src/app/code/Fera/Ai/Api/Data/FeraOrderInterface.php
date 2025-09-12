@@ -9,11 +9,36 @@ interface FeraOrderInterface
     public const FERA_ID = 'fera_id';
     public const EXPORTED_AT = 'exported_at';
 
+    /**
+     * @return int
+     */
     public function getOrderId(): int;
+
+    /**
+     * @return string
+     */
     public function getFeraId(): string;
+
+    /**
+     * @return string
+     */
     public function getExportedAt(): string;
 
-    public function setOrderId(int $orderId): self;
-    public function setFeraId(string $feraId): self;
-    public function setExportedAt(string $exportedAt): self;
+    /**
+     * @param int $value
+     * @return self
+     */
+    public function setOrderId(int $value): self;
+
+    /**
+     * @param string $fervalueaId
+     * @return self
+     */
+    public function setFeraId(string $value): self;
+
+    /**
+     * @param string $value
+     * @return self
+     */
+    public function setExportedAt(string $value): self;
 }
