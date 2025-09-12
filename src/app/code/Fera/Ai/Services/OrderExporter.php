@@ -47,8 +47,9 @@ class OrderExporter
      * Build payload and push order to Fera API
      *
      * @param Order $order
+     * @return string|null Returns Fera ID on successful export, null if skipped
      */
-    public function pushOrder(Order $order)
+    public function pushOrder(Order $order): ?string
     {
         $storeId = $order->getStoreId();
 
@@ -69,7 +70,7 @@ class OrderExporter
 
         if (empty($lineItems)) {
             $this->helper->debug('No line items to export for order ' . $order->getId() . ', skipping export');
-            return;
+            return null;
         }
 
         $orderData = [
@@ -107,6 +108,8 @@ class OrderExporter
         }
 
         $this->orderExportManager->saveSuccessfulExport($order, $feraId);
+        
+        return $feraId;
     }
 
     protected function send(array $data, ?int $storeId = null)
