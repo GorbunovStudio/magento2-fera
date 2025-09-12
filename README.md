@@ -54,5 +54,29 @@ php bin/magento fera:products:export --store-id 1
 php bin/magento fera:products:export --limit 50 --store-id 1
 ```
 
+## Configuration
+
+### Order Export Settings
+
+The extension provides flexible order export options that can be configured per store:
+
+#### Export orders on creation (Default: Yes)
+
+**Admin Path:** `Stores > Configuration > Fera.ai > Sync Settings > Export orders on creation`
+
+**Description:** Controls when orders are exported to Fera.ai:
+
+- **Yes (Default):** Orders are exported immediately after creation for instant review collection
+- **No:** Orders are only exported when they are marked as complete, reducing early exports for orders that may be cancelled
+
+**Use Cases:**
+- **Enable** for stores with high order completion rates and immediate review collection needs
+- **Disable** for stores with high cancellation rates or B2B scenarios where orders remain pending for extended periods
+
+**Important Notes:**
+- This setting is store-scoped, allowing different behavior per store view
+- When disabled, orders will still be exported when they transition to "Complete" status
+- Queue processing handles the actual export, so changes take effect on the next queue run
+
 ## Help
 If you're seeing this repo you're probably a trusted developer - so just feel free to email help a-t fera dot ai with any questions.
