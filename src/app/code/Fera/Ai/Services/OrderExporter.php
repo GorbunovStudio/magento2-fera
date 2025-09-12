@@ -62,9 +62,15 @@ class OrderExporter
 
         $currencyCode = $store->getCurrentCurrencyCode();
 
-
-        $total = $order->getGrandTotal();
+        $total = $order->getGrandTotal() - $order->getTotalCanceled() - $order->getTotalRefunded();
         $totalUsd = $this->directoryHelper->currencyConvert($total, $currencyCode, 'USD');
+
+        $lineItems = $this->helper->serializeQuoteItems($order->getAllItems());
+
+        if (empty($lineItems)) {
+            $this->helper->debug('No line items to export for order ' . $order->getId() . ', skipping export');
+            return;
+        }
 
         $orderData = [
             'external_id' => $order->getId(),
@@ -73,7 +79,7 @@ class OrderExporter
             'total_usd' => $totalUsd,
             'external_created_at' => $this->helper->formatDate($order->getCreatedAt()),
             'external_updated_at' => $this->helper->formatDate($order->getUpdatedAt()),
-            'line_items' => $this->helper->serializeQuoteItems($order->getAllItems()),
+            'line_items' => $lineItems,
             'customer' => $this->getCustomerData($order),
             'external_customer_id' => $order->getCustomerId(),
             'tags' => [],

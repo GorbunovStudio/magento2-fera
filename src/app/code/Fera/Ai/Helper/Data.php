@@ -16,6 +16,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Intl\DateTimeFactory;
 use Magento\Catalog\Block\Product\ImageBuilder;
+use Magento\Sales\Model\Order\Item;
 use Fera\Ai\Logger\Logger;
 
 class Data extends AbstractHelper
@@ -227,7 +228,7 @@ class Data extends AbstractHelper
 
     /**
      * @param \Magento\Sales\Model\Order\Item[]|\Magento\Quote\Model\Quote\Item[] $items
-     * @return array<int, array{product_id: int, price: float, total: float, name: string, variant_id?: int}>
+     * @return array<int,array{product_id:int,price:float,total:float,name:string,quantity:int,variant_id?:int}>
      */
     public function serializeQuoteItems($items): array
     {
@@ -244,13 +245,10 @@ class Data extends AbstractHelper
             $parentId = $cartItem->getId();
             $parentType = $cartItem->getProductType();
             $parentTypeMap[$parentId] = $parentType;
-
-            $itemMap[$parentId] = [
-                'product_id' => (int) $cartItem->getProductId(),
-                'price' => $cartItem->getPrice() ?? 0.0,
-                'total' => $cartItem->getRowTotal() ?? 0.0,
-                'name' => $cartItem->getName() ?? ''
-            ];
+            $data = $this->buildItemData($cartItem);
+            if ($data !== null) {
+                $itemMap[$parentId] = $data;
+            }
         }
 
         foreach ($childItems as $cartItem) {
@@ -258,7 +256,9 @@ class Data extends AbstractHelper
             $parentType = isset($parentTypeMap[$parentId]) ? $parentTypeMap[$parentId] : null;
 
             if ($parentType === 'configurable') {
-                if (isset($itemMap[$parentId])) {
+                if ($this->getRemainingQuantity($cartItem) <= 0) {
+                    unset($itemMap[$parentId]);
+                } elseif (isset($itemMap[$parentId])) {
                     $itemMap[$parentId]['name'] = $cartItem->getName() ?? '';
                     $itemMap[$parentId]['variant_id'] = (int) $cartItem->getProductId();
                 }
@@ -268,16 +268,59 @@ class Data extends AbstractHelper
             if ($parentType === 'bundle') {
                 continue;
             }
-
-            $itemMap[$cartItem->getId()] = [
-                'product_id' => (int) $cartItem->getProductId(),
-                'price' => $cartItem->getPrice() ?? 0.0,
-                'total' => $cartItem->getRowTotal() ?? 0.0,
-                'name' => $cartItem->getName() ?? ''
-            ];
+            $data = $this->buildItemData($cartItem);
+            if ($data !== null) {
+                $itemMap[$cartItem->getId()] = $data;
+            }
         }
 
         return array_values($itemMap);
+    }
+
+    /**
+     * @param \Magento\Sales\Model\Order\Item|\Magento\Quote\Model\Quote\Item $item
+     */
+    private function getRemainingQuantity($item): int
+    {
+        if ($item instanceof Item) {
+            $qtyOrdered = (float) $item->getQtyOrdered();
+            $qtyRefunded = (float) $item->getQtyRefunded();
+            $qtyCanceled = (float) $item->getQtyCanceled();
+            $left = (int) max(0, (int) round($qtyOrdered) - (int) round($qtyRefunded) - (int) round($qtyCanceled));
+            return $left;
+        }
+        
+        $qty = (float) $item->getQty();
+        return (int) max(0, (int) round($qty));
+    }
+
+    /**
+     * @param \Magento\Sales\Model\Order\Item|\Magento\Quote\Model\Quote\Item $item
+     * @return array{product_id:int,price:float,total:float,name:string,quantity:int}|null
+     */
+    private function buildItemData($item): ?array
+    {
+        $qty = $this->getRemainingQuantity($item);
+        if ($qty <= 0) {
+            return null;
+        }
+
+        $rowTotal = (float) ($item->getRowTotal() ?? 0.0);
+        if ($item instanceof Item) {
+            $qtyOrdered = (float) $item->getQtyOrdered();
+            if ($qtyOrdered > 0 && $qty < (int) round($qtyOrdered)) {
+                $ratio = $qty / $qtyOrdered;
+                $rowTotal = $rowTotal * $ratio;
+            }
+        }
+
+        return [
+            'product_id' => (int) $item->getProductId(),
+            'price' => $item->getRefPrice() ?? 0.0,
+            'total' => $rowTotal,
+            'name' => $item->getName() ?? '',
+            'quantity' => $qty,
+        ];
     }
 
     /**
