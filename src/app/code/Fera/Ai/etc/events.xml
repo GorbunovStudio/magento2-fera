@@ -12,6 +12,10 @@
         <observer name="fera_ai_order_push" instance="Fera\Ai\Observer\OrderPushEvent" />
     </event>
 
+    <event name="sales_order_address_save_after">
+        <observer name="fera_ai_order_address_update" instance="Fera\Ai\Observer\OrderAddressUpdateEnqueue" />
+    </event>
+
     <event name="customer_save_after">
         <observer name="fera_ai_customer_save" instance="Fera\Ai\Observer\CustomerEnqueueUpdateProcessing" />
     </event>
