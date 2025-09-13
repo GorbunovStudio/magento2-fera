@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Console\Command;
 
-use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
-use Fera\Ai\Service\ApiClient;
+use Fera\Ai\Services\ApiClient;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Magento\Framework\App\State;
@@ -27,7 +26,6 @@ class BackfillProductMappingsCommand extends Command
     private ApiClient $apiClient;
 
     public function __construct(
-        FeraHelper $helper,
         ProductRepositoryInterface $productRepository,
         SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
         ProductExportManager $exportManager,
@@ -35,7 +33,6 @@ class BackfillProductMappingsCommand extends Command
         ApiClient $apiClient
     ) {
         parent::__construct();
-        $this->helper = $helper;
         $this->productRepository = $productRepository;
         $this->searchCriteriaBuilderFactory = $searchCriteriaBuilderFactory;
         $this->exportManager = $exportManager;

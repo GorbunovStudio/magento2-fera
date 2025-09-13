@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Fera\Ai\Service;
+namespace Fera\Ai\Services;
 
 use Fera\Ai\Exception\FeraApiException;
 use Fera\Ai\Helper\Data as FeraHelper;

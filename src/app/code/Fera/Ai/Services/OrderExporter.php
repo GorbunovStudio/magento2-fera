@@ -5,7 +5,7 @@ namespace Fera\Ai\Services;
 use Fera\Ai\Exception\FeraApiException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
-use Fera\Ai\Service\ApiClient;
+use Fera\Ai\Services\ApiClient;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Sales\Model\Order;

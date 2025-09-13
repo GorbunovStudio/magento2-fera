@@ -4,7 +4,7 @@ namespace Fera\Ai\Model\Queue\ExportOrderFulfillment;
 
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
-use Fera\Ai\Service\ApiClient;
+use Fera\Ai\Services\ApiClient;
 use Fera\Ai\Services\OrderExporter;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;

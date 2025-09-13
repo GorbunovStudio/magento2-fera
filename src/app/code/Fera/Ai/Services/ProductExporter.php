@@ -5,7 +5,7 @@ namespace Fera\Ai\Services;
 use Fera\Ai\Exception\FeraApiException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
-use Fera\Ai\Service\ApiClient;
+use Fera\Ai\Services\ApiClient;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product as Product;
 use Magento\Catalog\Model\Product\Visibility;
