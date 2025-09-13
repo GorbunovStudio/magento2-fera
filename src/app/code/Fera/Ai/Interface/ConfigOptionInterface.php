@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Fera\Ai\Interfaces;
+namespace Fera\Ai\Interface;
 
 interface ConfigOptionInterface
 {

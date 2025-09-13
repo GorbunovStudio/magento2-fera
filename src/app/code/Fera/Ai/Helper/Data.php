@@ -18,7 +18,7 @@ use Magento\Framework\Intl\DateTimeFactory;
 use Magento\Catalog\Block\Product\ImageBuilder;
 use Magento\Sales\Model\Order\Item;
 use Fera\Ai\Logger\Logger;
-use Fera\Ai\Interfaces\ConfigOptionInterface;
+use Fera\Ai\Interface\ConfigOptionInterface;
 
 class Data extends AbstractHelper
 {
