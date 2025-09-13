@@ -215,6 +215,7 @@ class ExportProductsCommand extends Command
         ]);
 
         $collection->addAttributeToFilter('status', Status::STATUS_ENABLED);
+        $collection->setOrder('entity_id', 'ASC');
 
         $this->excludeSimpleProductsInBundles($collection);
 
