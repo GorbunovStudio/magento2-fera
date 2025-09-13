@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Fera\Ai\Services;
 
 use Fera\Ai\Helper\Data as FeraHelper;
+use Magento\Customer\Api\CustomerRepositoryInterface;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Model\Order;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Sales\Api\Data\OrderAddressInterface;
@@ -56,13 +58,16 @@ class OrderDataBuilder
 {
     private FeraHelper $helper;
     private DirectoryHelperData $directoryHelper;
+    private CustomerRepositoryInterface $customerRepository;
 
     public function __construct(
         FeraHelper $helper,
-        DirectoryHelperData $directoryHelper
+        DirectoryHelperData $directoryHelper,
+        CustomerRepositoryInterface $customerRepository
     ) {
         $this->helper = $helper;
         $this->directoryHelper = $directoryHelper;
+        $this->customerRepository = $customerRepository;
     }
 
     /**
@@ -145,15 +150,36 @@ class OrderDataBuilder
      */
     public function getCustomerData(Order $order): array
     {
-        $customerName = $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
+        $customerId = $order->getCustomerId();
+        $name = $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
+        $email = (string)$order->getCustomerEmail();
+
+        if ($customerId) {
+            try {
+                $customer = $this->customerRepository->getById((int)$customerId);
+                $firstName = trim((string)$customer->getFirstname());
+                $lastName = trim((string)$customer->getLastname());
+                $computedName = $firstName . ' ' . $lastName;
+                if ($computedName !== '') {
+                    $name = $computedName;
+                }
+                if ($customer->getEmail()) {
+                    $email = (string)$customer->getEmail();
+                }
+            } catch (NoSuchEntityException $e) {
+                $orderId = (string) $order->getId();
+                $this->helper->log(
+                    'Customer not found for order ' . $orderId . ': ' . $e->getMessage()
+                );
+            }
+        }
 
         $result = [
-            'name' => $customerName,
-            'email' => $order->getCustomerEmail(),
+            'name' => $name,
+            'email' => $email,
             'phone_number' => $order->getBillingAddress() ? $order->getBillingAddress()->getTelephone() : null,
         ];
 
-        $customerId = $order->getCustomerId();
         if ($customerId) {
             $result['external_id'] = (int)$customerId;
         }
