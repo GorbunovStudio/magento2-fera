@@ -6,22 +6,22 @@ namespace Fera\Ai\Service;
 
 use Fera\Ai\Exception\FeraApiException;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Magento\Framework\HTTP\Client\CurlFactory;
+use GuzzleHttp\ClientFactory;
+use GuzzleHttp\Exception\GuzzleException;
 use Magento\Framework\Serialize\Serializer\Json;
-use function is_array;
 
 class ApiClient
 {
-    private CurlFactory $curlFactory;
+    private ClientFactory $clientFactory;
     private FeraHelper $helper;
     private Json $json;
 
     public function __construct(
-        CurlFactory $curlFactory,
+        ClientFactory $clientFactory,
         FeraHelper $helper,
         Json $json
     ) {
-        $this->curlFactory = $curlFactory;
+        $this->clientFactory = $clientFactory;
         $this->helper = $helper;
         $this->json = $json;
     }
@@ -71,54 +71,35 @@ class ApiClient
      */
     private function request(string $method, string $endpoint, array $data, ?int $storeId = null): array
     {
-        $url = $this->helper->getApiUrl($storeId) . $endpoint;
-        $curl = $this->curlFactory->create();
+        $client = $this->clientFactory->create(['config' => [
+            'base_uri' => $this->helper->getApiUrl($storeId),
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'SECRET-KEY' => $this->helper->getSecretKey($storeId),
+            ],
+        ]]);
 
-        $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
-
-        $payload = $this->json->serialize($data);
-        if (!is_string($payload)) {
-            throw new \InvalidArgumentException('Unable to serialize value.');
-        }
-
-        switch ($method) {
-            case 'POST':
-                $curl->post($url, $payload);
-                break;
-            case 'PUT':
-                $curl->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
-                $curl->post($url, $payload);
-                break;
-            case 'GET':
-                $curl->get($url);
-                break;
-        }
-
-        $response = $curl->getBody();
-        $httpCode = (int) $curl->getStatus();
-
-        $successCodes = $method === 'POST' ? [200, 201] : [200, 202, 204];
-
-        if (!in_array($httpCode, $successCodes, true)) {
+        try {
+            $response = $client->request($method, $endpoint, ['json' => $data]);
+        } catch (GuzzleException $e) {
             throw new FeraApiException(sprintf(
-                'Fera API request failed for endpoint %s. HTTP Status: %s, Response: %s',
+                'Fera API request failed for endpoint %s: %s',
                 $endpoint,
-                $httpCode,
-                $response
-            ));
+                $e->getMessage()
+            ), 0, $e);
         }
 
-        if ($httpCode === 204) {
+        $responseBody = $response->getBody()->getContents();
+        if ($response->getStatusCode() === 204 || $responseBody === '') {
             return [];
         }
 
-        $decoded = $this->json->unserialize($response);
+        $decoded = $this->json->unserialize($responseBody);
         if (!is_array($decoded)) {
             throw new FeraApiException(sprintf(
                 'Invalid JSON response from Fera API for endpoint %s: %s',
                 $endpoint,
-                $response
+                $responseBody
             ));
         }
 

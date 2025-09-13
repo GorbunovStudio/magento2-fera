@@ -18,7 +18,8 @@
         "magento/module-asynchronous-operations": "^100.4.0",
         "magento/module-catalog": "^104.0.0",
         "magento/module-catalog-inventory": "^100.4.0",
-        "magento/module-checkout": "^100.4.0"
+        "magento/module-checkout": "^100.4.0",
+        "guzzlehttp/guzzle": "^7.10.0"
     },
     "repositories": {
         "0": {
