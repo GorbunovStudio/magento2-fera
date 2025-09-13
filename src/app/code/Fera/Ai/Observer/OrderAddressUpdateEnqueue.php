@@ -65,6 +65,11 @@ class OrderAddressUpdateEnqueue implements ObserverInterface
                 return;
             }
 
+            // Skip address updates if data sharing is minimized since we don't send addresses anyway
+            if ($this->helper->isMinimizeDataSharingEnabled($storeId)) {
+                return;
+            }
+
             $this->publisher->publish(TopicInterface::EXPORT_ORDER_UPDATE, $orderId);
 
             $addressType = $this->getAddressTypeLabel($address);

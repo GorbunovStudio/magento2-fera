@@ -14,8 +14,8 @@ use Magento\Sales\Api\Data\OrderAddressInterface;
 /**
  * @phpstan-type FeraLineItem array{
  *     product_id: int,
- *     price: float,
- *     total: float,
+ *     price?: float,
+ *     total?: float,
  *     name: string,
  *     quantity: int,
  *     variant_id?: int
@@ -79,10 +79,13 @@ class OrderDataBuilder
      */
     public function buildOrderData(Order $order): array
     {
+        $storeId = (int) $order->getStoreId();
+        $minimizeDataSharing = $this->helper->isMinimizeDataSharingEnabled($storeId);
+        
         $currencyCode = $order->getOrderCurrencyCode() ?? "USD";
         $total = $this->calculateRemainingTotal($order);
         $totalUsd = $this->convertToUsd($total, $currencyCode);
-        $lineItems = $this->getLineItems($order);
+        $lineItems = $this->getLineItems($order, $minimizeDataSharing);
 
         $orderId = $order->getEntityId();
         if (!is_numeric($orderId)) {
@@ -92,28 +95,31 @@ class OrderDataBuilder
         }
 
         $data = [
-            'total' => $total,
-            'total_usd' => $totalUsd,
             'external_updated_at' => $this->helper->formatDate($order->getUpdatedAt()),
             'external_id' => (string) $orderId,
             'number' => $order->getIncrementId(),
             'external_created_at' => $this->helper->formatDate($order->getCreatedAt()),
-            'customer' => $this->getCustomerData($order),
+            'customer' => $this->getCustomerData($order, $minimizeDataSharing),
             'tags' => [],
             'source_name' => 'web',
             'line_items' => $lineItems,
             'is_cancelled' => empty($lineItems)
         ];
 
-        $shippingAddress = $order->getShippingAddress();
-        if ($shippingAddress) {
-            $data['shipping_address'] = $this->getAddressData($shippingAddress);
-        }
+        if (!$minimizeDataSharing) {
+            $data['total'] = $total;
+            $data['total_usd'] = $totalUsd;
+
+            $shippingAddress = $order->getShippingAddress();
+            if ($shippingAddress) {
+                $data['shipping_address'] = $this->getAddressData($shippingAddress);
+            }
             
-        $billingAddress = $order->getBillingAddress();
-        if ($billingAddress) {
-            $data['billing_address'] = $this->getAddressData($billingAddress);
-            $data['phone_number'] = $billingAddress->getTelephone();
+            $billingAddress = $order->getBillingAddress();
+            if ($billingAddress) {
+                $data['billing_address'] = $this->getAddressData($billingAddress);
+                $data['phone_number'] = $billingAddress->getTelephone();
+            }
         }
 
         return $data;
@@ -133,22 +139,33 @@ class OrderDataBuilder
      * Get serialized line items from order
      *
      * @param Order $order
+     * @param bool $minimizeDataSharing
      * @return array
      * @phpstan-return array<int, FeraLineItem>
      */
-    public function getLineItems(Order $order): array
+    public function getLineItems(Order $order, bool $minimizeDataSharing = false): array
     {
-        return $this->helper->serializeQuoteItems($order->getAllItems());
+        $items = $this->helper->serializeQuoteItems($order->getAllItems());
+        
+        if ($minimizeDataSharing) {
+            return array_map(static function (array $item): array {
+                unset($item['price'], $item['total']);
+                return $item;
+            }, $items);
+        }
+        
+        return $items;
     }
 
     /**
      * Get customer data for Fera API
      *
      * @param Order $order
+     * @param bool $minimizeDataSharing
      * @return array
      * @phpstan-return FeraCustomerData
      */
-    public function getCustomerData(Order $order): array
+    public function getCustomerData(Order $order, bool $minimizeDataSharing = false): array
     {
         $customerId = $order->getCustomerId();
         $name = $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
@@ -167,7 +184,8 @@ class OrderDataBuilder
                     $email = (string)$customer->getEmail();
                 }
             } catch (NoSuchEntityException $e) {
-                $orderId = (string) $order->getId();
+                $entityId = $order->getEntityId();
+                $orderId = is_numeric($entityId) ? (string) $entityId : 'unknown';
                 $this->helper->log(
                     'Customer not found for order ' . $orderId . ': ' . $e->getMessage()
                 );
@@ -177,8 +195,11 @@ class OrderDataBuilder
         $result = [
             'name' => $name,
             'email' => $email,
-            'phone_number' => $order->getBillingAddress() ? $order->getBillingAddress()->getTelephone() : null,
         ];
+
+        if (!$minimizeDataSharing) {
+            $result['phone_number'] = $order->getBillingAddress() ? $order->getBillingAddress()->getTelephone() : null;
+        }
 
         if ($customerId) {
             $result['external_id'] = (int)$customerId;

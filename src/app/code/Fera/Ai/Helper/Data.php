@@ -12,7 +12,6 @@ use Magento\Framework\App\Helper\Context;
 use Magento\Framework\Module\ResourceInterface as ModuleResourceInterface;
 use Magento\Framework\Json\Helper\Data as JsonHelper;
 use Magento\Store\Model\ScopeInterface;
-use Magento\Store\Model\StoreManagerInterface;
 use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Intl\DateTimeFactory;
 use Magento\Catalog\Block\Product\ImageBuilder;
@@ -22,16 +21,12 @@ use Fera\Ai\Interface\ConfigOptionInterface;
 
 class Data extends AbstractHelper
 {
-    const FORMAT_DATE = 'Y-m-d\TH:i:sP';
+    public const FORMAT_DATE = 'Y-m-d\TH:i:sP';
 
     /**
      * @var ModuleResourceInterface
      */
     private $moduleResource;
-    /**
-     * @var StoreManagerInterface
-     */
-    private $storeManager;
     /**
      * @var JsonHelper
      */
@@ -56,7 +51,6 @@ class Data extends AbstractHelper
     public function __construct(
         Context $context,
         ModuleResourceInterface $moduleResource,
-        StoreManagerInterface $storeManager,
         JsonHelper $jsonHelper,
         CheckoutSession $checkoutSession,
         DateTimeFactory $dateTime,
@@ -64,7 +58,6 @@ class Data extends AbstractHelper
         Logger $logger
     ) {
         $this->moduleResource = $moduleResource;
-        $this->storeManager = $storeManager;
         $this->jsonHelper = $jsonHelper;
         $this->checkoutSession = $checkoutSession;
         $this->dateTime = $dateTime;
@@ -156,6 +149,15 @@ class Data extends AbstractHelper
     {
         return (bool) $this->scopeConfig->getValue(
             ConfigOptionInterface::EXPORT_ORDER_ON_CREATION,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    public function isMinimizeDataSharingEnabled(?int $storeId = null): bool
+    {
+        return (bool) $this->scopeConfig->getValue(
+            ConfigOptionInterface::MINIMIZE_DATA_SHARING,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
