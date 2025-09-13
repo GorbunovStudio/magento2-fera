@@ -12,4 +12,7 @@
     <topic name="fera.export.product" request="Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface">
         <handler name="exportProductHandler" type="Fera\Ai\Model\Queue\ExportProduct\Handler" method="process" />
     </topic>
+    <topic name="fera.process.customer.update" request="int">
+        <handler name="processCustomerUpdateHandler" type="Fera\Ai\Model\Queue\ProcessCustomerUpdate\Handler" method="process" />
+    </topic>
 </config>

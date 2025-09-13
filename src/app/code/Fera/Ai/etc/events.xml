@@ -11,4 +11,8 @@
     <event name="sales_order_save_after">
         <observer name="fera_ai_order_push" instance="Fera\Ai\Observer\OrderPushEvent" />
     </event>
+
+    <event name="customer_save_after">
+        <observer name="fera_ai_customer_save" instance="Fera\Ai\Observer\CustomerEnqueueUpdateProcessing" />
+    </event>
 </config>

@@ -12,4 +12,7 @@
     <publisher topic="fera.export.product">
         <connection exchange="fera" />
     </publisher>
+    <publisher topic="fera.process.customer.update">
+        <connection exchange="fera" />
+    </publisher>
 </config>

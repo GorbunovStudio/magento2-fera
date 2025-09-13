@@ -32,7 +32,7 @@ class OrderExportManager
     public function isExported(int $orderId): bool
     {
         $collection = $this->collectionFactory->create();
-        $collection->addFieldToFilter(FeraOrderInterface::ORDER_ID, $orderId);
+        $collection->addFieldToFilter(FeraOrderInterface::ORDER_ID, (string) $orderId);
         $collection->setPageSize(1);
         return (bool) $collection->getSize();
     }
@@ -40,10 +40,10 @@ class OrderExportManager
     public function getFeraId(int $orderId): ?string
     {
         $collection = $this->collectionFactory->create();
-        $collection->addFieldToFilter(FeraOrderInterface::ORDER_ID, $orderId);
+        $collection->addFieldToFilter(FeraOrderInterface::ORDER_ID, (string) $orderId);
         $collection->setPageSize(1);
         $item = $collection->getFirstItem();
-        if (!$item || !$item->getId()) {
+        if (!$item->getId()) {
             return null;
         }
         return $item->getFeraId();
@@ -60,5 +60,29 @@ class OrderExportManager
         $model->setFeraId($feraId);
         $model->setExportedAt($this->dateTime->gmtDate());
         $this->resource->save($model);
+    }
+
+    /**
+     * Get exported order IDs from a list of order IDs
+     *
+     * @param int[] $orderIds
+     * @return int[]
+     */
+    public function getExportedOrderIds(array $orderIds): array
+    {
+        if (empty($orderIds)) {
+            return [];
+        }
+
+        $collection = $this->collectionFactory->create();
+        $collection->addFieldToFilter(FeraOrderInterface::ORDER_ID, ['in' => $orderIds]);
+        $collection->addFieldToSelect(FeraOrderInterface::ORDER_ID);
+
+        $exportedOrderIds = [];
+        foreach ($collection->getItems() as $item) {
+            $exportedOrderIds[] = (int) $item->getOrderId();
+        }
+
+        return $exportedOrderIds;
     }
 }
