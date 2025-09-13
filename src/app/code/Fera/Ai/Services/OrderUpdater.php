@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Services;
 
 use Fera\Ai\Helper\Data as FeraHelper;
@@ -7,19 +9,17 @@ use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Sales\Model\Order;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Framework\DataObjectFactory;
-use Fera\Ai\Model\OrderExportManager;
 use RuntimeException;
 
 /**
  * @phpstan-import-type FeraOrder from OrderDataBuilder
  */
-class OrderExporter
+class OrderUpdater
 {
     protected CurlFactory $curlFactory;
     protected FeraHelper $helper;
     protected EventManager $eventManager;
     protected DataObjectFactory $dataObjectFactory;
-    private OrderExportManager $orderExportManager;
     private OrderDataBuilder $orderDataBuilder;
 
     public function __construct(
@@ -27,18 +27,16 @@ class OrderExporter
         CurlFactory $curlFactory,
         EventManager $eventManager,
         DataObjectFactory $dataObjectFactory,
-        OrderExportManager $orderExportManager,
         OrderDataBuilder $orderDataBuilder
     ) {
         $this->helper = $helper;
         $this->curlFactory = $curlFactory;
         $this->eventManager = $eventManager;
         $this->dataObjectFactory = $dataObjectFactory;
-        $this->orderExportManager = $orderExportManager;
         $this->orderDataBuilder = $orderDataBuilder;
     }
-
-    public function pushOrder(Order $order): ?string
+    
+    public function update(Order $order, string $feraId): void
     {
         $storeId = (int) $order->getStoreId();
         $orderId = $order->getEntityId();
@@ -47,10 +45,6 @@ class OrderExporter
         }
 
         $orderData = $this->orderDataBuilder->buildOrderData($order);
-        if (empty($orderData['line_items'])) {
-            $this->helper->debug('No line items to export for order ' . $order->getId() . ', skipping export');
-            return null;
-        }
 
         $payload = $this->dataObjectFactory->create(['data' => $orderData]);
         $this->eventManager->dispatch('fera_export_order_data_ready', [
@@ -61,60 +55,43 @@ class OrderExporter
         /** @phpstan-var FeraOrder $orderData */
         $orderData = $payload->getData();
 
-        $feraId = $this->send($orderData, (int)$storeId);
+        $this->helper->debug(
+            "Order {$orderId}: Sending update to Fera"
+        );
 
-        if (!is_string($feraId) || $feraId === '') {
-            throw new RuntimeException(sprintf('Invalid Fera ID received for order %d', (int) $orderId));
-        }
-
-        $this->orderExportManager->saveSuccessfulExport($order, $feraId);
-        
-        return $feraId;
+        $this->sendUpdate($orderData, $feraId, $storeId);
     }
 
     /**
-     * Send order data to Fera API
+     * Send PUT request to Fera API
      *
      * @param array $data
      * @phpstan-param FeraOrder $data
-     * @param int|null $storeId
-     * @return string
+     * @param string $feraId
+     * @param int $storeId
      */
-    protected function send(array $data, ?int $storeId = null): string
+    private function sendUpdate(array $data, string $feraId, int $storeId): void
     {
-        $url = $this->helper->getApiUrl($storeId) . 'v3/private/orders.json';
+        $url = $this->helper->getApiUrl($storeId) . 'v3/private/orders/' . $feraId;
         $curl = $this->curlFactory->create();
+        
         $curl->addHeader('Content-Type', 'application/json');
         $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
+        $curl->setOption('CUSTOMREQUEST', 'PUT');
         $curl->post($url, $this->helper->jsonEncode($data));
+        
         $response = $curl->getBody();
-        $httpCode = (int)$curl->getStatus();
+        $httpCode = (int) $curl->getStatus();
 
-        if (!in_array($httpCode, [200, 201], true)) {
+        if (!in_array($httpCode, [200, 204], true)) {
             throw new RuntimeException(sprintf(
-                'Failed to create order %s in Fera API. HTTP Status: %d, Response: %s',
-                $data['external_id'],
+                'Failed to update order %s in Fera API. HTTP Status: %d, Response: %s',
+                $feraId,
                 $httpCode,
-                (string)$response
+                (string) $response
             ));
         }
 
-        $decoded = json_decode($response, true);
-        if (!is_array($decoded)) {
-            throw new RuntimeException(sprintf(
-                'Invalid JSON from Fera API when creating order %s',
-                $data['external_id']
-            ));
-        }
-
-        $feraId = $decoded['id'] ?? null;
-        if (!is_string($feraId)) {
-            throw new RuntimeException(sprintf(
-                'Fera ID is missing in API response for order %s',
-                $data['external_id']
-            ));
-        }
-
-        return $feraId;
+        $this->helper->debug("Successfully updated order {$feraId} in Fera API. HTTP {$httpCode}");
     }
 }

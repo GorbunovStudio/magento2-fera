@@ -3,8 +3,11 @@
     <topic name="fera.export.order" request="int">
         <handler name="exportOrderHandler" type="Fera\Ai\Model\Queue\ExportOrder\Handler" method="process" />
     </topic>
-    <topic name="fera.export.order.status.update" request="int">
-        <handler name="exportOrderStatusUpdateHandler" type="Fera\Ai\Model\Queue\ExportOrderStatusUpdate\Handler" method="process" />
+    <topic name="fera.export.order.fulfillment" request="int">
+        <handler name="exportOrderFulfillmentHandler" type="Fera\Ai\Model\Queue\ExportOrderFulfillment\Handler" method="process" />
+    </topic>
+    <topic name="fera.export.order.update" request="int">
+        <handler name="exportOrderUpdateHandler" type="Fera\Ai\Model\Queue\ExportOrderUpdate\Handler" method="process" />
     </topic>
     <topic name="fera.export.product" request="Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface">
         <handler name="exportProductHandler" type="Fera\Ai\Model\Queue\ExportProduct\Handler" method="process" />

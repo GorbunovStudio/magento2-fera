@@ -1,6 +1,6 @@
 <?php
 
-namespace Fera\Ai\Model\Queue\ExportOrderStatusUpdate;
+namespace Fera\Ai\Model\Queue\ExportOrderFulfillment;
 
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\OrderRepository;

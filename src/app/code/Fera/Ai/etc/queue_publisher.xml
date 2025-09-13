@@ -3,7 +3,10 @@
     <publisher topic="fera.export.order">
         <connection exchange="fera" />
     </publisher>
-    <publisher topic="fera.export.order.status.update">
+    <publisher topic="fera.export.order.fulfillment">
+        <connection exchange="fera" />
+    </publisher>
+    <publisher topic="fera.export.order.update">
         <connection exchange="fera" />
     </publisher>
     <publisher topic="fera.export.product">

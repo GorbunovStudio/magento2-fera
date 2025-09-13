@@ -13,11 +13,9 @@ use Fera\Ai\Api\Data\Queue\TopicInterface;
 class OrderPushEvent implements ObserverInterface
 {
     /** @var Order[] */
-    private $newOrders = [];
-    /** @var FeraHelper */
-    private $helper;
-    /** @var PublisherInterface */
-    private $publisher;
+    private array $newOrders = [];
+    private FeraHelper $helper;
+    private PublisherInterface $publisher;
 
     public function __construct(
         FeraHelper $helper,
@@ -49,25 +47,39 @@ class OrderPushEvent implements ObserverInterface
             return;
         }
 
-        if (!$this->helper->shouldExportOrderOnCreation((int)$order->getStoreId())) {
-            return;
-        }
-
         if ($eventName === 'sales_order_place_after') {
             $this->newOrders[] = $order;
             
             return;
         }
 
+        $orderId = (int)$order->getId();
         $idx = array_search($order, $this->newOrders, true);
-        if ($idx === false) {
-            return;
+
+        if ($idx !== false) {
+            unset($this->newOrders[$idx]);
+
+            if (!$this->helper->shouldExportOrderOnCreation((int)$order->getStoreId())) {
+                return;
+            }
+
+            $this->publisher->publish(TopicInterface::EXPORT_ORDER, $orderId);
+        } else {
+            $this->publisher->publish(TopicInterface::EXPORT_ORDER_UPDATE, $orderId);
         }
 
-        unset($this->newOrders[$idx]);
+        if ($this->hasOrderBecomeComplete($order)) {
+            $this->publisher->publish(TopicInterface::EXPORT_ORDER_FULFILLMENT, $orderId);
+            return;
+        }
+    }
 
-        $orderId = (int)$order->getId();
+    private function hasOrderBecomeComplete(Order $order): bool
+    {
+        $currentState = $order->getState();
+        $originalState = $order->getOrigData('state');
         
-        $this->publisher->publish(TopicInterface::EXPORT_ORDER, $orderId);
+        return $currentState === Order::STATE_COMPLETE &&
+               $originalState !== Order::STATE_COMPLETE;
     }
 }

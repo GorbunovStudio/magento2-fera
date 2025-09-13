@@ -238,7 +238,15 @@ class Data extends AbstractHelper
 
     /**
      * @param \Magento\Sales\Model\Order\Item[]|\Magento\Quote\Model\Quote\Item[] $items
-     * @return array<int,array{product_id:int,price:float,total:float,name:string,quantity:int,variant_id?:int}>
+     * @return array
+     * @phpstan-return array<int, array{
+     *     product_id:int,
+     *     price:float,
+     *     total:float,
+     *     name:string,
+     *     quantity:int,
+     *     variant_id?:int
+     * }>
      */
     public function serializeQuoteItems($items): array
     {
