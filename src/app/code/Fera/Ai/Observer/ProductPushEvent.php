@@ -43,7 +43,7 @@ class ProductPushEvent implements ObserverInterface
     private $logger;
 
     /**
-     * @var ProductExportMessageDataInterfaceFactory
+     * @var MessageInterfaceFactory
      */
     private $messageDataFactory;
 
@@ -55,7 +55,7 @@ class ProductPushEvent implements ObserverInterface
      * @param FeraHelper $helper
      * @param PublisherInterface $publisher
      * @param LoggerInterface $logger
-     * @param ProductExportMessageDataInterfaceFactory $messageDataFactory
+     * @param MessageInterfaceFactory $messageDataFactory
      */
     public function __construct(
         StoreManagerInterface $storeManager,
@@ -129,7 +129,7 @@ class ProductPushEvent implements ObserverInterface
     /**
      * Get store IDs that are affected by the current product save operation
      * This method checks the product's store ID to determine the scope
-     * 
+     *
      * @param Product $product
      * @return array
      */
