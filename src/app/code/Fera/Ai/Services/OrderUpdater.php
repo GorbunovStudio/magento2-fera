@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Services;
 
+use Fera\Ai\Exception\FeraApiException;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Service\ApiClient;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
-use Magento\Framework\HTTP\Client\CurlFactory;
 use Magento\Sales\Model\Order;
 use RuntimeException;
 
@@ -19,24 +20,24 @@ use RuntimeException;
  */
 class OrderUpdater
 {
-    protected CurlFactory $curlFactory;
     protected FeraHelper $helper;
     protected EventManager $eventManager;
     protected DataObjectFactory $dataObjectFactory;
     private OrderDataBuilder $orderDataBuilder;
+    private ApiClient $apiClient;
 
     public function __construct(
         FeraHelper $helper,
-        CurlFactory $curlFactory,
         EventManager $eventManager,
         DataObjectFactory $dataObjectFactory,
-        OrderDataBuilder $orderDataBuilder
+        OrderDataBuilder $orderDataBuilder,
+        ApiClient $apiClient
     ) {
         $this->helper = $helper;
-        $this->curlFactory = $curlFactory;
         $this->eventManager = $eventManager;
         $this->dataObjectFactory = $dataObjectFactory;
         $this->orderDataBuilder = $orderDataBuilder;
+        $this->apiClient = $apiClient;
     }
     
     public function update(Order $order, string $feraId): void
@@ -79,40 +80,15 @@ class OrderUpdater
      * @param int $storeId
      * @return array
      * @phpstan-return FeraOrderResponse
+     * @throws FeraApiException
      */
     private function sendUpdate(array $data, string $feraId, int $storeId): array
     {
-        $url = $this->helper->getApiUrl($storeId) . 'v3/private/orders/' . $feraId;
-        $curl = $this->curlFactory->create();
-        
-        $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
-        $curl->setOption('CUSTOMREQUEST', 'PUT');
-        $curl->post($url, $this->helper->jsonEncode($data));
-        
-        $response = $curl->getBody();
-        $httpCode = (int) $curl->getStatus();
+        /** @var FeraOrderResponse $response */
+        $response = $this->apiClient->put('v3/private/orders/' . $feraId, $data, $storeId);
 
-        if (!in_array($httpCode, [200, 204], true)) {
-            throw new RuntimeException(sprintf(
-                'Failed to update order %s in Fera API. HTTP Status: %d, Response: %s',
-                $feraId,
-                $httpCode,
-                (string) $response
-            ));
-        }
-
-        $this->helper->debug("Successfully updated order {$feraId} in Fera API. HTTP {$httpCode}");
-        
-        // Parse response for 200, return empty array for 204
-        if ($httpCode === 200 && $response) {
-            $decoded = json_decode((string) $response, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                return $decoded;
-            }
-        }
-        
-        return [];
+        $this->helper->debug("Successfully updated order {$feraId} in Fera API.");
+        return $response;
     }
 
     /**
@@ -148,45 +124,30 @@ class OrderUpdater
      * @param int $storeId
      * @return array
      * @phpstan-return FeraCustomerData
+     * @throws FeraApiException
      */
     private function fetchCustomer(string $customerId, int $storeId): array
     {
-        $url = $this->helper->getApiUrl($storeId) . 'v3/private/customers/' . $customerId;
-        $curl = $this->curlFactory->create();
-        
-        $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
-        $curl->get($url);
-        
-        $response = $curl->getBody();
-        $httpCode = (int) $curl->getStatus();
+        $decoded = $this->apiClient->get('v3/private/customers/' . $customerId, $storeId);
 
-        if ($httpCode !== 200) {
-            throw new RuntimeException(sprintf(
-                'Failed to fetch customer %s from Fera API. HTTP Status: %d, Response: %s',
-                $customerId,
-                $httpCode,
-                (string) $response
-            ));
-        }
-
-        $decoded = json_decode((string) $response, true);
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
-            throw new RuntimeException(sprintf(
-                'Invalid JSON response when fetching customer %s: %s',
-                $customerId,
-                json_last_error_msg()
+        if (!isset($decoded['name']) || !is_string($decoded['name']) || !isset($decoded['email']) || !is_string($decoded['email'])) {
+            throw new FeraApiException(sprintf(
+                'Invalid customer data received from Fera API for customer %s',
+                $customerId
             ));
         }
 
         $result = [
-            'name' => (string) ($decoded['name'] ?? ''),
-            'email' => (string) ($decoded['email'] ?? ''),
-            'phone_number' => $decoded['phone_number'] ?? null,
+            'name' => $decoded['name'],
+            'email' => $decoded['email'],
         ];
+
+        if (isset($decoded['phone_number']) && is_string($decoded['phone_number'])) {
+            $result['phone_number'] = $decoded['phone_number'];
+        }
         
         if (isset($decoded['external_id']) && $decoded['external_id'] !== null) {
-            $result['external_id'] = $decoded['external_id'];
+            $result['external_id'] = (int) $decoded['external_id'];
         }
         
         return $result;
@@ -235,29 +196,11 @@ class OrderUpdater
      * @param array $customerData
      * @phpstan-param FeraCustomerData $customerData
      * @param int $storeId
+     * @throws FeraApiException
      */
     private function updateCustomer(string $customerId, array $customerData, int $storeId): void
     {
-        $url = $this->helper->getApiUrl($storeId) . 'v3/private/customers/' . $customerId;
-        $curl = $this->curlFactory->create();
-        
-        $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
-        $curl->setOption('CUSTOMREQUEST', 'PUT');
-        $curl->post($url, $this->helper->jsonEncode($customerData));
-
-        $response = $curl->getBody();
-        $httpCode = (int) $curl->getStatus();
-
-        if (!in_array($httpCode, [200, 204], true)) {
-            throw new RuntimeException(sprintf(
-                'Failed to update customer %s in Fera API. HTTP Status: %d, Response: %s',
-                $customerId,
-                $httpCode,
-                (string) $response
-            ));
-        }
-
-        $this->helper->debug("Successfully updated customer {$customerId} in Fera API. HTTP {$httpCode}");
+        $this->apiClient->put('v3/private/customers/' . $customerId, $customerData, $storeId);
+        $this->helper->debug("Successfully updated customer {$customerId} in Fera API.");
     }
 }

@@ -6,7 +6,7 @@ use Fera\Ai\Api\Data\FeraProductInterface;
 use Fera\Ai\Model\ResourceModel\FeraProduct as FeraProductResource;
 use Fera\Ai\Model\ResourceModel\FeraProduct\CollectionFactory as FeraProductCollectionFactory;
 use Fera\Ai\Model\FeraProductFactory;
-use Magento\Catalog\Model\Product;
+use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Framework\Stdlib\DateTime\DateTime;
 use UnexpectedValueException;
 
@@ -32,7 +32,7 @@ class ProductExportManager
     public function isExported(int $productId): bool
     {
         $collection = $this->collectionFactory->create();
-        $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, $productId);
+        $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, (string) $productId);
         $collection->setPageSize(1);
         return (bool) $collection->getSize();
     }
@@ -40,10 +40,10 @@ class ProductExportManager
     public function getFeraId(int $productId): ?string
     {
         $collection = $this->collectionFactory->create();
-        $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, $productId);
+        $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, (string) $productId);
         $collection->setPageSize(1);
         $item = $collection->getFirstItem();
-        if (!$item || !$item->getId()) {
+        if (!$item->getId()) {
             return null;
         }
         return $item->getFeraId();
@@ -67,7 +67,7 @@ class ProductExportManager
         return $result;
     }
 
-    public function saveSuccessfulExport(Product $product, string $feraId): void
+    public function saveSuccessfulExport(ProductInterface $product, string $feraId): void
     {
         if (!$product->getId()) {
             throw new UnexpectedValueException(

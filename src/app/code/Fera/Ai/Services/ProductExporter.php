@@ -2,59 +2,60 @@
 
 namespace Fera\Ai\Services;
 
+use Fera\Ai\Exception\FeraApiException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
-use Magento\CatalogInventory\Api\StockStateInterface;
-use Magento\Framework\HTTP\Client\CurlFactory;
-use Magento\Catalog\Model\Product as Product;
+use Fera\Ai\Service\ApiClient;
 use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Framework\Event\ManagerInterface as EventManager;
-use Magento\Framework\DataObjectFactory;
+use Magento\Catalog\Model\Product as Product;
 use Magento\Catalog\Model\Product\Visibility;
+use Magento\CatalogInventory\Api\StockStateInterface;
+use Magento\Framework\DataObjectFactory;
+use Magento\Framework\Event\ManagerInterface as EventManager;
 use RuntimeException;
 use UnexpectedValueException;
 
 class ProductExporter
 {
-    private const API_ENDPOINT_PRODUCTS = 'v3/private/products';
+    protected const API_ENDPOINT_PRODUCTS = 'v3/private/products';
 
     private FeraHelper $helper;
     private StockStateInterface $stockState;
-    private CurlFactory $curlFactory;
     private EventManager $eventManager;
     private DataObjectFactory $dataObjectFactory;
     private ProductRepositoryInterface $productRepository;
     private ProductExportManager $productExportManager;
+    private ApiClient $apiClient;
 
     public function __construct(
         FeraHelper $helper,
         StockStateInterface $stockState,
-        CurlFactory $curlFactory,
         EventManager $eventManager,
         DataObjectFactory $dataObjectFactory,
         ProductRepositoryInterface $productRepository,
-        ProductExportManager $productExportManager
+        ProductExportManager $productExportManager,
+        ApiClient $apiClient
     ) {
         $this->helper = $helper;
         $this->stockState = $stockState;
-        $this->curlFactory = $curlFactory;
         $this->eventManager = $eventManager;
         $this->dataObjectFactory = $dataObjectFactory;
         $this->productRepository = $productRepository;
         $this->productExportManager = $productExportManager;
+        $this->apiClient = $apiClient;
     }
 
     /**
      * Push a single product to the Fera API
      */
-    public function pushProduct(Product $product, $storeId = null): void
+    public function pushProduct(Product $product, int $storeId = null): void
     {
         $this->pushProducts([$product], $storeId);
     }
 
     /**
      * Push multiple products to the Fera API efficiently
-     * 
+     *
      * @param Product[] $products
      * @param int|null $storeId
      */
@@ -78,7 +79,7 @@ class ProductExporter
                 $product = $this->productRepository->getById($product->getId(), false, $storeId);
             }
             
-            $productData = $this->buildProductData($product, $storeId);
+            $productData = $this->buildProductData($product);
             $externalId = (int) $productData['external_id'];
             $feraId = $map[$externalId] ?? null;
             $isUpdate = $feraId !== null && $feraId !== '';
@@ -93,8 +94,10 @@ class ProductExporter
 
     /**
      * Build product data array for API call
-     * 
-     * @return array{
+     *
+     * @param \Magento\Catalog\Model\Product $product
+     * @return mixed[]
+     * @phpstan-return array{
      *     id: int|string,
      *     external_id: int|string,
      *     name: string,
@@ -108,12 +111,12 @@ class ProductExporter
      *     thumbnail_url: string,
      *     needs_shipping: bool,
      *     hidden: bool,
-     *     tags: array,
+     *     tags: string[],
      *     variants: array,
      *     platform_data: array{sku: string, type: string, regular_price: float}
      * }
      */
-    private function buildProductData(Product $product, $storeId = null): array
+    private function buildProductData(Product $product): array
     {
         $thumb = $this->helper->getProductThumbnailUrl($product);
 
@@ -200,7 +203,7 @@ class ProductExporter
     }
 
     /**
-     * @param array $products
+     * @param mixed[] $products
      * @phpstan-assert Product[] $products
      */
     private function validateProductsArray(array $products): void
@@ -215,83 +218,37 @@ class ProductExporter
         }
     }
 
-
     /**
      * @param array{external_id: int|string, ...} $data
+     * @param string|null $feraId
      * @param int|null $storeId
      * @return string Fera ID
+     * @throws FeraApiException
      */
-    private function sendProductData(array $data, ?string $feraId, $storeId = null): string
+    private function sendProductData(array $data, ?string $feraId, ?int $storeId = null): string
     {
-        $url = $this->helper->getApiUrl($storeId) . static::API_ENDPOINT_PRODUCTS;
         $isUpdate = $feraId !== null && $feraId !== '';
-        if ($isUpdate) {
-            $url .= '/' . $feraId;
-        }
-        
-        $curl = $this->curlFactory->create();
-        $curl->addHeader('Content-Type', 'application/json');
-        $curl->addHeader('SECRET-KEY', $this->helper->getSecretKey($storeId));
-        
-        $jsonData = $this->helper->jsonEncode($data);
-        
-        if ($isUpdate) {
-            $curl->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
-        }
-        $curl->post($url, $jsonData);
-        
-        $httpCode = $curl->getStatus();
-        $response = $curl->getBody();
-        
-        $successCodes = $isUpdate ? [200, 202, 204] : [200, 201];
-        if (!in_array($httpCode, $successCodes, true)) {
-            $method = $isUpdate ? 'PUT' : 'POST';
-            $productId = $data['external_id'] ?? 'unknown';
-
-            throw new RuntimeException(sprintf(
-                'Failed to %s product %s to Fera API. HTTP Status: %s, Response: %s',
-                $method,
-                (string) $productId,
-                (string) $httpCode,
-                $response
-            ));
-        }
+        $endpoint = static::API_ENDPOINT_PRODUCTS;
 
         if ($isUpdate) {
+            $endpoint .= '/' . $feraId;
+            $this->apiClient->put($endpoint, $data, $storeId);
             $this->helper->debug('Successfully updated product ' . $data['external_id'] . ' in Fera API');
             return (string) $feraId;
         }
 
-        $decoded = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
-            throw new RuntimeException(sprintf(
-                'Invalid JSON response from Fera API on product create: %s',
-                json_last_error_msg()
-            ));
-        }
-        $createdId = $decoded['id'] ?? null;
+        $response = $this->apiClient->post($endpoint, $data, $storeId);
+
+        $createdId = $response['id'] ?? null;
         if (!is_string($createdId) || $createdId === '') {
             throw new RuntimeException(sprintf(
                 'Fera API create response missing id for product %s: %s',
-                (string)($data['external_id'] ?? 'unknown'),
-                $response
+                (string) $data['external_id'],
+                $this->helper->jsonEncode($response)
             ));
         }
 
         $this->helper->debug('Successfully created product ' . $data['external_id'] . ' in Fera API');
         return $createdId;
-    }
-
-    /**
-     * Legacy method for backward compatibility
-     * Send post request to push products
-     *
-     * @param array<string, mixed> $data Product data to send
-     * @param int|null $storeId
-     * @deprecated Use sendProductData() instead
-     */
-    protected function send(array $data, $storeId = null): void
-    {
-        $this->sendProductData($data, null, $storeId);
     }
 }

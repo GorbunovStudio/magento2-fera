@@ -2,40 +2,41 @@
 
 namespace Fera\Ai\Model\Queue\ExportOrderFulfillment;
 
-use Magento\Sales\Api\OrderRepositoryInterface;
-use Magento\Sales\Model\OrderRepository;
-use Magento\Sales\Model\Order;
-use Magento\Framework\HTTP\Client\CurlFactory;
-use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
+use Fera\Ai\Service\ApiClient;
+use Fera\Ai\Services\OrderExporter;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\Order;
+use Magento\Sales\Model\OrderRepository;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Throwable;
 use UnexpectedValueException;
 
 class Handler
 {
     private OrderRepositoryInterface $orderRepository;
     private FeraHelper $helper;
-    private CurlFactory $curlFactory;
     private LoggerInterface $logger;
     private OrderExportManager $orderExportManager;
     private OrderExporter $orderExporter;
+    private ApiClient $apiClient;
 
     public function __construct(
         OrderRepositoryInterface $orderRepository,
         FeraHelper $helper,
-        CurlFactory $curlFactory,
         LoggerInterface $logger,
         OrderExportManager $orderExportManager,
-        OrderExporter $orderExporter
+        OrderExporter $orderExporter,
+        ApiClient $apiClient
     ) {
         $this->orderRepository = $orderRepository;
         $this->helper = $helper;
-        $this->curlFactory = $curlFactory;
         $this->logger = $logger;
         $this->orderExportManager = $orderExportManager;
         $this->orderExporter = $orderExporter;
+        $this->apiClient = $apiClient;
     }
 
     /**
@@ -104,12 +105,6 @@ class Handler
      */
     private function updateOrderStatus(array $data, int $storeId, string $feraId): void
     {
-        $url = $this->helper->getApiUrl($storeId) . 'v3/private/orders/' . $feraId . '/fulfill';
-        $curl = $this->curlFactory->create();
-        $curl->addHeader("Content-Type", "application/json");
-        $curl->addHeader("SECRET-KEY", $this->helper->getSecretKey($storeId));
-        $curl->setOption(CURLOPT_CUSTOMREQUEST, "PUT");
-        $curl->post($url, $this->helper->jsonEncode($data));
-        $response = $curl->getBody();
+        $this->apiClient->put('v3/private/orders/' . $feraId . '/fulfill', $data, $storeId);
     }
 }
