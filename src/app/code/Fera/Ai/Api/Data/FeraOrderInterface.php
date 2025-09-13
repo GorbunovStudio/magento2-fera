@@ -31,7 +31,7 @@ interface FeraOrderInterface
     public function setOrderId(int $value): self;
 
     /**
-     * @param string $fervalueaId
+     * @param string $value
      * @return self
      */
     public function setFeraId(string $value): self;

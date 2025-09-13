@@ -76,7 +76,7 @@ class CustomerEnqueueUpdateProcessing implements ObserverInterface
         
         $currentLastName = trim((string) $customer->getLastname());
 
-        if ($originalFirstName !== $currentFirstName || $originalLastName !== $currentLastName) {
+        if ($originalLastName !== $currentLastName) {
             return true;
         }
 
