@@ -25,7 +25,7 @@ use Magento\Sales\Api\Data\OrderAddressInterface;
  *     external_id?: int,
  *     name: string,
  *     email: string,
- *     phone_number: string|null
+ *     phone_number?: string|null
  * }
  *
  * @phpstan-type FeraAddressData array{
@@ -49,7 +49,6 @@ use Magento\Sales\Api\Data\OrderAddressInterface;
  *     source_name?: string,
  *     shipping_address?: FeraAddressData,
  *     billing_address?: FeraAddressData,
- *     phone_number?: string|null,
  *     is_cancelled?: bool
  * }
  */
@@ -113,7 +112,6 @@ class OrderDataBuilder
         $billingAddress = $order->getBillingAddress();
         if ($billingAddress) {
             $data['billing_address'] = $this->getAddressData($billingAddress);
-            $data['phone_number'] = $billingAddress->getTelephone();
         }
 
         return $data;
