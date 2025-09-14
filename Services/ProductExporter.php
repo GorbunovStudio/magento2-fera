@@ -66,7 +66,7 @@ class ProductExporter
         foreach ($products as $p) {
             $ids[] = (int) $p->getId();
         }
-        $map = $this->productExportManager->getFeraIdsByProductIds($ids);
+        $map = $this->productExportManager->getFeraIdsByProductIds($ids, $storeId);
 
         foreach ($products as $product) {
             if (!$product instanceof Product) {
@@ -88,7 +88,7 @@ class ProductExporter
             $resultFeraId = $this->sendProductData($productData, $feraId, $storeId);
 
             if (!$isUpdate) {
-                $this->productExportManager->saveSuccessfulExport($product, $resultFeraId);
+                $this->productExportManager->saveSuccessfulExport($product, $resultFeraId, $storeId);
             }
         }
     }

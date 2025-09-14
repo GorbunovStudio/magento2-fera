@@ -49,6 +49,17 @@ class FeraProduct extends AbstractModel implements FeraProductInterface
         return $value;
     }
 
+    public function getStoreId(): int
+    {
+        $value = parent::getData(self::STORE_ID);
+        if (!is_numeric($value)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for ' . self::STORE_ID . ': expected int, got ' . get_debug_type($value)
+            );
+        }
+        return (int) $value;
+    }
+
     public function setProductId(int $value): static
     {
         $this->setData(self::PRODUCT_ID, $value);
@@ -64,6 +75,12 @@ class FeraProduct extends AbstractModel implements FeraProductInterface
     public function setExportedAt(string $value): static
     {
         $this->setData(self::EXPORTED_AT, $value);
+        return $this;
+    }
+
+    public function setStoreId(int $value): static
+    {
+        $this->setData(self::STORE_ID, $value);
         return $this;
     }
 }

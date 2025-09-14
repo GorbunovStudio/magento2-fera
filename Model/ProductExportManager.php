@@ -22,18 +22,20 @@ class ProductExportManager
     ) {
     }
 
-    public function isExported(int $productId): bool
+    public function isExported(int $productId, int $storeId): bool
     {
         $collection = $this->collectionFactory->create();
         $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, (string) $productId);
+        $collection->addFieldToFilter(FeraProductInterface::STORE_ID, (string) $storeId);
         $collection->setPageSize(1);
         return (bool) $collection->getSize();
     }
 
-    public function getFeraId(int $productId): ?string
+    public function getFeraId(int $productId, int $storeId): ?string
     {
         $collection = $this->collectionFactory->create();
         $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, (string) $productId);
+        $collection->addFieldToFilter(FeraProductInterface::STORE_ID, (string) $storeId);
         $collection->setPageSize(1);
         $item = $collection->getFirstItem();
         if (!$item->getId()) {
@@ -44,15 +46,17 @@ class ProductExportManager
 
     /**
      * @param int[] $productIds
+     * @param int $storeId
      * @return array<int,string> Map of product_id => fera_id
      */
-    public function getFeraIdsByProductIds(array $productIds): array
+    public function getFeraIdsByProductIds(array $productIds, int $storeId): array
     {
         if (empty($productIds)) {
             return [];
         }
         $collection = $this->collectionFactory->create();
         $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, ['in' => $productIds]);
+        $collection->addFieldToFilter(FeraProductInterface::STORE_ID, (string) $storeId);
         $result = [];
         foreach ($collection->getItems() as $item) {
             $result[(int) $item->getProductId()] = (string) $item->getFeraId();
@@ -60,7 +64,7 @@ class ProductExportManager
         return $result;
     }
 
-    public function saveSuccessfulExport(ProductInterface $product, string $feraId): void
+    public function saveSuccessfulExport(ProductInterface $product, string $feraId, int $storeId): void
     {
         if (!$product->getId()) {
             throw new UnexpectedValueException(
@@ -71,6 +75,7 @@ class ProductExportManager
         $model = $this->factory->create();
         $model->setProductId((int) $product->getId());
         $model->setFeraId($feraId);
+        $model->setStoreId($storeId);
         $model->setExportedAt($this->dateTime->gmtDate());
         $this->resource->save($model);
     }

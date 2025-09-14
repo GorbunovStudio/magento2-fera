@@ -120,7 +120,10 @@ class BackfillProductMappingsCommand extends Command
                         $localProducts[(int) $product->getId()] = $product;
                     }
 
-                    $existingMap = $this->exportManager->getFeraIdsByProductIds(array_keys($localProducts));
+                    $existingMap = $this->exportManager->getFeraIdsByProductIds(
+                        array_keys($localProducts),
+                        $currentStoreId
+                    );
 
                     foreach ($idMap as $productId => $feraId) {
                         if (!isset($localProducts[$productId])) {
@@ -131,7 +134,11 @@ class BackfillProductMappingsCommand extends Command
                             $storeSkippedExisting++;
                             continue;
                         }
-                        $this->exportManager->saveSuccessfulExport($localProducts[$productId], $feraId);
+                        $this->exportManager->saveSuccessfulExport(
+                            $localProducts[$productId],
+                            $feraId,
+                            $currentStoreId
+                        );
                         $storeInserted++;
                     }
 
