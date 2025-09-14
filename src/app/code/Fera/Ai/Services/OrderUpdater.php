@@ -9,7 +9,7 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Services\ApiClient;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
-use Magento\Sales\Model\Order;
+use Magento\Sales\Api\Data\OrderInterface;
 use RuntimeException;
 
 /**
@@ -40,24 +40,17 @@ class OrderUpdater
         $this->apiClient = $apiClient;
     }
     
-    public function update(Order $order, string $feraId): void
+    public function update(OrderInterface $order, string $feraId): void
     {
         $storeId = (int) $order->getStoreId();
         $orderId = $order->getEntityId();
-        if (!is_numeric($orderId)) {
-            throw new RuntimeException('Order entity ID is not numeric: ' . get_debug_type($orderId));
+        if ($orderId === null) {
+            throw new RuntimeException('Order does not have an entity ID');
         }
 
         $orderData = $this->orderDataBuilder->buildOrderData($order);
 
-        $payload = $this->dataObjectFactory->create(['data' => $orderData]);
-        $this->eventManager->dispatch('fera_export_order_data_ready', [
-            'order' => $order,
-            'orderData' => $payload,
-        ]);
-
-        /** @phpstan-var FeraOrder $orderData */
-        $orderData = $payload->getData();
+        $orderData = $this->enrichOrderData($order, $orderData);
 
         $this->helper->debug(
             "Order {$orderId}: Sending update to Fera"
@@ -72,6 +65,27 @@ class OrderUpdater
     }
 
     /**
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
+     * @param array $data
+     * @phpstan-param FeraOrder $data
+     * @return array
+     * @phpstan-return FeraOrder
+     */
+    private function enrichOrderData(OrderInterface $order, array $data): array
+    {
+        $payload = $this->dataObjectFactory->create(['data' => $data]);
+        $this->eventManager->dispatch('fera_export_order_data_ready', [
+            'order' => $order,
+            'orderData' => $payload,
+        ]);
+
+        /** @phpstan-var FeraOrder $result */
+        $result = $payload->getData();
+
+        return $result;
+    }
+
+    /**
      * Send PUT request to Fera API
      *
      * @param array $data
@@ -80,7 +94,6 @@ class OrderUpdater
      * @param int $storeId
      * @return array
      * @phpstan-return FeraOrderResponse
-     * @throws FeraApiException
      */
     private function sendUpdate(array $data, string $feraId, int $storeId): array
     {
@@ -124,7 +137,7 @@ class OrderUpdater
      * @param int $storeId
      * @return array
      * @phpstan-return FeraCustomerData
-     * @throws FeraApiException
+     * @throws \Fera\Ai\Exception\FeraApiException
      */
     private function fetchCustomer(string $customerId, int $storeId): array
     {
@@ -196,7 +209,6 @@ class OrderUpdater
      * @param array $customerData
      * @phpstan-param FeraCustomerData $customerData
      * @param int $storeId
-     * @throws FeraApiException
      */
     private function updateCustomer(string $customerId, array $customerData, int $storeId): void
     {

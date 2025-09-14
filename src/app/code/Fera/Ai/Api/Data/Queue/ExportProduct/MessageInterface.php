@@ -13,9 +13,9 @@ interface MessageInterface
 
     /**
      * @param int $value
-     * @return self
+     * @return $this
      */
-    public function setProductId(int $value): self;
+    public function setProductId(int $value): static;
 
     /**
      * @return int|null
@@ -24,7 +24,7 @@ interface MessageInterface
 
     /**
      * @param int $value
-     * @return self
+     * @return $this
      */
-    public function setStoreId(int $value): self;
+    public function setStoreId(int $value): static;
 }

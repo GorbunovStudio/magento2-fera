@@ -6,10 +6,10 @@ namespace Fera\Ai\Services;
 
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Customer\Api\CustomerRepositoryInterface;
-use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Sales\Model\Order;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderAddressInterface;
+use Magento\Sales\Api\Data\OrderInterface;
 
 /**
  * @phpstan-type FeraLineItem array{
@@ -73,11 +73,11 @@ class OrderDataBuilder
     /**
      * Build order data for Fera API - used for both creation and updates
      *
-     * @param \Magento\Sales\Model\Order $order
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
      * @return array
      * @phpstan-return FeraOrder
      */
-    public function buildOrderData(Order $order): array
+    public function buildOrderData(OrderInterface $order): array
     {
         $storeId = (int) $order->getStoreId();
         $minimizeDataSharing = $this->helper->isMinimizeDataSharingEnabled($storeId);
@@ -95,10 +95,10 @@ class OrderDataBuilder
         }
 
         $data = [
-            'external_updated_at' => $this->helper->formatDate($order->getUpdatedAt()),
+            'external_updated_at' => $this->helper->formatDate($order->getUpdatedAt() ?? ''),
             'external_id' => (string) $orderId,
-            'number' => $order->getIncrementId(),
-            'external_created_at' => $this->helper->formatDate($order->getCreatedAt()),
+            'number' => $order->getIncrementId() ?? '',
+            'external_created_at' => $this->helper->formatDate($order->getCreatedAt() ?? ''),
             'customer' => $this->getCustomerData($order, $minimizeDataSharing),
             'tags' => [],
             'source_name' => 'web',
@@ -110,7 +110,7 @@ class OrderDataBuilder
             $data['total'] = $total;
             $data['total_usd'] = $totalUsd;
 
-            $shippingAddress = $order->getShippingAddress();
+            $shippingAddress = $this->getShippingAddress($order);
             if ($shippingAddress) {
                 $data['shipping_address'] = $this->getAddressData($shippingAddress);
             }
@@ -125,7 +125,7 @@ class OrderDataBuilder
         return $data;
     }
 
-    public function calculateRemainingTotal(Order $order): float
+    public function calculateRemainingTotal(OrderInterface $order): float
     {
         return $order->getGrandTotal() - $order->getTotalCanceled() - $order->getTotalRefunded();
     }
@@ -138,14 +138,14 @@ class OrderDataBuilder
     /**
      * Get serialized line items from order
      *
-     * @param Order $order
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
      * @param bool $minimizeDataSharing
      * @return array
      * @phpstan-return array<int, FeraLineItem>
      */
-    public function getLineItems(Order $order, bool $minimizeDataSharing = false): array
+    public function getLineItems(OrderInterface $order, bool $minimizeDataSharing = false): array
     {
-        $items = $this->helper->serializeQuoteItems($order->getAllItems());
+        $items = $this->helper->serializeQuoteItems($order->getItems());
         
         if ($minimizeDataSharing) {
             return array_map(static function (array $item): array {
@@ -160,12 +160,12 @@ class OrderDataBuilder
     /**
      * Get customer data for Fera API
      *
-     * @param Order $order
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
      * @param bool $minimizeDataSharing
      * @return array
      * @phpstan-return FeraCustomerData
      */
-    public function getCustomerData(Order $order, bool $minimizeDataSharing = false): array
+    public function getCustomerData(OrderInterface $order, bool $minimizeDataSharing = false): array
     {
         $customerId = $order->getCustomerId();
         $name = $order->getCustomerFirstname() . ' ' . $order->getCustomerLastname();
@@ -229,5 +229,17 @@ class OrderDataBuilder
             'region_name' => $address->getRegion() ?? '',
             'zip_code' => $address->getPostcode(),
         ];
+    }
+
+    public function getShippingAddress(OrderInterface $order) : ?OrderAddressInterface
+    {
+        $assignments = $order->getExtensionAttributes()?->getShippingAssignments() ?? [];
+        $firstAssignment = reset($assignments);
+
+        if (!$firstAssignment) {
+            return null;
+        }
+
+        return $firstAssignment->getShipping()->getAddress();
     }
 }

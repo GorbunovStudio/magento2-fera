@@ -58,9 +58,12 @@ class BackfillProductMappingsCommand extends Command
             }
 
             $storeIdOpt = $input->getOption('store-id');
-            $storeId = $storeIdOpt !== null ? (int) $storeIdOpt : null;
-            $pageSize = (int) $input->getOption('page-size');
-            $maxPages = (int) $input->getOption('max-pages');
+            $storeId = is_numeric($storeIdOpt) ? (int) $storeIdOpt : null;
+            $pageSizeOpt = $input->getOption('page-size');
+            $pageSize = is_numeric($pageSizeOpt) ? (int) $pageSizeOpt : 100;
+            $maxPagesOpt = $input->getOption('max-pages');
+            $maxPages = is_numeric($maxPagesOpt) ? (int) $maxPagesOpt : 0;
+            
             if ($pageSize < 1) {
                 $pageSize = 100;
             }

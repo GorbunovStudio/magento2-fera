@@ -1,22 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Console\Command;
 
 use Exception;
+use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Services\ProductExporter;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\State as AppState;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Store\Model\App\Emulation;
 use Magento\Store\Model\StoreManagerInterface;
-use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Services\ProductExporter;
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Catalog\Model\ResourceModel\Product\Collection;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Magento\Catalog\Model\Product\Attribute\Source\Status;
 
 class ExportProductsCommand extends Command
 {
@@ -68,8 +70,10 @@ class ExportProductsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $storeId = (int) $input->getOption('store-id');
-        $limit = $input->getOption('limit') ? (int) $input->getOption('limit') : null;
+        $storeId = $input->getOption('store-id');
+        $storeId = is_numeric($storeId) ? (int) $storeId : null;
+        $limit = $input->getOption('limit');
+        $limit = is_numeric($limit) ? (int) $limit : null;
 
         try {
             try {
@@ -131,7 +135,8 @@ class ExportProductsCommand extends Command
                         $pageCollection = $this->getProductCollection($storeId, null);
                         $pageCollection->setPageSize($currentPageSize);
                         $pageCollection->setCurPage($currentPage);
-                        
+
+                        /** @var \Magento\Catalog\Api\Data\ProductInterface[] $pageProducts */
                         $pageProducts = $pageCollection->getItems();
                         
                         if (empty($pageProducts)) {
@@ -214,6 +219,7 @@ class ExportProductsCommand extends Command
             'name', 'sku', 'price', 'status', 'visibility', 'type_id', 'created_at', 'updated_at',
         ]);
 
+        // @phpstan-ignore argument.type
         $collection->addAttributeToFilter('status', Status::STATUS_ENABLED);
         $collection->setOrder('entity_id', 'ASC');
 
@@ -229,7 +235,9 @@ class ExportProductsCommand extends Command
     private function excludeSimpleProductsInBundles(Collection $collection): void
     {
         $bundleCollection = $this->productCollectionFactory->create();
+        // @phpstan-ignore argument.type
         $bundleCollection->addAttributeToFilter('type_id', 'bundle');
+        // @phpstan-ignore argument.type
         $bundleCollection->addAttributeToFilter('status', 1);
 
         $bundleProductIds = $bundleCollection->getAllIds();
@@ -255,10 +263,11 @@ class ExportProductsCommand extends Command
     /**
      * Process a batch of products and return export results
      *
-     * @param array $productBatch
+     * @param array<\Magento\Catalog\Api\Data\ProductInterface> $productBatch
      * @param \Symfony\Component\Console\Output\OutputInterface $output
      * @param int $storeId
-     * @return array
+     * @return int[]
+     * @phpstan-return array{exported: int, errors: int}
      */
     private function processBatch(array $productBatch, OutputInterface $output, int $storeId): array
     {

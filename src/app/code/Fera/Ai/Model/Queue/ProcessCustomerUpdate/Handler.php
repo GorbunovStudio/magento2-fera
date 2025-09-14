@@ -42,11 +42,6 @@ class Handler
         $this->logger = $logger;
     }
 
-    /**
-     * Process customer update message
-     *
-     * @param int $customerId
-     */
     public function process(int $customerId): void
     {
         try {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Services;
 
 use Fera\Ai\Exception\FeraApiException;
@@ -8,7 +10,7 @@ use Fera\Ai\Model\OrderExportManager;
 use Fera\Ai\Services\ApiClient;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
-use Magento\Sales\Model\Order;
+use Magento\Sales\Api\Data\OrderInterface;
 use RuntimeException;
 
 /**
@@ -39,7 +41,7 @@ class OrderExporter
         $this->apiClient = $apiClient;
     }
 
-    public function pushOrder(Order $order): ?string
+    public function pushOrder(OrderInterface $order): ?string
     {
         $storeId = (int) $order->getStoreId();
         $orderId = $order->getEntityId();
@@ -49,18 +51,11 @@ class OrderExporter
 
         $orderData = $this->orderDataBuilder->buildOrderData($order);
         if (empty($orderData['line_items'])) {
-            $this->helper->debug('No line items to export for order ' . $order->getId() . ', skipping export');
+            $this->helper->debug('No line items to export for order ' . $order->getEntityId() . ', skipping export');
             return null;
         }
 
-        $payload = $this->dataObjectFactory->create(['data' => $orderData]);
-        $this->eventManager->dispatch('fera_export_order_data_ready', [
-            'order' => $order,
-            'orderData' => $payload,
-        ]);
-
-        /** @phpstan-var FeraOrder $orderData */
-        $orderData = $payload->getData();
+        $orderData = $this->enrichOrderData($order, $orderData);
 
         $feraId = $this->send($orderData, (int)$storeId);
 
@@ -80,7 +75,7 @@ class OrderExporter
      * @phpstan-param FeraOrder $data
      * @param int|null $storeId
      * @return string
-     * @throws FeraApiException
+     * @throws \RuntimeException
      */
     protected function send(array $data, ?int $storeId = null): string
     {
@@ -95,5 +90,26 @@ class OrderExporter
         }
 
         return $feraId;
+    }
+
+    /**
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
+     * @param array $data
+     * @phpstan-param FeraOrder $data
+     * @return array
+     * @phpstan-return FeraOrder
+     */
+    private function enrichOrderData(OrderInterface $order, array $data): array
+    {
+        $payload = $this->dataObjectFactory->create(['data' => $data]);
+        $this->eventManager->dispatch('fera_export_order_data_ready', [
+            'order' => $order,
+            'orderData' => $payload,
+        ]);
+
+        /** @phpstan-var FeraOrder $result */
+        $result = $payload->getData();
+
+        return $result;
     }
 }

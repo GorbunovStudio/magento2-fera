@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Model;
 
 use Fera\Ai\Api\Data\FeraProductInterface;
+use Fera\Ai\Model\FeraProductFactory;
 use Fera\Ai\Model\ResourceModel\FeraProduct as FeraProductResource;
 use Fera\Ai\Model\ResourceModel\FeraProduct\CollectionFactory as FeraProductCollectionFactory;
-use Fera\Ai\Model\FeraProductFactory;
 use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Framework\Stdlib\DateTime\DateTime;
 use UnexpectedValueException;
@@ -71,7 +73,7 @@ class ProductExportManager
     {
         if (!$product->getId()) {
             throw new UnexpectedValueException(
-                'Incorrect type for Product ID: expected int, got ' . gettype($product->getId())
+                'Incorrect type for Product ID: expected int, got ' . get_debug_type($product->getId())
             );
         }
 

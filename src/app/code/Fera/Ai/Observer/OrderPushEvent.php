@@ -1,14 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Observer;
 
+use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Sales\Model\Order;
 use UnexpectedValueException;
-use Fera\Ai\Api\Data\Queue\TopicInterface;
 
 class OrderPushEvent implements ObserverInterface
 {
@@ -25,11 +27,6 @@ class OrderPushEvent implements ObserverInterface
         $this->publisher = $publisher;
     }
 
-    /**
-     * Publish order ID to message queue for export using two-event pattern.
-     *
-     * @param \Magento\Framework\Event\Observer $observer
-     */
     public function execute(Observer $observer): void
     {
         $event = $observer->getEvent();
@@ -37,9 +34,8 @@ class OrderPushEvent implements ObserverInterface
 
         $order = $event->getOrder();
         if (!$order instanceof Order) {
-            $type = is_object($order) ? get_class($order) : gettype($order);
             throw new UnexpectedValueException(
-                'Incorrect type for Order, expected ' . Order::class . ', got ' . $type
+                'Incorrect type for Order, expected ' . Order::class . ', got ' . get_debug_type($order)
             );
         }
 
@@ -53,7 +49,14 @@ class OrderPushEvent implements ObserverInterface
             return;
         }
 
-        $orderId = (int)$order->getId();
+        $orderId = $order->getId();
+        if (!is_numeric($orderId)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for Order ID: expected int, got ' . get_debug_type($orderId)
+            );
+        }
+        $orderId = (int)$orderId;
+
         $idx = array_search($order, $this->newOrders, true);
 
         if ($idx !== false) {

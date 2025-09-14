@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Model\ResourceModel\FeraOrder;
 
 use Fera\Ai\Model\FeraOrder as FeraOrderModel;

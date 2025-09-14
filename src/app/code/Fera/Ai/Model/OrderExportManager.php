@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Model;
 
 use Fera\Ai\Api\Data\FeraOrderInterface;
+use Fera\Ai\Model\FeraOrderFactory;
 use Fera\Ai\Model\ResourceModel\FeraOrder as FeraOrderResource;
 use Fera\Ai\Model\ResourceModel\FeraOrder\CollectionFactory as FeraOrderCollectionFactory;
-use Fera\Ai\Model\FeraOrderFactory;
 use Magento\Framework\Stdlib\DateTime\DateTime;
-use Magento\Sales\Model\Order;
+use Magento\Sales\Api\Data\OrderInterface;
 use UnexpectedValueException;
 
 class OrderExportManager
@@ -49,14 +51,14 @@ class OrderExportManager
         return $item->getFeraId();
     }
 
-    public function saveSuccessfulExport(Order $order, string $feraId): void
+    public function saveSuccessfulExport(OrderInterface $order, string $feraId): void
     {
-        if (!$order->getId()) {
-            throw new UnexpectedValueException('Incorrect type for Order ID: expected int, got ' . gettype($order->getId()));
+        if (!$order->getEntityId()) {
+            throw new UnexpectedValueException('Incorrect type for Order ID: expected int, got ' . get_debug_type($order->getEntityId()));
         }
 
         $model = $this->factory->create();
-        $model->setOrderId((int) $order->getId());
+        $model->setOrderId((int) $order->getEntityId());
         $model->setFeraId($feraId);
         $model->setExportedAt($this->dateTime->gmtDate());
         $this->resource->save($model);

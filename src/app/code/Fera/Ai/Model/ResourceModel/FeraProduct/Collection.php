@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Model\ResourceModel\FeraProduct;
 
 use Fera\Ai\Model\FeraProduct as FeraProductModel;

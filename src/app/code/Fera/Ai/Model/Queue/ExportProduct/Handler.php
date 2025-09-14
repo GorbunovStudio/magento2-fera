@@ -1,46 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Model\Queue\ExportProduct;
 
+use Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface;
+use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Services\ProductExporter;
+use InvalidArgumentException;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\ProductRepository;
-use Fera\Ai\Services\ProductExporter;
-use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface;
 use Psr\Log\LoggerInterface;
-use InvalidArgumentException;
 use RuntimeException;
 
 class Handler
 {
-    /**
-     * @var ProductRepositoryInterface
-     */
-    private $productRepository;
+    private ProductRepositoryInterface $productRepository;
+    private ProductExporter $productExporter;
+    private FeraHelper $helper;
+    private LoggerInterface $logger;
 
-    /**
-     * @var ProductExporter
-     */
-    private $productExporter;
-
-    /**
-     * @var FeraHelper
-     */
-    private $helper;
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
-     * ExportProductConsumer constructor.
-     *
-     * @param ProductRepositoryInterface $productRepository
-     * @param ProductExporter $productExporter
-     * @param FeraHelper $helper
-     * @param LoggerInterface $logger
-     */
     public function __construct(
         ProductRepositoryInterface $productRepository,
         ProductExporter $productExporter,
@@ -53,11 +32,6 @@ class Handler
         $this->logger = $logger;
     }
 
-    /**
-     * Process product export message
-     *
-     * @param MessageInterface $message
-     */
     public function process(MessageInterface $message): void
     {
         $productId = $message->getProductId();
@@ -87,15 +61,10 @@ class Handler
                 $exception
             );
         } finally {
-            if (!$this->productRepository instanceof ProductRepository) {
-                $type = is_object($this->productRepository) ? get_class($this->productRepository) : gettype($this->productRepository);
-                throw new RuntimeException(
-                    'Incorrect type for ProductRepository, expected ' . ProductRepositoryInterface::class . ', got ' . $type
-                );
+            if ($this->productRepository instanceof ProductRepository) {
+                // Reset the repository state to avoid stale data issues
+                $this->productRepository->_resetState();
             }
-            
-            // Reset the repository state to avoid stale data issues
-            $this->productRepository->_resetState();
         }
     }
 }

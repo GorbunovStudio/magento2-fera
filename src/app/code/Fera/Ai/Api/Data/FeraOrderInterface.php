@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Api\Data;
 
 interface FeraOrderInterface
@@ -26,19 +28,19 @@ interface FeraOrderInterface
 
     /**
      * @param int $value
-     * @return self
+     * @return $this
      */
-    public function setOrderId(int $value): self;
+    public function setOrderId(int $value): static;
 
     /**
      * @param string $value
-     * @return self
+     * @return $this
      */
-    public function setFeraId(string $value): self;
+    public function setFeraId(string $value): static;
 
     /**
      * @param string $value
-     * @return self
+     * @return $this
      */
-    public function setExportedAt(string $value): self;
+    public function setExportedAt(string $value): static;
 }

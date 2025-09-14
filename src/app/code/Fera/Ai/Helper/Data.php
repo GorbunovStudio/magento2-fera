@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * @author: Sviatoslav Lashkiv
  * @email: ss.lashkiv@gmail.com
@@ -7,46 +10,33 @@
 
 namespace Fera\Ai\Helper;
 
+use Fera\Ai\Interface\ConfigOptionInterface;
+use Fera\Ai\Logger\Logger;
+use Magento\Catalog\Api\Data\ProductInterface;
+use Magento\Catalog\Block\Product\ImageBuilder;
+use Magento\Catalog\Model\Product;
+use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Helper\Context;
-use Magento\Framework\Module\ResourceInterface as ModuleResourceInterface;
-use Magento\Framework\Json\Helper\Data as JsonHelper;
-use Magento\Store\Model\ScopeInterface;
-use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\Intl\DateTimeFactory;
-use Magento\Catalog\Block\Product\ImageBuilder;
-use Magento\Sales\Model\Order\Item;
-use Fera\Ai\Logger\Logger;
-use Fera\Ai\Interface\ConfigOptionInterface;
+use Magento\Framework\Json\Helper\Data as JsonHelper;
+use Magento\Framework\Module\ResourceInterface as ModuleResourceInterface;
+use Magento\Quote\Model\Quote\Item as QuoteItem;
+use Magento\Sales\Api\Data\OrderItemInterface;
+use Magento\Sales\Model\Order\Item as OrderItem;
+use Magento\Store\Model\ScopeInterface;
+use Stringable;
 
 class Data extends AbstractHelper
 {
     public const FORMAT_DATE = 'Y-m-d\TH:i:sP';
 
-    /**
-     * @var ModuleResourceInterface
-     */
-    private $moduleResource;
-    /**
-     * @var JsonHelper
-     */
-    private $jsonHelper;
-    /**
-     * @var CheckoutSession
-     */
-    private $checkoutSession;
-    /**
-     * @var DateTimeFactory
-     */
-    private $dateTime;
-    /**
-     * @var ImageBuilder
-     */
-    private $imageBuilder;
-    /**
-     * @var Logger
-     */
-    private $logger;
+    private ModuleResourceInterface $moduleResource;
+    private JsonHelper $jsonHelper;
+    private CheckoutSession $checkoutSession;
+    private DateTimeFactory $dateTime;
+    private ImageBuilder $imageBuilder;
+    private Logger $logger;
 
     public function __construct(
         Context $context,
@@ -70,10 +60,10 @@ class Data extends AbstractHelper
     /**
      * Write to the Fera.ai log file
      *
-     * @param  mixed $msg message to log
+     * @param  string|Stringable $msg message to log
      * @return $this
      */
-    public function log($msg)
+    public function log(string|Stringable $msg): static
     {
         $this->logger->info($msg);
         return $this;
@@ -82,10 +72,10 @@ class Data extends AbstractHelper
     /**
      * Write to the debug output ONLY if the debug mode is enabled
      *
-     * @param  mixed $msg Message to log
+     * @param  string|Stringable $msg Message to log
      * @return $this
      */
-    public function debug($msg)
+    public function debug(string|Stringable $msg): static
     {
         if ($this->isDebugMode()) {
             return $this->log($msg);
@@ -95,9 +85,9 @@ class Data extends AbstractHelper
     }
 
     /**
-     * @return String Version of the extension (x.x.x)
+     * @return string|false Version of the extension (x.x.x)
      */
-    public function getVersion()
+    public function getVersion(): string|false
     {
         return $this->moduleResource->getDbVersion('Fera_Ai');
     }
@@ -106,43 +96,49 @@ class Data extends AbstractHelper
      * Fera Ai public key either from the store config or the environment files
      *
      * @param  int|null $storeId
-     * @return string
+     * @return string|null
      */
-    public function getPublicKey($storeId = null)
+    public function getPublicKey($storeId = null): ?string
     {
-        return $this->scopeConfig->getValue(
+        $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::PUBLIC_KEY,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
+        
+        return is_string($value) ? $value : null;
     }
 
     /**
-     * Fera Ai secret (private) key, either from the environment fiels or the store config
+     * Fera Ai secret (private) key, either from the environment fields or the store config
      *
      * @param  int|null $storeId
-     * @return string
+     * @return string|null
      */
-    public function getSecretKey($storeId = null)
+    public function getSecretKey($storeId = null): ?string
     {
-        return $this->scopeConfig->getValue(
+        $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::SECRET_KEY,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
+
+        return is_string($value) ? $value : null;
     }
 
-    public function isEnabled($storeId = null)
+    public function isEnabled(int $storeId = null): bool
     {
         if (!$this->isConfigured($storeId)) {
             return false;
         }
 
-        return $this->scopeConfig->getValue(
+        $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::ENABLED,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
+
+        return (bool) $value;
     }
 
     public function shouldExportOrderOnCreation(int $storeId): bool
@@ -186,13 +182,15 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return string
      */
-    public function getAppUrl($storeId = null)
+    public function getAppUrl($storeId = null): ?string
     {
-        return $this->scopeConfig->getValue(
+        $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::APP_URL,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
+
+        return is_string($value) ? $value : null;
     }
 
     /**
@@ -201,13 +199,15 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return string
      */
-    public function getApiUrl($storeId = null)
+    public function getApiUrl($storeId = null): ?string
     {
-        return $this->scopeConfig->getValue(
+        $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::API_URL,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
+
+        return is_string($value) ? $value : null;
     }
 
     /**
@@ -216,13 +216,15 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return string
      */
-    public function getJsUrl($storeId = null)
+    public function getJsUrl($storeId = null): ?string
     {
-        return $this->scopeConfig->getValue(
+        $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::JS_URL,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
+
+        return is_string($value) ? $value : null;
     }
 
     /**
@@ -230,17 +232,17 @@ class Data extends AbstractHelper
      *
      * @return boolean
      */
-    public function isDebugMode()
+    public function isDebugMode(): bool
     {
-        return $this->scopeConfig->isSetFlag(
+        return (bool) $this->scopeConfig->isSetFlag(
             ConfigOptionInterface::DEBUG_MODE,
             ScopeInterface::SCOPE_STORE
         );
     }
 
     /**
-     * @param \Magento\Sales\Model\Order\Item[]|\Magento\Quote\Model\Quote\Item[] $items
-     * @return array
+     * @param \Magento\Sales\Api\Data\OrderItemInterface[]|\Magento\Quote\Api\Data\CartItemInterface[] $items
+     * @return mixed[]
      * @phpstan-return array<int, array{
      *     product_id:int,
      *     price:float,
@@ -257,6 +259,12 @@ class Data extends AbstractHelper
         $childItems = [];
 
         foreach ($items as $cartItem) {
+            if (!($cartItem instanceof OrderItem || $cartItem instanceof QuoteItem)) {
+                throw new \UnexpectedValueException(
+                    'Incorrect type for cart item: expected ' . OrderItem::class . ' or ' . QuoteItem::class . ', got ' . get_debug_type($cartItem)
+                );
+            }
+
             if ($cartItem->getParentItemId()) {
                 $childItems[] = $cartItem;
                 continue;
@@ -290,7 +298,7 @@ class Data extends AbstractHelper
             }
             $data = $this->buildItemData($cartItem);
             if ($data !== null) {
-                $itemMap[$cartItem->getId()] = $data;
+                $itemMap[$cartItem->getItemId()] = $data;
             }
         }
 
@@ -298,11 +306,11 @@ class Data extends AbstractHelper
     }
 
     /**
-     * @param \Magento\Sales\Model\Order\Item|\Magento\Quote\Model\Quote\Item $item
+     * @param \Magento\Sales\Api\Data\OrderItemInterface|\Magento\Quote\Api\Data\CartItemInterface $item
      */
     private function getRemainingQuantity($item): int
     {
-        if ($item instanceof Item) {
+        if ($item instanceof OrderItemInterface) {
             $qtyOrdered = (float) $item->getQtyOrdered();
             $qtyRefunded = (float) $item->getQtyRefunded();
             $qtyCanceled = (float) $item->getQtyCanceled();
@@ -326,7 +334,7 @@ class Data extends AbstractHelper
         }
 
         $rowTotal = (float) ($item->getRowTotal() ?? 0.0);
-        if ($item instanceof Item) {
+        if ($item instanceof OrderItemInterface) {
             $qtyOrdered = (float) $item->getQtyOrdered();
             if ($qtyOrdered > 0 && $qty < (int) round($qtyOrdered)) {
                 $ratio = $qty / $qtyOrdered;
@@ -336,7 +344,7 @@ class Data extends AbstractHelper
 
         return [
             'product_id' => (int) $item->getProductId(),
-            'price' => $item->getRefPrice() ?? 0.0,
+            'price' => $item->getPrice() ?? 0.0,
             'total' => $rowTotal,
             'name' => $item->getName() ?? '',
             'quantity' => $qty,
@@ -346,7 +354,7 @@ class Data extends AbstractHelper
     /**
      * @return string - The contents of the cart as a json string.
      */
-    public function getCartJson()
+    public function getCartJson(): string
     {
         $quote = $this->checkoutSession->getQuote();
 
@@ -361,7 +369,7 @@ class Data extends AbstractHelper
         return $this->jsonEncode($data);
     }
 
-    public function getDebugJs()
+    public function getDebugJs(): string
     {
         if ($this->isDebugMode()) {
             return "window.feraDebugMode = true;";
@@ -370,25 +378,39 @@ class Data extends AbstractHelper
         return "";
     }
 
-    public function jsonEncode($data)
+    /**
+     * @param mixed $data
+     * @return string
+     */
+    public function jsonEncode($data): string
     {
         return $this->jsonHelper->jsonEncode($data);
     }
 
-    public function formatDate($date)
+    public function formatDate(string $date): string
     {
         return $this->dateTime->create($date)->format(self::FORMAT_DATE);
     }
 
-    public function getImage($product, $imageId, $attributes = [])
+    /**
+     * @param \Magento\Catalog\Api\Data\ProductInterface $product
+     * @param string $imageId
+     * @param mixed[] $attributes
+     * @return \Magento\Catalog\Block\Product\Image
+     */
+    public function getImage(ProductInterface $product, string $imageId, array $attributes = [])
     {
+        if (!$product instanceof Product) {
+            throw new \UnexpectedValueException('Expected instance of ' . Product::class . ', got ' . get_debug_type($product));
+        }
+
         return $this->imageBuilder->setProduct($product)
             ->setImageId($imageId)
             ->setAttributes($attributes)
             ->create();
     }
 
-    public function getProductThumbnailUrl($product)
+    public function getProductThumbnailUrl(ProductInterface $product): string
     {
         $imageType = 'product_thumbnail_image';
         $image = $this->getImage($product, $imageType);

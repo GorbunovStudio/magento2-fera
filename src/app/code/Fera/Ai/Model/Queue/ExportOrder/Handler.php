@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Model\Queue\ExportOrder;
 
-use Magento\Sales\Api\OrderRepositoryInterface;
-use Magento\Sales\Model\OrderRepository;
-use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
+use Fera\Ai\Services\OrderExporter;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\OrderRepository;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -32,11 +34,6 @@ class Handler
         $this->orderExportManager = $orderExportManager;
     }
 
-    /**
-     * Process order export message
-     *
-     * @param int $orderId
-     */
     public function process(int $orderId): void
     {
         try {
@@ -66,15 +63,10 @@ class Handler
                 $exception
             );
         } finally {
-            if (!$this->orderRepository instanceof OrderRepository) {
-                $type = is_object($this->orderRepository) ? get_class($this->orderRepository) : gettype($this->orderRepository);
-                throw new RuntimeException(
-                    'Incorrect type for OrderRepository, expected ' . OrderRepositoryInterface::class . ', got ' . $type
-                );
+            if ($this->orderRepository instanceof OrderRepository) {
+                // Reset the repository state to avoid stale data issues
+                $this->orderRepository->_resetState();
             }
-
-            // Reset the repository state to avoid stale data issues
-            $this->orderRepository->_resetState();
         }
     }
 }

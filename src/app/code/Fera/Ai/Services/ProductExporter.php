@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Services;
 
-use Fera\Ai\Exception\FeraApiException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
 use Fera\Ai\Services\ApiClient;
+use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product as Product;
 use Magento\Catalog\Model\Product\Visibility;
@@ -15,6 +17,38 @@ use Magento\Framework\Event\ManagerInterface as EventManager;
 use RuntimeException;
 use UnexpectedValueException;
 
+/**
+ * @phpstan-type Variant array{
+ *     id: int|string,
+ *     name: string,
+ *     status: string,
+ *     created_at: string,
+ *     modified_at: string,
+ *     stock: float,
+ *     in_stock: bool,
+ *     price: float,
+ *     platform_data: array{sku: string},
+ *     thumbnail_url?: string
+ * }
+ * @phpstan-type ProductData array{
+ *     id: int|string,
+ *     external_id: int|string,
+ *     name: string,
+ *     price: float,
+ *     status: string,
+ *     created_at: string,
+ *     modified_at: string,
+ *     stock: float,
+ *     in_stock: bool,
+ *     url: string,
+ *     thumbnail_url: string,
+ *     needs_shipping: bool,
+ *     hidden: bool,
+ *     tags: string[],
+ *     variants: Variant[],
+ *     platform_data: array{sku: string, type: string|mixed[], regular_price: float}
+ * }
+ */
 class ProductExporter
 {
     protected const API_ENDPOINT_PRODUCTS = 'v3/private/products';
@@ -45,10 +79,7 @@ class ProductExporter
         $this->apiClient = $apiClient;
     }
 
-    /**
-     * Push a single product to the Fera API
-     */
-    public function pushProduct(Product $product, int $storeId = null): void
+    public function pushProduct(ProductInterface $product, int $storeId = null): void
     {
         $this->pushProducts([$product], $storeId);
     }
@@ -56,7 +87,7 @@ class ProductExporter
     /**
      * Push multiple products to the Fera API efficiently
      *
-     * @param Product[] $products
+     * @param \Magento\Catalog\Api\Data\ProductInterface[] $products
      * @param int|null $storeId
      */
     public function pushProducts(array $products, $storeId = null): void
@@ -74,6 +105,10 @@ class ProductExporter
         $map = $this->productExportManager->getFeraIdsByProductIds($ids);
 
         foreach ($products as $product) {
+            if (!$product instanceof Product) {
+                throw new \UnexpectedValueException('Expected instance of ' . Product::class . ', got ' . get_debug_type($product));
+            }
+        
             // Reload the product to ensure the correct store context
             if ($storeId !== $product->getData('store_id')) {
                 $product = $this->productRepository->getById($product->getId(), false, $storeId);
@@ -95,30 +130,22 @@ class ProductExporter
     /**
      * Build product data array for API call
      *
-     * @param \Magento\Catalog\Model\Product $product
+     * @param \Magento\Catalog\Api\Data\ProductInterface $product
      * @return mixed[]
-     * @phpstan-return array{
-     *     id: int|string,
-     *     external_id: int|string,
-     *     name: string,
-     *     price: float,
-     *     status: string,
-     *     created_at: string,
-     *     modified_at: string,
-     *     stock: float,
-     *     in_stock: bool,
-     *     url: string,
-     *     thumbnail_url: string,
-     *     needs_shipping: bool,
-     *     hidden: bool,
-     *     tags: string[],
-     *     variants: array,
-     *     platform_data: array{sku: string, type: string, regular_price: float}
-     * }
+     * @phpstan-return ProductData
      */
-    private function buildProductData(Product $product): array
+    private function buildProductData(ProductInterface $product): array
     {
         $thumb = $this->helper->getProductThumbnailUrl($product);
+        
+        if (!$product instanceof Product) {
+            throw new \UnexpectedValueException('Expected instance of ' . Product::class . ', got ' . get_debug_type($product));
+        }
+
+        $websiteId = $product->getStore()->getWebsiteId();
+        $websiteId = $websiteId ? (int)$websiteId : null;
+
+        $stockQuantity = $this->stockState->getStockQty($product->getId(), $websiteId);
 
         $productData = [
             'id' => $product->getId(),
@@ -128,7 +155,7 @@ class ProductExporter
             'status' => $product->getStatus() == 1 ? 'published' : 'draft',
             'created_at' => $this->helper->formatDate($product->getCreatedAt()),
             'modified_at' => $this->helper->formatDate($product->getUpdatedAt()),
-            'stock' => $this->stockState->getStockQty($product->getId(), $product->getStore()->getWebsiteId()),
+            'stock' => $stockQuantity,
             'in_stock' => $product->isInStock(),
             'url' => $product->getProductUrl(),
             'thumbnail_url' => $thumb,
@@ -150,9 +177,8 @@ class ProductExporter
 
             foreach ($typeInstance->getUsedProducts($product) as $subProduct) {
                 if (!$subProduct instanceof Product) {
-                    $type = is_object($subProduct) ? get_class($subProduct) : gettype($subProduct);
                     throw new UnexpectedValueException(
-                        'Incorrect type for Product: expected ' . Product::class . ', got ' . $type
+                        'Incorrect type for Product: expected ' . Product::class . ', got ' . get_debug_type($subProduct)
                     );
                 }
 
@@ -164,7 +190,7 @@ class ProductExporter
                     'modified_at' => $this->helper->formatDate($subProduct->getUpdatedAt()),
                     'stock' => $this->stockState->getStockQty(
                         $subProduct->getId(),
-                        $product->getStore()->getWebsiteId()
+                        $websiteId
                     ),
                     'in_stock' => (bool) $subProduct->getData('is_in_stock'),
                     'price' => $subProduct->getPrice(),
@@ -193,13 +219,30 @@ class ProductExporter
             }
         }
 
+        $productData = $this->enrichProductData($product, $productData);
+
+        return $productData;
+    }
+
+    /**
+     * @param \Magento\Catalog\Api\Data\ProductInterface $product
+     * @param array $productData
+     * @phpstan-param ProductData $productData
+     * @return array
+     * @phpstan-return ProductData
+     */
+    private function enrichProductData(ProductInterface $product, array $productData): array
+    {
         $payload = $this->dataObjectFactory->create(['data' => $productData]);
         $this->eventManager->dispatch('fera_export_product_data_ready', [
             'product' => $product,
             'productData' => $payload,
         ]);
 
-        return $payload->getData();
+        /** @phpstan-var ProductData $result */
+        $result = $payload->getData();
+
+        return $result;
     }
 
     /**
@@ -210,20 +253,19 @@ class ProductExporter
     {
         foreach ($products as $product) {
             if (!$product instanceof Product) {
-                $type = is_object($product) ? get_class($product) : gettype($product);
                 throw new UnexpectedValueException(
-                    'Incorrect type for Product: expected ' . Product::class . ', got ' . $type
+                    'Incorrect type for Product: expected ' . Product::class . ', got ' . get_debug_type($product)
                 );
             }
         }
     }
 
     /**
-     * @param array{external_id: int|string, ...} $data
+     * @param mixed[] $data
+     * @phpstan-param ProductData $data
      * @param string|null $feraId
      * @param int|null $storeId
      * @return string Fera ID
-     * @throws FeraApiException
      */
     private function sendProductData(array $data, ?string $feraId, ?int $storeId = null): string
     {

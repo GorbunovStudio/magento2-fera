@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Api\Data\Queue;
 
 interface TopicInterface

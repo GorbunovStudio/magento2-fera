@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Fera\Ai\Model\Queue\ExportOrderFulfillment;
 
 use Fera\Ai\Helper\Data as FeraHelper;
@@ -39,21 +41,11 @@ class Handler
         $this->apiClient = $apiClient;
     }
 
-    /**
-     * Process order status update message
-     *
-     * @param int $orderId
-     */
     public function process(int $orderId): void
     {
         try {
             $order = $this->orderRepository->get($orderId);
-            if (!$order instanceof Order) {
-                throw new UnexpectedValueException(
-                    'Incorrect type for Order, expected ' . Order::class . ', got ' . get_class($order)
-                );
-            }
-
+            
             $storeId = (int) $order->getStoreId();
 
             if (!$this->helper->isEnabled($storeId)) {
@@ -61,7 +53,7 @@ class Handler
             }
 
             if ($order->getState() !== Order::STATE_COMPLETE) {
-                throw new RuntimeException("Order {$orderId} is not complete. Current state: {$order->getState()}");
+                throw new UnexpectedValueException("Order {$orderId} is not complete. Current state: {$order->getState()}");
             }
 
             $feraId = $this->orderExportManager->getFeraId($orderId);
@@ -74,7 +66,7 @@ class Handler
             }
 
             $orderData = [
-                'fulfilled_at' => $this->helper->formatDate($order->getUpdatedAt()),
+                'fulfilled_at' => $this->helper->formatDate($order->getUpdatedAt() ?? ''),
                 'external_id' => $orderId,
             ];
 

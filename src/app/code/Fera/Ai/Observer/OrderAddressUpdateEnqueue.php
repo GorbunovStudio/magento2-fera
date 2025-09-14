@@ -9,8 +9,8 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
-use Magento\Sales\Model\Order\Address;
 use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\Order\Address;
 use Psr\Log\LoggerInterface;
 use UnexpectedValueException;
 
