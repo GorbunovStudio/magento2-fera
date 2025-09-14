@@ -30,7 +30,9 @@ class Handler
 
         try {
             if ($productId === null || $storeId === null) {
-                throw new InvalidArgumentException("Invalid product export message: productId={$productId}, storeId={$storeId}");
+                throw new InvalidArgumentException(
+                    "Invalid product export message: productId={$productId}, storeId={$storeId}"
+                );
             }
 
             if (!$this->helper->isEnabled($storeId)) {

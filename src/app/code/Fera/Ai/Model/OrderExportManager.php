@@ -45,7 +45,9 @@ class OrderExportManager
     public function saveSuccessfulExport(OrderInterface $order, string $feraId): void
     {
         if (!$order->getEntityId()) {
-            throw new UnexpectedValueException('Incorrect type for Order ID: expected int, got ' . get_debug_type($order->getEntityId()));
+            throw new UnexpectedValueException(
+                'Incorrect type for Order ID: expected int, got ' . get_debug_type($order->getEntityId())
+            );
         }
 
         $model = $this->factory->create();

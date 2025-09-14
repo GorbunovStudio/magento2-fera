@@ -69,9 +69,12 @@ class ProductPushEvent implements ObserverInterface
             }
         } catch (\Throwable $e) {
             $productIdStr = isset($productId) ? (string)$productId : 'unknown';
-            $this->logger->error("Failed to publish product export messages: {$productIdStr}. Error: {$e->getMessage()}", [
-                'exception' => $e
-            ]);
+            $this->logger->error(
+                "Failed to publish product export messages: {$productIdStr}. Error: {$e->getMessage()}",
+                [
+                    'exception' => $e
+                ]
+            );
 
             throw $e;
         }

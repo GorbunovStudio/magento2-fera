@@ -132,7 +132,9 @@ class OrderUpdater
     {
         $decoded = $this->apiClient->get('v3/private/customers/' . $customerId, $storeId);
 
-        if (!isset($decoded['name']) || !is_string($decoded['name']) || !isset($decoded['email']) || !is_string($decoded['email'])) {
+        if (!isset($decoded['name']) || !is_string($decoded['name'])
+            || !isset($decoded['email']) || !is_string($decoded['email'])
+        ) {
             throw new FeraApiException(sprintf(
                 'Invalid customer data received from Fera API for customer %s',
                 $customerId

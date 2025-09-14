@@ -40,7 +40,9 @@ class Handler
             }
 
             if ($order->getState() !== Order::STATE_COMPLETE) {
-                throw new UnexpectedValueException("Order {$orderId} is not complete. Current state: {$order->getState()}");
+                throw new UnexpectedValueException(
+                    "Order {$orderId} is not complete. Current state: {$order->getState()}"
+                );
             }
 
             $feraId = $this->orderExportManager->getFeraId($orderId);

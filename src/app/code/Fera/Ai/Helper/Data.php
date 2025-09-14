@@ -248,7 +248,8 @@ class Data extends AbstractHelper
         foreach ($items as $cartItem) {
             if (!($cartItem instanceof OrderItem || $cartItem instanceof QuoteItem)) {
                 throw new \UnexpectedValueException(
-                    'Incorrect type for cart item: expected ' . OrderItem::class . ' or ' . QuoteItem::class . ', got ' . get_debug_type($cartItem)
+                    'Incorrect type for cart item: expected ' . OrderItem::class . ' or ' . QuoteItem::class . ', got '
+                    . get_debug_type($cartItem)
                 );
             }
 
@@ -338,9 +339,6 @@ class Data extends AbstractHelper
         ];
     }
 
-    /**
-     * @return string - The contents of the cart as a json string.
-     */
     public function getCartJson(): string
     {
         $quote = $this->checkoutSession->getQuote();

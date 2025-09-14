@@ -88,7 +88,11 @@ class ExportProductsCommand extends Command
 
                 // Check if Fera is enabled for this specific store
                 if (!$this->feraHelper->isEnabled($storeId)) {
-                    $output->writeln(sprintf('<comment>Fera.ai module is not enabled for store %s (%s). Skipping.</comment>', $storeName, $storeCode));
+                    $output->writeln(sprintf(
+                        '<comment>Fera.ai module is not enabled for store %s (%s). Skipping.</comment>',
+                        $storeName,
+                        $storeCode
+                    ));
                     continue;
                 }
 
@@ -170,7 +174,9 @@ class ExportProductsCommand extends Command
             }
 
             if ($processedStores === 0) {
-                $output->writeln('<error>No stores processed. Fera.ai module is not enabled for any of the selected stores.</error>');
+                $output->writeln(
+                    '<error>No stores processed. Fera.ai module is not enabled for any of the selected stores.</error>'
+                );
                 return 1;
             }
 
