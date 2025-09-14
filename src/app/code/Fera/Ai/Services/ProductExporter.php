@@ -11,9 +11,13 @@ use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product as Product;
 use Magento\Catalog\Model\Product\Visibility;
-use Magento\CatalogInventory\Api\StockStateInterface;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
+use Magento\InventorySalesApi\Api\Data\SalesChannelInterface;
+use Magento\InventorySalesApi\Api\GetProductSalableQtyInterface;
+use Magento\InventorySalesApi\Api\AreProductsSalableInterface;
+use Magento\InventorySalesApi\Api\StockResolverInterface;
+use Magento\Store\Model\Website;
 use RuntimeException;
 use UnexpectedValueException;
 
@@ -55,7 +59,9 @@ class ProductExporter
 
     public function __construct(
         private FeraHelper $helper,
-        private StockStateInterface $stockState,
+        private StockResolverInterface $stockResolver,
+        private GetProductSalableQtyInterface $getSalableQty,
+        private AreProductsSalableInterface $areSalable,
         private EventManager $eventManager,
         private DataObjectFactory $dataObjectFactory,
         private ProductRepositoryInterface $productRepository,
@@ -91,7 +97,9 @@ class ProductExporter
 
         foreach ($products as $product) {
             if (!$product instanceof Product) {
-                throw new \UnexpectedValueException('Expected instance of ' . Product::class . ', got ' . get_debug_type($product));
+                throw new \UnexpectedValueException(
+                    'Expected instance of ' . Product::class . ', got ' . get_debug_type($product)
+                );
             }
         
             // Reload the product to ensure the correct store context
@@ -124,13 +132,14 @@ class ProductExporter
         $thumb = $this->helper->getProductThumbnailUrl($product);
         
         if (!$product instanceof Product) {
-            throw new \UnexpectedValueException('Expected instance of ' . Product::class . ', got ' . get_debug_type($product));
+            throw new \UnexpectedValueException(
+                'Expected instance of ' . Product::class . ', got ' . get_debug_type($product)
+            );
         }
 
-        $websiteId = $product->getStore()->getWebsiteId();
-        $websiteId = $websiteId ? (int)$websiteId : null;
-
-        $stockQuantity = $this->stockState->getStockQty($product->getId(), $websiteId);
+        $stockId = $this->getStockId($product);
+        $stockQuantity = $this->getSalableQty->execute($product->getSku(), $stockId);
+        $inStock = $this->isSkuSalable($product->getSku(), $stockId);
 
         $productData = [
             'id' => $product->getId(),
@@ -141,7 +150,7 @@ class ProductExporter
             'created_at' => $this->helper->formatDate($product->getCreatedAt()),
             'modified_at' => $this->helper->formatDate($product->getUpdatedAt()),
             'stock' => $stockQuantity,
-            'in_stock' => $product->isInStock(),
+            'in_stock' => $inStock,
             'url' => $product->getProductUrl(),
             'thumbnail_url' => $thumb,
             'needs_shipping' => $product->getTypeId() != 'virtual',
@@ -163,7 +172,8 @@ class ProductExporter
             foreach ($typeInstance->getUsedProducts($product) as $subProduct) {
                 if (!$subProduct instanceof Product) {
                     throw new UnexpectedValueException(
-                        'Incorrect type for Product: expected ' . Product::class . ', got ' . get_debug_type($subProduct)
+                        'Incorrect type for Product: expected ' . Product::class . ', got '
+                        . get_debug_type($subProduct)
                     );
                 }
 
@@ -173,11 +183,8 @@ class ProductExporter
                     'status' => $subProduct->getStatus() == 1 ? 'published' : 'draft',
                     'created_at' => $this->helper->formatDate($subProduct->getCreatedAt()),
                     'modified_at' => $this->helper->formatDate($subProduct->getUpdatedAt()),
-                    'stock' => $this->stockState->getStockQty(
-                        $subProduct->getId(),
-                        $websiteId
-                    ),
-                    'in_stock' => (bool) $subProduct->getData('is_in_stock'),
+                    'stock' => $this->getSalableQty->execute($subProduct->getSku(), $stockId),
+                    'in_stock' => $this->isSkuSalable($subProduct->getSku(), $stockId),
                     'price' => $subProduct->getPrice(),
                     'platform_data' => [
                         'sku' => $subProduct->getSku(),
@@ -277,5 +284,31 @@ class ProductExporter
 
         $this->helper->debug('Successfully created product ' . $data['external_id'] . ' in Fera API');
         return $createdId;
+    }
+
+    private function getStockId(Product $product): int
+    {
+        $website = $product->getStore()->getWebsite();
+
+        if (!$website instanceof Website) {
+            return 0;
+        }
+
+        $websiteCode = $website->getCode();
+
+        if (!is_string($websiteCode)) {
+            throw new UnexpectedValueException(
+                'Expected website code to be a string, got ' . get_debug_type($websiteCode)
+            );
+        }
+
+        $stock = $this->stockResolver->execute(SalesChannelInterface::TYPE_WEBSITE, $websiteCode);
+        return (int) $stock->getStockId();
+    }
+
+    private function isSkuSalable(string $sku, int $stockId): bool
+    {
+        $results = $this->areSalable->execute([$sku], $stockId);
+        return isset($results[0]) ? (bool) $results[0]->isSalable() : false;
     }
 }
