@@ -76,15 +76,13 @@ class ExportProductsCommand extends Command
             $storesToMainStores = $this->storeGroupService->getStoresToMainStoresMap();
 
             if ($storeId !== null) {
-                if (!isset($storesToMainStores[$storeId])) {
+                $mainStoreId = $storesToMainStores[$storeId] ?? null;
+                if ($mainStoreId === null) {
                     $output->writeln("<error>Fera is not configured for Store {$storeId}.</error>");
                     return Cli::RETURN_FAILURE;
                 }
-                $mainStoreId = $storesToMainStores[$storeId];
 
-                $storesGroups = array_filter($storesGroups, function ($key) use ($mainStoreId) {
-                    return $key === $mainStoreId;
-                }, ARRAY_FILTER_USE_KEY);
+                $storesGroups = [$mainStoreId => $storesGroups[$mainStoreId]];
             }
 
             $storeIds = array_keys($storesGroups);

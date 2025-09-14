@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Model\Queue\ExportProduct;
 
+use Composer\Platform\Runtime;
 use Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Services\ProductExporter;
+use Fera\Ai\Services\StoreGroupService;
 use InvalidArgumentException;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\ProductRepository;
@@ -19,7 +21,8 @@ class Handler
         private ProductRepositoryInterface $productRepository,
         private ProductExporter $productExporter,
         private FeraHelper $helper,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private StoreGroupService $storeGroupService
     ) {
     }
 
@@ -34,6 +37,13 @@ class Handler
                     "Invalid product export message: productId={$productId}, storeId={$storeId}"
                 );
             }
+
+            $mainStoresMap = $this->storeGroupService->getStoresToMainStoresMap();
+            if (!isset($mainStoresMap[$storeId])) {
+                throw new RuntimeException("Fera is not configured for store: {$storeId}");
+            }
+
+            $storeId = $mainStoresMap[$storeId];
 
             if (!$this->helper->isEnabled($storeId)) {
                 return;

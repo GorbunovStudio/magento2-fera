@@ -7,25 +7,25 @@ namespace Fera\Ai\Observer;
 use Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterfaceFactory;
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Services\StoreGroupService;
 use Magento\Bundle\Model\Product\Type as BundleType;
 use Magento\Catalog\Model\Product;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
-use Magento\Store\Model\StoreManagerInterface;
 use Psr\Log\LoggerInterface;
 use UnexpectedValueException;
 
 class ProductPushEvent implements ObserverInterface
 {
     public function __construct(
-        private StoreManagerInterface $storeManager,
         private BundleType $bundleType,
         private FeraHelper $helper,
         private PublisherInterface $publisher,
         private LoggerInterface $logger,
-        private MessageInterfaceFactory $messageDataFactory
+        private MessageInterfaceFactory $messageDataFactory,
+        private StoreGroupService $storeGroupService
     ) {
     }
 
@@ -72,7 +72,7 @@ class ProductPushEvent implements ObserverInterface
             $this->logger->error(
                 "Failed to publish product export messages: {$productIdStr}. Error: {$e->getMessage()}",
                 [
-                    'exception' => $e
+                'exception' => $e
                 ]
             );
 
@@ -89,34 +89,32 @@ class ProductPushEvent implements ObserverInterface
      */
     private function getAffectedStoreIds($product): array
     {
-        $productStoreId = (int)$product->getStoreId();
-        $productWebsiteIds = $product->getWebsiteIds();
-        
-        if ($productStoreId === 0) {
-            // Global scope (All Store Views) - schedule for all stores where product is assigned
-            $storeIds = [];
-            $stores = $this->storeManager->getStores(true);
+        $productStoreId = $product->getStoreId();
+        $mainStoresMap = $this->storeGroupService->getStoresToMainStoresMap();
+        if ($productStoreId !== 0) {
+            $mappedStoreId = $mainStoresMap[$productStoreId] ?? null;
             
-            foreach ($stores as $store) {
-                $storeId = (int)$store->getId();
-                $storeWebsiteId = $store->getWebsiteId();
-                
-                if (in_array($storeWebsiteId, $productWebsiteIds)) {
-                    $storeIds[] = $storeId;
-                }
-            }
-            
-            return $storeIds;
-        } else {
-            // Specific store view - only schedule for this store if it's enabled and product is assigned to its website
-            $store = $this->storeManager->getStore($productStoreId);
-            
-            if (in_array($store->getWebsiteId(), $productWebsiteIds)) {
-                return [$productStoreId];
-            } else {
-                // Product not assigned to this store's website - no stores to update
+            if ($mappedStoreId === null) {
+                $this->helper->debug("Fera is not configured for store: {$productStoreId}");
                 return [];
             }
+
+            return [$mappedStoreId];
         }
+
+        $result = [];
+        $productStoreIds = $product->getStoreIds();
+
+        foreach ($productStoreIds as $productStoreId) {
+            $mappedStoreId = $mainStoresMap[$productStoreId] ?? null;
+
+            if ($mappedStoreId === null) {
+                continue;
+            }
+
+            $result[$mappedStoreId] = true;
+        }
+
+        return array_keys($result);
     }
 }
