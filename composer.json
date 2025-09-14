@@ -1,5 +1,5 @@
 {
-    "name": "feraai/module-fera",
+    "name": "feraai/fera",
     "type": "magento2-module",
     "autoload": {
         "files": [
