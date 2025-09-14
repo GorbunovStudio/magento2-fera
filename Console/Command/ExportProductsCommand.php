@@ -52,7 +52,7 @@ class ExportProductsCommand extends Command
                 's',
                 InputOption::VALUE_OPTIONAL,
                 'Store ID to export products from',
-                0
+                null
             );
 
         parent::configure();
