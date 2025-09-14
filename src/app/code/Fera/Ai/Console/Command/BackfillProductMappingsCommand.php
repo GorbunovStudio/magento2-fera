@@ -19,25 +19,14 @@ class BackfillProductMappingsCommand extends Command
 {
     private const NAME = 'fera:products:backfill-mappings';
 
-    private ProductRepositoryInterface $productRepository;
-    private SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory;
-    private ProductExportManager $exportManager;
-    private State $appState;
-    private ApiClient $apiClient;
-
     public function __construct(
-        ProductRepositoryInterface $productRepository,
-        SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
-        ProductExportManager $exportManager,
-        State $appState,
-        ApiClient $apiClient
+        private ProductRepositoryInterface $productRepository,
+        private SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
+        private ProductExportManager $exportManager,
+        private State $appState,
+        private ApiClient $apiClient
     ) {
         parent::__construct();
-        $this->productRepository = $productRepository;
-        $this->searchCriteriaBuilderFactory = $searchCriteriaBuilderFactory;
-        $this->exportManager = $exportManager;
-        $this->appState = $appState;
-        $this->apiClient = $apiClient;
     }
 
     protected function configure(): void

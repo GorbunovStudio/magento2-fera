@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Services;
 
-use Fera\Ai\Exception\FeraApiException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
 use Fera\Ai\Services\ApiClient;
@@ -18,27 +17,14 @@ use RuntimeException;
  */
 class OrderExporter
 {
-    protected FeraHelper $helper;
-    protected EventManager $eventManager;
-    protected DataObjectFactory $dataObjectFactory;
-    private OrderExportManager $orderExportManager;
-    private OrderDataBuilder $orderDataBuilder;
-    private ApiClient $apiClient;
-
     public function __construct(
-        FeraHelper $helper,
-        EventManager $eventManager,
-        DataObjectFactory $dataObjectFactory,
-        OrderExportManager $orderExportManager,
-        OrderDataBuilder $orderDataBuilder,
-        ApiClient $apiClient
+        private FeraHelper $helper,
+        private EventManager $eventManager,
+        private DataObjectFactory $dataObjectFactory,
+        private OrderExportManager $orderExportManager,
+        private OrderDataBuilder $orderDataBuilder,
+        private ApiClient $apiClient
     ) {
-        $this->helper = $helper;
-        $this->eventManager = $eventManager;
-        $this->dataObjectFactory = $dataObjectFactory;
-        $this->orderExportManager = $orderExportManager;
-        $this->orderDataBuilder = $orderDataBuilder;
-        $this->apiClient = $apiClient;
     }
 
     public function pushOrder(OrderInterface $order): ?string

@@ -22,27 +22,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class ExportProductsCommand extends Command
 {
-    private CollectionFactory $productCollectionFactory;
-    private ProductExporter $productExporter;
-    private FeraHelper $feraHelper;
-    private AppState $appState;
-    private Emulation $emulation;
-    private StoreManagerInterface $storeManager;
-
     public function __construct(
-        CollectionFactory $productCollectionFactory,
-        ProductExporter $productExporter,
-        FeraHelper $feraHelper,
-        AppState $appState,
-        Emulation $emulation,
-        StoreManagerInterface $storeManager
+        private CollectionFactory $productCollectionFactory,
+        private ProductExporter $productExporter,
+        private FeraHelper $feraHelper,
+        private AppState $appState,
+        private Emulation $emulation,
+        private StoreManagerInterface $storeManager
     ) {
-        $this->productCollectionFactory = $productCollectionFactory;
-        $this->productExporter = $productExporter;
-        $this->feraHelper = $feraHelper;
-        $this->appState = $appState;
-        $this->emulation = $emulation;
-        $this->storeManager = $storeManager;
         parent::__construct();
     }
 

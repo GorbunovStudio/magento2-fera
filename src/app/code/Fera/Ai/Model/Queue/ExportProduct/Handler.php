@@ -15,21 +15,12 @@ use RuntimeException;
 
 class Handler
 {
-    private ProductRepositoryInterface $productRepository;
-    private ProductExporter $productExporter;
-    private FeraHelper $helper;
-    private LoggerInterface $logger;
-
     public function __construct(
-        ProductRepositoryInterface $productRepository,
-        ProductExporter $productExporter,
-        FeraHelper $helper,
-        LoggerInterface $logger
+        private ProductRepositoryInterface $productRepository,
+        private ProductExporter $productExporter,
+        private FeraHelper $helper,
+        private LoggerInterface $logger
     ) {
-        $this->productRepository = $productRepository;
-        $this->productExporter = $productExporter;
-        $this->helper = $helper;
-        $this->logger = $logger;
     }
 
     public function process(MessageInterface $message): void

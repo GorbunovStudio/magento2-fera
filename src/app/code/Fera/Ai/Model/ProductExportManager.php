@@ -14,21 +14,12 @@ use UnexpectedValueException;
 
 class ProductExportManager
 {
-    private FeraProductResource $resource;
-    private FeraProductFactory $factory;
-    private FeraProductCollectionFactory $collectionFactory;
-    private DateTime $dateTime;
-
     public function __construct(
-        FeraProductResource $resource,
-        FeraProductFactory $factory,
-        FeraProductCollectionFactory $collectionFactory,
-        DateTime $dateTime
+        private FeraProductResource $resource,
+        private FeraProductFactory $factory,
+        private FeraProductCollectionFactory $collectionFactory,
+        private DateTime $dateTime
     ) {
-        $this->resource = $resource;
-        $this->factory = $factory;
-        $this->collectionFactory = $collectionFactory;
-        $this->dateTime = $dateTime;
     }
 
     public function isExported(int $productId): bool

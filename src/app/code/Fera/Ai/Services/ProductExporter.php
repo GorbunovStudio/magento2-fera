@@ -53,30 +53,15 @@ class ProductExporter
 {
     protected const API_ENDPOINT_PRODUCTS = 'v3/private/products';
 
-    private FeraHelper $helper;
-    private StockStateInterface $stockState;
-    private EventManager $eventManager;
-    private DataObjectFactory $dataObjectFactory;
-    private ProductRepositoryInterface $productRepository;
-    private ProductExportManager $productExportManager;
-    private ApiClient $apiClient;
-
     public function __construct(
-        FeraHelper $helper,
-        StockStateInterface $stockState,
-        EventManager $eventManager,
-        DataObjectFactory $dataObjectFactory,
-        ProductRepositoryInterface $productRepository,
-        ProductExportManager $productExportManager,
-        ApiClient $apiClient
+        private FeraHelper $helper,
+        private StockStateInterface $stockState,
+        private EventManager $eventManager,
+        private DataObjectFactory $dataObjectFactory,
+        private ProductRepositoryInterface $productRepository,
+        private ProductExportManager $productExportManager,
+        private ApiClient $apiClient
     ) {
-        $this->helper = $helper;
-        $this->stockState = $stockState;
-        $this->eventManager = $eventManager;
-        $this->dataObjectFactory = $dataObjectFactory;
-        $this->productRepository = $productRepository;
-        $this->productExportManager = $productExportManager;
-        $this->apiClient = $apiClient;
     }
 
     public function pushProduct(ProductInterface $product, int $storeId = null): void

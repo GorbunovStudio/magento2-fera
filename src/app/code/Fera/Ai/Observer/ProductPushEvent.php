@@ -19,27 +19,14 @@ use UnexpectedValueException;
 
 class ProductPushEvent implements ObserverInterface
 {
-    private StoreManagerInterface $storeManager;
-    private BundleType $bundleType;
-    private FeraHelper $helper;
-    private PublisherInterface $publisher;
-    private LoggerInterface $logger;
-    private MessageInterfaceFactory $messageDataFactory;
-
     public function __construct(
-        StoreManagerInterface $storeManager,
-        BundleType $bundleType,
-        FeraHelper $helper,
-        PublisherInterface $publisher,
-        LoggerInterface $logger,
-        MessageInterfaceFactory $messageDataFactory
+        private StoreManagerInterface $storeManager,
+        private BundleType $bundleType,
+        private FeraHelper $helper,
+        private PublisherInterface $publisher,
+        private LoggerInterface $logger,
+        private MessageInterfaceFactory $messageDataFactory
     ) {
-        $this->storeManager = $storeManager;
-        $this->bundleType = $bundleType;
-        $this->helper = $helper;
-        $this->publisher = $publisher;
-        $this->logger = $logger;
-        $this->messageDataFactory = $messageDataFactory;
     }
 
     public function execute(Observer $observer)

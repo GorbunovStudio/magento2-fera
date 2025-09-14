@@ -18,27 +18,14 @@ use UnexpectedValueException;
 
 class Handler
 {
-    private OrderRepositoryInterface $orderRepository;
-    private FeraHelper $helper;
-    private LoggerInterface $logger;
-    private OrderExportManager $orderExportManager;
-    private OrderExporter $orderExporter;
-    private ApiClient $apiClient;
-
     public function __construct(
-        OrderRepositoryInterface $orderRepository,
-        FeraHelper $helper,
-        LoggerInterface $logger,
-        OrderExportManager $orderExportManager,
-        OrderExporter $orderExporter,
-        ApiClient $apiClient
+        private OrderRepositoryInterface $orderRepository,
+        private FeraHelper $helper,
+        private LoggerInterface $logger,
+        private OrderExportManager $orderExportManager,
+        private OrderExporter $orderExporter,
+        private ApiClient $apiClient
     ) {
-        $this->orderRepository = $orderRepository;
-        $this->helper = $helper;
-        $this->logger = $logger;
-        $this->orderExportManager = $orderExportManager;
-        $this->orderExporter = $orderExporter;
-        $this->apiClient = $apiClient;
     }
 
     public function process(int $orderId): void

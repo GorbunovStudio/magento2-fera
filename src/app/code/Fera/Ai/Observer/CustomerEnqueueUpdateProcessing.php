@@ -14,15 +14,10 @@ use UnexpectedValueException;
 
 class CustomerEnqueueUpdateProcessing implements ObserverInterface
 {
-    private PublisherInterface $publisher;
-    private LoggerInterface $logger;
-
     public function __construct(
-        PublisherInterface $publisher,
-        LoggerInterface $logger
+        private PublisherInterface $publisher,
+        private LoggerInterface $logger
     ) {
-        $this->publisher = $publisher;
-        $this->logger = $logger;
     }
 
     public function execute(Observer $observer): void

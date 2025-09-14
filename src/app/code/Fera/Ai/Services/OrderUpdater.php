@@ -20,24 +20,13 @@ use RuntimeException;
  */
 class OrderUpdater
 {
-    protected FeraHelper $helper;
-    protected EventManager $eventManager;
-    protected DataObjectFactory $dataObjectFactory;
-    private OrderDataBuilder $orderDataBuilder;
-    private ApiClient $apiClient;
-
     public function __construct(
-        FeraHelper $helper,
-        EventManager $eventManager,
-        DataObjectFactory $dataObjectFactory,
-        OrderDataBuilder $orderDataBuilder,
-        ApiClient $apiClient
+        private FeraHelper $helper,
+        private EventManager $eventManager,
+        private DataObjectFactory $dataObjectFactory,
+        private OrderDataBuilder $orderDataBuilder,
+        private ApiClient $apiClient
     ) {
-        $this->helper = $helper;
-        $this->eventManager = $eventManager;
-        $this->dataObjectFactory = $dataObjectFactory;
-        $this->orderDataBuilder = $orderDataBuilder;
-        $this->apiClient = $apiClient;
     }
     
     public function update(OrderInterface $order, string $feraId): void

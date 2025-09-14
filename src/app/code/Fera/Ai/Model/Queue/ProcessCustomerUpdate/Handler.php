@@ -19,27 +19,14 @@ class Handler
 {
     protected const PAGE_SIZE = 100;
 
-    private OrderRepositoryInterface $orderRepository;
-    private SearchCriteriaBuilder $searchCriteriaBuilder;
-    private OrderExportManager $orderExportManager;
-    private FeraHelper $helper;
-    private PublisherInterface $publisher;
-    private LoggerInterface $logger;
-
     public function __construct(
-        OrderRepositoryInterface $orderRepository,
-        SearchCriteriaBuilder $searchCriteriaBuilder,
-        OrderExportManager $orderExportManager,
-        FeraHelper $helper,
-        PublisherInterface $publisher,
-        LoggerInterface $logger
+        private OrderRepositoryInterface $orderRepository,
+        private SearchCriteriaBuilder $searchCriteriaBuilder,
+        private OrderExportManager $orderExportManager,
+        private FeraHelper $helper,
+        private PublisherInterface $publisher,
+        private LoggerInterface $logger
     ) {
-        $this->orderRepository = $orderRepository;
-        $this->searchCriteriaBuilder = $searchCriteriaBuilder;
-        $this->orderExportManager = $orderExportManager;
-        $this->helper = $helper;
-        $this->publisher = $publisher;
-        $this->logger = $logger;
     }
 
     public function process(int $customerId): void

@@ -56,18 +56,11 @@ use Magento\Sales\Api\Data\OrderInterface;
 
 class OrderDataBuilder
 {
-    private FeraHelper $helper;
-    private DirectoryHelperData $directoryHelper;
-    private CustomerRepositoryInterface $customerRepository;
-
     public function __construct(
-        FeraHelper $helper,
-        DirectoryHelperData $directoryHelper,
-        CustomerRepositoryInterface $customerRepository
+        private FeraHelper $helper,
+        private DirectoryHelperData $directoryHelper,
+        private CustomerRepositoryInterface $customerRepository
     ) {
-        $this->helper = $helper;
-        $this->directoryHelper = $directoryHelper;
-        $this->customerRepository = $customerRepository;
     }
 
     /**

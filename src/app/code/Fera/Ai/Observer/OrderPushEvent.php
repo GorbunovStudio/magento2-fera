@@ -16,15 +16,11 @@ class OrderPushEvent implements ObserverInterface
 {
     /** @var Order[] */
     private array $newOrders = [];
-    private FeraHelper $helper;
-    private PublisherInterface $publisher;
-
+    
     public function __construct(
-        FeraHelper $helper,
-        PublisherInterface $publisher
+        private FeraHelper $helper,
+        private PublisherInterface $publisher
     ) {
-        $this->helper = $helper;
-        $this->publisher = $publisher;
     }
 
     public function execute(Observer $observer): void

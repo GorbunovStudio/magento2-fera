@@ -16,21 +16,12 @@ use UnexpectedValueException;
 
 class OrderAddressUpdateEnqueue implements ObserverInterface
 {
-    private PublisherInterface $publisher;
-    private LoggerInterface $logger;
-    private FeraHelper $helper;
-    private OrderRepositoryInterface $orderRepository;
-
     public function __construct(
-        PublisherInterface $publisher,
-        LoggerInterface $logger,
-        FeraHelper $helper,
-        OrderRepositoryInterface $orderRepository
+        private PublisherInterface $publisher,
+        private LoggerInterface $logger,
+        private FeraHelper $helper,
+        private OrderRepositoryInterface $orderRepository
     ) {
-        $this->publisher = $publisher;
-        $this->logger = $logger;
-        $this->helper = $helper;
-        $this->orderRepository = $orderRepository;
     }
 
     public function execute(Observer $observer): void

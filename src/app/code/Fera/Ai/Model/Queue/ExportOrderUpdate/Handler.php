@@ -14,24 +14,13 @@ use RuntimeException;
 
 class Handler
 {
-    private OrderRepositoryInterface $orderRepository;
-    private FeraHelper $helper;
-    private LoggerInterface $logger;
-    private OrderExportManager $orderExportManager;
-    private OrderUpdater $orderUpdater;
-
     public function __construct(
-        OrderRepositoryInterface $orderRepository,
-        FeraHelper $helper,
-        LoggerInterface $logger,
-        OrderExportManager $orderExportManager,
-        OrderUpdater $orderUpdater
+        private OrderRepositoryInterface $orderRepository,
+        private FeraHelper $helper,
+        private LoggerInterface $logger,
+        private OrderExportManager $orderExportManager,
+        private OrderUpdater $orderUpdater
     ) {
-        $this->orderRepository = $orderRepository;
-        $this->helper = $helper;
-        $this->logger = $logger;
-        $this->orderExportManager = $orderExportManager;
-        $this->orderUpdater = $orderUpdater;
     }
 
     public function process(int $orderId): void
