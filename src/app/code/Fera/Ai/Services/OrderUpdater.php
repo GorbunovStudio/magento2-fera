@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Services;
 
-use Fera\Ai\Exception\FeraApiException;
+use Fera\Ai\Api\ApiClient\CustomersClientInterface;
+use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
-use Fera\Ai\Services\ApiClient;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Sales\Api\Data\OrderInterface;
 use RuntimeException;
 
 /**
- * @phpstan-import-type FeraOrder from OrderDataBuilder
- * @phpstan-import-type FeraCustomerData from OrderDataBuilder
- *
- * @phpstan-type FeraOrderResponse array{customer_id?: string}
+ * @phpstan-import-type FeraOrder from OrdersClientInterface
+ * @phpstan-import-type FeraCustomerData from CustomersClientInterface
  */
 class OrderUpdater
 {
@@ -25,7 +23,8 @@ class OrderUpdater
         private EventManager $eventManager,
         private DataObjectFactory $dataObjectFactory,
         private OrderDataBuilder $orderDataBuilder,
-        private ApiClient $apiClient
+        private OrdersClientInterface $ordersClient,
+        private CustomersClientInterface $customersClient
     ) {
     }
     
@@ -82,12 +81,11 @@ class OrderUpdater
      * @param string $feraId
      * @param int $storeId
      * @return array
-     * @phpstan-return FeraOrderResponse
+     * @phpstan-return FeraOrder
      */
     private function sendUpdate(array $data, string $feraId, int $storeId): array
     {
-        /** @var FeraOrderResponse $response */
-        $response = $this->apiClient->put('v3/private/orders/' . $feraId, $data, $storeId);
+        $response = $this->ordersClient->update($feraId, $data, $storeId);
 
         $this->helper->debug("Successfully updated order {$feraId} in Fera API.");
         return $response;
@@ -130,31 +128,7 @@ class OrderUpdater
      */
     private function fetchCustomer(string $customerId, int $storeId): array
     {
-        $decoded = $this->apiClient->get('v3/private/customers/' . $customerId, $storeId);
-
-        if (!isset($decoded['name']) || !is_string($decoded['name'])
-            || !isset($decoded['email']) || !is_string($decoded['email'])
-        ) {
-            throw new FeraApiException(sprintf(
-                'Invalid customer data received from Fera API for customer %s',
-                $customerId
-            ));
-        }
-
-        $result = [
-            'name' => $decoded['name'],
-            'email' => $decoded['email'],
-        ];
-
-        if (isset($decoded['phone_number']) && is_string($decoded['phone_number'])) {
-            $result['phone_number'] = $decoded['phone_number'];
-        }
-        
-        if (isset($decoded['external_id']) && $decoded['external_id'] !== null) {
-            $result['external_id'] = (int) $decoded['external_id'];
-        }
-        
-        return $result;
+        return $this->customersClient->get($customerId, $storeId);
     }
 
     /**
@@ -203,7 +177,7 @@ class OrderUpdater
      */
     private function updateCustomer(string $customerId, array $customerData, int $storeId): void
     {
-        $this->apiClient->put('v3/private/customers/' . $customerId, $customerData, $storeId);
+        $this->customersClient->update($customerId, $customerData, $storeId);
         $this->helper->debug("Successfully updated customer {$customerId} in Fera API.");
     }
 }

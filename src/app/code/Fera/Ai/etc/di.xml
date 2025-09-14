@@ -3,6 +3,10 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface" type="Fera\Ai\Model\Queue\ExportProduct\Message" />
+    
+    <preference for="Fera\Ai\Api\ApiClient\OrdersClientInterface" type="Fera\Ai\Services\ApiClient\OrdersClient" />
+    <preference for="Fera\Ai\Api\ApiClient\CustomersClientInterface" type="Fera\Ai\Services\ApiClient\CustomersClient" />
+    <preference for="Fera\Ai\Api\ApiClient\ProductsClientInterface" type="Fera\Ai\Services\ApiClient\ProductsClient" />
 
     <type name="Fera\Ai\Logger\Handler">
         <arguments>

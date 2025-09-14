@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Services;
 
+use Fera\Ai\Api\ApiClient\ProductsClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
-use Fera\Ai\Services\ApiClient;
 use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product as Product;
@@ -18,45 +18,14 @@ use Magento\InventorySalesApi\Api\GetProductSalableQtyInterface;
 use Magento\InventorySalesApi\Api\AreProductsSalableInterface;
 use Magento\InventorySalesApi\Api\StockResolverInterface;
 use Magento\Store\Model\Website;
-use RuntimeException;
 use UnexpectedValueException;
 
 /**
- * @phpstan-type Variant array{
- *     id: int|string,
- *     name: string,
- *     status?: string,
- *     created_at: string,
- *     modified_at: string,
- *     stock?: float,
- *     in_stock?: bool,
- *     price?: float,
- *     platform_data: array{sku: string},
- *     thumbnail_url?: string
- * }
- * @phpstan-type ProductData array{
- *     id: int|string,
- *     external_id: int|string,
- *     name: string,
- *     price?: float,
- *     status?: string,
- *     created_at: string,
- *     modified_at: string,
- *     stock?: float,
- *     in_stock?: bool,
- *     url: string,
- *     thumbnail_url: string,
- *     needs_shipping: bool,
- *     hidden: bool,
- *     tags: string[],
- *     variants: Variant[],
- *     platform_data: array{sku: string, type: string|mixed[], regular_price?: float}
- * }
+ * @phpstan-import-type Variant from ProductsClientInterface
+ * @phpstan-import-type ProductData from ProductsClientInterface
  */
 class ProductExporter
 {
-    protected const API_ENDPOINT_PRODUCTS = 'v3/private/products';
-
     public function __construct(
         private FeraHelper $helper,
         private StockResolverInterface $stockResolver,
@@ -66,7 +35,7 @@ class ProductExporter
         private DataObjectFactory $dataObjectFactory,
         private ProductRepositoryInterface $productRepository,
         private ProductExportManager $productExportManager,
-        private ApiClient $apiClient
+        private ProductsClientInterface $productsClient
     ) {
     }
 
@@ -271,26 +240,14 @@ class ProductExporter
     private function sendProductData(array $data, ?string $feraId, ?int $storeId = null): string
     {
         $isUpdate = $feraId !== null && $feraId !== '';
-        $endpoint = static::API_ENDPOINT_PRODUCTS;
 
         if ($isUpdate) {
-            $endpoint .= '/' . $feraId;
-            $this->apiClient->put($endpoint, $data, $storeId);
+            $this->productsClient->update($feraId, $data, $storeId);
             $this->helper->debug('Successfully updated product ' . $data['external_id'] . ' in Fera API');
             return (string) $feraId;
         }
 
-        $response = $this->apiClient->post($endpoint, $data, $storeId);
-
-        $createdId = $response['id'] ?? null;
-        if (!is_string($createdId) || $createdId === '') {
-            throw new RuntimeException(sprintf(
-                'Fera API create response missing id for product %s: %s',
-                (string) $data['external_id'],
-                $this->helper->jsonEncode($response)
-            ));
-        }
-
+        $createdId = $this->productsClient->create($data, $storeId);
         $this->helper->debug('Successfully created product ' . $data['external_id'] . ' in Fera API');
         return $createdId;
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Services;
 
+use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
@@ -12,48 +13,11 @@ use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 
 /**
- * @phpstan-type FeraLineItem array{
- *     product_id: int,
- *     price?: float,
- *     total?: float,
- *     name: string,
- *     quantity: int,
- *     variant_id?: int
- * }
- *
- * @phpstan-type FeraCustomerData array{
- *     external_id?: int,
- *     name: string,
- *     email: string,
- *     phone_number?: string|null
- * }
- *
- * @phpstan-type FeraAddressData array{
- *     name: string,
- *     address1: string,
- *     address2: string,
- *     city_name: string,
- *     region_name: string,
- *     zip_code: string
- * }
- * @phpstan-type FeraOrder array{
- *     total?: float,
- *     total_usd?: float,
- *     external_updated_at?: string,
- *     line_items?: array<int, FeraLineItem>,
- *     external_id: string,
- *     number?: string,
- *     external_created_at?: string,
- *     customer?: FeraCustomerData,
- *     tags?: array<string>,
- *     source_name?: string,
- *     shipping_address?: FeraAddressData,
- *     billing_address?: FeraAddressData,
- *     phone_number?: string|null,
- *     is_cancelled?: bool
- * }
+ * @phpstan-import-type FeraLineItem from OrdersClientInterface
+ * @phpstan-import-type FeraCustomerData from OrdersClientInterface
+ * @phpstan-import-type FeraAddressData from OrdersClientInterface
+ * @phpstan-import-type FeraOrder from OrdersClientInterface
  */
-
 class OrderDataBuilder
 {
     public function __construct(

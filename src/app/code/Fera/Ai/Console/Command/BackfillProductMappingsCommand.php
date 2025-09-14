@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Console\Command;
 
+use Fera\Ai\Api\ApiClient\ProductsClientInterface;
 use Fera\Ai\Model\ProductExportManager;
-use Fera\Ai\Services\ApiClient;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Magento\Framework\App\State;
@@ -15,6 +15,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @phpstan-import-type ProductsListResponse from ProductsClientInterface
+ */
 class BackfillProductMappingsCommand extends Command
 {
     private const NAME = 'fera:products:backfill-mappings';
@@ -24,7 +27,7 @@ class BackfillProductMappingsCommand extends Command
         private SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
         private ProductExportManager $exportManager,
         private State $appState,
-        private ApiClient $apiClient
+        private ProductsClientInterface $productsClient
     ) {
         parent::__construct();
     }
@@ -69,11 +72,9 @@ class BackfillProductMappingsCommand extends Command
                     break;
                 }
 
-                $endpoint = sprintf('v3/private/products?page=%d&page_size=%d', $page, $pageSize);
-                $decoded = $this->apiClient->get($endpoint, $storeId);
+                $decoded = $this->productsClient->list($page, $pageSize, $storeId);
 
-                /** @var array<int, array{id: string, external_id: string}> $items */
-                $items = isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : [];
+                $items = $decoded['data'];
                 if (empty($items)) {
                     break;
                 }
@@ -108,7 +109,7 @@ class BackfillProductMappingsCommand extends Command
                     $inserted++;
                 }
 
-                $meta = isset($decoded['meta']) && is_array($decoded['meta']) ? $decoded['meta'] : [];
+                $meta = $decoded['meta'] ?? [];
                 $pageCount = isset($meta['page_count']) ? (int) $meta['page_count'] : 0;
                 $curPage = isset($meta['page']) ? (int) $meta['page'] : $page;
                 $output->writeln(sprintf(

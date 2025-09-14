@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Services;
 
+use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
-use Fera\Ai\Services\ApiClient;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Sales\Api\Data\OrderInterface;
 use RuntimeException;
 
 /**
- * @phpstan-import-type FeraOrder from OrderDataBuilder
+ * @phpstan-import-type FeraOrder from OrdersClientInterface
  */
 class OrderExporter
 {
@@ -23,7 +23,7 @@ class OrderExporter
         private DataObjectFactory $dataObjectFactory,
         private OrderExportManager $orderExportManager,
         private OrderDataBuilder $orderDataBuilder,
-        private ApiClient $apiClient
+        private OrdersClientInterface $ordersClient
     ) {
     }
 
@@ -65,17 +65,7 @@ class OrderExporter
      */
     protected function send(array $data, ?int $storeId = null): string
     {
-        $response = $this->apiClient->post('v3/private/orders', $data, $storeId);
-
-        $feraId = $response['id'] ?? null;
-        if (!is_string($feraId)) {
-            throw new RuntimeException(sprintf(
-                'Fera ID is missing in API response for order %s',
-                $data['external_id']
-            ));
-        }
-
-        return $feraId;
+        return $this->ordersClient->create($data, $storeId);
     }
 
     /**
