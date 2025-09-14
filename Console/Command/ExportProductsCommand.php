@@ -7,6 +7,7 @@ namespace Fera\Ai\Console\Command;
 use Exception;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Services\ProductExporter;
+use Fera\Ai\Services\StoreGroupService;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\State as AppState;
 use Magento\Framework\Exception\LocalizedException;
@@ -15,6 +16,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Catalog\Model\ResourceModel\Product\Collection;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
+use Magento\Framework\Console\Cli;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -28,7 +30,8 @@ class ExportProductsCommand extends Command
         private FeraHelper $feraHelper,
         private AppState $appState,
         private Emulation $emulation,
-        private StoreManagerInterface $storeManager
+        private StoreManagerInterface $storeManager,
+        private StoreGroupService $storeGroupService
     ) {
         parent::__construct();
     }
@@ -69,32 +72,32 @@ class ExportProductsCommand extends Command
                 $this->feraHelper->debug('Area code set attempt ignored: ' . $e->getMessage());
             }
 
-            $stores = [];
-            if ($storeId > 0) {
-                $stores[] = $this->storeManager->getStore($storeId);
-            } else {
-                $stores = array_values($this->storeManager->getStores(false));
+            $storesGroups = $this->storeGroupService->getByFeraAccount();
+            $storesToMainStores = $this->storeGroupService->getStoresToMainStoresMap();
+
+            if ($storeId !== null) {
+                if (!isset($storesToMainStores[$storeId])) {
+                    $output->writeln("<error>Fera is not configured for Store {$storeId}.</error>");
+                    return Cli::RETURN_FAILURE;
+                }
+                $mainStoreId = $storesToMainStores[$storeId];
+
+                $storesGroups = array_filter($storesGroups, function ($key) use ($mainStoreId) {
+                    return $key === $mainStoreId;
+                }, ARRAY_FILTER_USE_KEY);
             }
+
+            $storeIds = array_keys($storesGroups);
 
             $totalExported = 0;
             $totalErrors = 0;
             $processedStores = 0;
 
-            foreach ($stores as $store) {
-                $storeId = (int) $store->getId();
+            foreach ($storeIds as $storeId) {
+                $store = $this->storeManager->getStore($storeId);
                 $storeName = (string) $store->getName();
                 $storeCode = (string) $store->getCode();
                 $output->writeln(sprintf('<info>Processing store: %s (%s)</info>', $storeName, $storeCode));
-
-                // Check if Fera is enabled for this specific store
-                if (!$this->feraHelper->isEnabled($storeId)) {
-                    $output->writeln(sprintf(
-                        '<comment>Fera.ai module is not enabled for store %s (%s). Skipping.</comment>',
-                        $storeName,
-                        $storeCode
-                    ));
-                    continue;
-                }
 
                 $processedStores++;
 
@@ -177,7 +180,7 @@ class ExportProductsCommand extends Command
                 $output->writeln(
                     '<error>No stores processed. Fera.ai module is not enabled for any of the selected stores.</error>'
                 );
-                return 1;
+                return Cli::RETURN_FAILURE;
             }
 
             $output->writeln("Export completed across stores. Total exported: {$totalExported} products");
@@ -185,14 +188,14 @@ class ExportProductsCommand extends Command
                 $output->writeln("Total errors encountered: {$totalErrors} products");
             }
 
-            return $totalErrors > 0 ? 1 : 0;
+            return $totalErrors > 0 ? Cli::RETURN_FAILURE : Cli::RETURN_SUCCESS;
         } catch (Exception $e) {
             $output->writeln("<error>Error during export: {$e->getMessage()}</error>");
             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                 $output->writeln($e->getTraceAsString());
             }
             $this->feraHelper->log('Console export error: ' . $e->getMessage());
-            return 1;
+            return Cli::RETURN_FAILURE;
         }
     }
 
