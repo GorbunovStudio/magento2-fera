@@ -1,15 +1,15 @@
 {
-    "name": "feraai/fera",
-    "type": "magento2-component",
+    "name": "feraai/module-fera",
+    "type": "magento2-module",
     "autoload": {
         "files": [
-            "src/app/code/Fera/Ai/registration.php"
+            "registration.php"
         ],
         "psr-4": {
-            "Fera\\Ai\\": "src/app/code/Fera/Ai"
+            "Fera\\Ai\\": ""
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
         "php": ">=8.1",
