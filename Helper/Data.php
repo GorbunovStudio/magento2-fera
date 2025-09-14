@@ -85,7 +85,7 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return string|null
      */
-    public function getPublicKey($storeId = null): ?string
+    public function getPublicKey(?int $storeId = null): ?string
     {
         $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::PUBLIC_KEY,
@@ -102,7 +102,7 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return string|null
      */
-    public function getSecretKey($storeId = null): ?string
+    public function getSecretKey(?int $storeId = null): ?string
     {
         $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::SECRET_KEY,
@@ -113,7 +113,7 @@ class Data extends AbstractHelper
         return is_string($value) ? $value : null;
     }
 
-    public function isEnabled(int $storeId = null): bool
+    public function isEnabled(?int $storeId = null): bool
     {
         if (!$this->isConfigured($storeId)) {
             return false;
@@ -128,7 +128,7 @@ class Data extends AbstractHelper
         return (bool) $value;
     }
 
-    public function shouldExportOrderOnCreation(int $storeId): bool
+    public function shouldExportOrderOnCreation(?int $storeId = null): bool
     {
         return (bool) $this->scopeConfig->getValue(
             ConfigOptionInterface::EXPORT_ORDER_ON_CREATION,
@@ -152,7 +152,7 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return boolean false if it is not ready for use
      */
-    public function isConfigured($storeId = null)
+    public function isConfigured(?int $storeId = null)
     {
         $publicKey = $this->getPublicKey($storeId);
         $secretKey = $this->getSecretKey($storeId);
@@ -169,7 +169,7 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return string
      */
-    public function getAppUrl($storeId = null): ?string
+    public function getAppUrl(?int $storeId = null): ?string
     {
         $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::APP_URL,
@@ -186,7 +186,7 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return string
      */
-    public function getApiUrl($storeId = null): ?string
+    public function getApiUrl(?int $storeId = null): ?string
     {
         $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::API_URL,
@@ -203,7 +203,7 @@ class Data extends AbstractHelper
      * @param  int|null $storeId
      * @return string
      */
-    public function getJsUrl($storeId = null): ?string
+    public function getJsUrl(?int $storeId = null): ?string
     {
         $value = $this->scopeConfig->getValue(
             ConfigOptionInterface::JS_URL,
