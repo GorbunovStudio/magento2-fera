@@ -65,7 +65,7 @@ class OrderExporter
      */
     protected function send(array $data, ?int $storeId = null): string
     {
-        $response = $this->apiClient->post('v3/private/orders.json', $data, $storeId);
+        $response = $this->apiClient->post('v3/private/orders', $data, $storeId);
 
         $feraId = $response['id'] ?? null;
         if (!is_string($feraId)) {
