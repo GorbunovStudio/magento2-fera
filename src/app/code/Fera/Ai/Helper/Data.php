@@ -13,14 +13,15 @@ namespace Fera\Ai\Helper;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Logger\Logger;
 use Magento\Catalog\Api\Data\ProductInterface;
-use Magento\Catalog\Block\Product\ImageBuilder;
+use Magento\Catalog\Block\Product\Image;
+use Magento\Catalog\Block\Product\ImageFactory;
 use Magento\Catalog\Model\Product;
 use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Helper\Context;
 use Magento\Framework\Intl\DateTimeFactory;
-use Magento\Framework\Json\Helper\Data as JsonHelper;
 use Magento\Framework\Module\ResourceInterface as ModuleResourceInterface;
+use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Quote\Model\Quote\Item as QuoteItem;
 use Magento\Sales\Api\Data\OrderItemInterface;
 use Magento\Sales\Model\Order\Item as OrderItem;
@@ -34,10 +35,10 @@ class Data extends AbstractHelper
     public function __construct(
         Context $context,
         private ModuleResourceInterface $moduleResource,
-        private JsonHelper $jsonHelper,
+        private Json $json,
         private CheckoutSession $checkoutSession,
         private DateTimeFactory $dateTime,
-        private ImageBuilder $imageBuilder,
+        private ImageFactory $imageFactory,
         private Logger $logger
     ) {
         parent::__construct($context);
@@ -370,7 +371,13 @@ class Data extends AbstractHelper
      */
     public function jsonEncode($data): string
     {
-        return $this->jsonHelper->jsonEncode($data);
+        // @phpstan-ignore argument.type
+        $result = $this->json->serialize($data);
+        if (!is_string($result)) {
+            throw new \InvalidArgumentException('Unable to serialize value.');
+        }
+
+        return $result;
     }
 
     public function formatDate(string $date): string
@@ -384,16 +391,15 @@ class Data extends AbstractHelper
      * @param mixed[] $attributes
      * @return \Magento\Catalog\Block\Product\Image
      */
-    public function getImage(ProductInterface $product, string $imageId, array $attributes = [])
+    public function getImage(ProductInterface $product, string $imageId, array $attributes = []): Image
     {
         if (!$product instanceof Product) {
-            throw new \UnexpectedValueException('Expected instance of ' . Product::class . ', got ' . get_debug_type($product));
+            throw new \UnexpectedValueException(
+                'Expected instance of ' . Product::class . ', got ' . get_debug_type($product)
+            );
         }
 
-        return $this->imageBuilder->setProduct($product)
-            ->setImageId($imageId)
-            ->setAttributes($attributes)
-            ->create();
+        return $this->imageFactory->create($product, $imageId, $attributes);
     }
 
     public function getProductThumbnailUrl(ProductInterface $product): string
