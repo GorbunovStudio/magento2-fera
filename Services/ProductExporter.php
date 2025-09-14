@@ -13,9 +13,11 @@ use Magento\Catalog\Model\Product as Product;
 use Magento\Catalog\Model\Product\Visibility;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
+use Magento\InventoryApi\Api\GetSourceItemsBySkuInterface;
+use Magento\InventorySalesApi\Api\AreProductsSalableInterface;
+use Magento\InventoryConfigurationApi\Model\IsSourceItemManagementAllowedForProductTypeInterface;
 use Magento\InventorySalesApi\Api\Data\SalesChannelInterface;
 use Magento\InventorySalesApi\Api\GetProductSalableQtyInterface;
-use Magento\InventorySalesApi\Api\AreProductsSalableInterface;
 use Magento\InventorySalesApi\Api\StockResolverInterface;
 use Magento\Store\Model\Website;
 use UnexpectedValueException;
@@ -35,11 +37,13 @@ class ProductExporter
         private DataObjectFactory $dataObjectFactory,
         private ProductRepositoryInterface $productRepository,
         private ProductExportManager $productExportManager,
-        private ProductsClientInterface $productsClient
+        private ProductsClientInterface $productsClient,
+        private GetSourceItemsBySkuInterface $getSourceItemsBySku,
+        private IsSourceItemManagementAllowedForProductTypeInterface $isSourceItemManagementAllowedForProductType,
     ) {
     }
 
-    public function pushProduct(ProductInterface $product, int $storeId = null): void
+    public function pushProduct(ProductInterface $product, int $storeId): void
     {
         $this->pushProducts([$product], $storeId);
     }
@@ -48,9 +52,9 @@ class ProductExporter
      * Push multiple products to the Fera API efficiently
      *
      * @param \Magento\Catalog\Api\Data\ProductInterface[] $products
-     * @param int|null $storeId
+     * @param int $storeId
      */
-    public function pushProducts(array $products, $storeId = null): void
+    public function pushProducts(array $products, int $storeId): void
     {
         if (empty($products)) {
             return;
@@ -66,7 +70,7 @@ class ProductExporter
 
         foreach ($products as $product) {
             if (!$product instanceof Product) {
-                throw new \UnexpectedValueException(
+                throw new UnexpectedValueException(
                     'Expected instance of ' . Product::class . ', got ' . get_debug_type($product)
                 );
             }
@@ -103,7 +107,7 @@ class ProductExporter
         $thumb = $this->helper->getProductThumbnailUrl($product);
         
         if (!$product instanceof Product) {
-            throw new \UnexpectedValueException(
+            throw new UnexpectedValueException(
                 'Expected instance of ' . Product::class . ', got ' . get_debug_type($product)
             );
         }
@@ -129,13 +133,14 @@ class ProductExporter
         ];
 
         if (!$minimizeDataSharing) {
-            $stockQuantity = $this->getSalableQty->execute($product->getSku(), $stockId);
-            $inStock = $this->isSkuSalable($product->getSku(), $stockId);
- 
             $productData['price'] = $product->getFinalPrice();
             $productData['status'] = $product->getStatus() == 1 ? 'published' : 'draft';
-            $productData['stock'] = $stockQuantity;
-            $productData['in_stock'] = $inStock;
+
+            if ($this->isInventoryManaged($product)) {
+                $productData['stock'] = (float) $this->getSalableQtySafe($product->getSku(), $stockId);
+                $productData['in_stock'] = $this->isSkuSalable($product->getSku(), $stockId);
+            }
+
             $productData['platform_data']['regular_price'] = $product->getPrice();
         }
 
@@ -165,8 +170,11 @@ class ProductExporter
                 if (!$minimizeDataSharing) {
                     $variant['status'] = $subProduct->getStatus() == 1 ? 'published' : 'draft';
                     $variant['price'] = $subProduct->getFinalPrice();
-                    $variant['stock'] = $this->getSalableQty->execute($subProduct->getSku(), $stockId);
-                    $variant['in_stock'] = $this->isSkuSalable($subProduct->getSku(), $stockId);
+
+                    if ($this->isInventoryManaged($subProduct)) {
+                        $variant['stock'] = (float) $this->getSalableQtySafe($subProduct->getSku(), $stockId);
+                        $variant['in_stock'] = $this->isSkuSalable($subProduct->getSku(), $stockId);
+                    }
                 }
 
                 $variantImage = $this->helper->getProductThumbnailUrl($subProduct);
@@ -276,5 +284,29 @@ class ProductExporter
     {
         $results = $this->areSalable->execute([$sku], $stockId);
         return isset($results[0]) ? (bool) $results[0]->isSalable() : false;
+    }
+
+    private function isInventoryManaged(Product $product): bool
+    {
+        $productType = $product->getTypeId();
+        if (is_array($productType)) {
+            $productType = reset($productType);
+        }
+
+        if (!$this->isSourceItemManagementAllowedForProductType->execute($productType)) {
+            return false;
+        }
+
+        return count($this->getSourceItemsBySku->execute($product->getSku())) > 0;
+    }
+
+    private function getSalableQtySafe(string $sku, int $stockId): float
+    {
+        try {
+            return (float) $this->getSalableQty->execute($sku, $stockId);
+        } catch (\Throwable $e) {
+            $this->helper->log('Error getting salable qty for SKU ' . $sku . ': ' . $e->getMessage());
+            return 0;
+        }
     }
 }
