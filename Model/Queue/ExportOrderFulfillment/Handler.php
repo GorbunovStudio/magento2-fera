@@ -8,6 +8,7 @@ use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
 use Fera\Ai\Services\OrderExporter;
+use Magento\Framework\App\ResourceConnection;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
@@ -24,43 +25,22 @@ class Handler
         private LoggerInterface $logger,
         private OrderExportManager $orderExportManager,
         private OrderExporter $orderExporter,
-        private OrdersClientInterface $ordersClient
+        private OrdersClientInterface $ordersClient,
+        private ResourceConnection $resourceConnection
     ) {
     }
 
     public function process(int $orderId): void
     {
+        $connection = $this->resourceConnection->getConnection();
+        $connection->beginTransaction();
+
         try {
-            $order = $this->orderRepository->get($orderId);
+            $this->processFulfillment($orderId);
+            $connection->commit();
+        } catch (Throwable $exception) {
+            $connection->rollBack();
             
-            $storeId = (int) $order->getStoreId();
-
-            if (!$this->helper->isEnabled($storeId)) {
-                return;
-            }
-
-            if ($order->getState() !== Order::STATE_COMPLETE) {
-                throw new UnexpectedValueException(
-                    "Order {$orderId} is not complete. Current state: {$order->getState()}"
-                );
-            }
-
-            $feraId = $this->orderExportManager->getFeraId($orderId);
-            if (!$feraId) {
-                $feraId = $this->orderExporter->pushOrder($order);
-                if (!$feraId) {
-                    $this->helper->debug('Order export skipped for order ' . $orderId . ', skipping status update');
-                    return;
-                }
-            }
-
-            $orderData = [
-                'fulfilled_at' => $this->helper->formatDate($order->getUpdatedAt() ?? ''),
-                'external_id' => $orderId,
-            ];
-
-            $this->updateOrderStatus($orderData, $storeId, $feraId);
-        } catch (\Throwable $exception) {
             $this->logger->error(
                 $exception->getMessage(),
                 ['exception' => $exception, 'trace' => $exception->getTrace()]
@@ -77,6 +57,39 @@ class Handler
                 $this->orderRepository->_resetState();
             }
         }
+    }
+
+    private function processFulfillment(int $orderId): void
+    {
+        $order = $this->orderRepository->get($orderId);
+        
+        $storeId = (int) $order->getStoreId();
+
+        if (!$this->helper->isEnabled($storeId)) {
+            return;
+        }
+
+        if ($order->getState() !== Order::STATE_COMPLETE) {
+            throw new UnexpectedValueException(
+                "Order {$orderId} is not complete. Current state: {$order->getState()}"
+            );
+        }
+
+        $feraId = $this->orderExportManager->getFeraId($orderId);
+        if (!$feraId) {
+            $feraId = $this->orderExporter->pushOrder($order);
+            if (!$feraId) {
+                $this->helper->debug('Order export skipped for order ' . $orderId . ', skipping status update');
+                return;
+            }
+        }
+
+        $orderData = [
+            'fulfilled_at' => $this->helper->formatDate($order->getUpdatedAt() ?? ''),
+            'external_id' => $orderId,
+        ];
+
+        $this->updateOrderStatus($orderData, $storeId, $feraId);
     }
 
     /**

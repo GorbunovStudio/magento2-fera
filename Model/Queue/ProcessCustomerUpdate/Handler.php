@@ -8,6 +8,7 @@ use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
 use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
@@ -25,54 +26,22 @@ class Handler
         private OrderExportManager $orderExportManager,
         private FeraHelper $helper,
         private PublisherInterface $publisher,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ResourceConnection $resourceConnection
     ) {
     }
 
     public function process(int $customerId): void
     {
+        $connection = $this->resourceConnection->getConnection();
+        $connection->beginTransaction();
+
         try {
-            $currentPage = 1;
-
-            do {
-                $orders = $this->getOrdersPage($customerId, $currentPage);
-                $orderCount = count($orders);
-
-                if ($orderCount === 0) {
-                    break;
-                }
-
-                $orderIds = array_map(static function (OrderInterface $order): int {
-                    $orderId = $order->getEntityId();
-                    if (!is_numeric($orderId)) {
-                        throw new UnexpectedValueException(
-                            'Order entity ID is not numeric: ' . get_debug_type($orderId)
-                        );
-                    }
-                    return (int) $orderId;
-                }, $orders);
-
-                $exportedOrderIds = $this->orderExportManager->getExportedOrderIds($orderIds);
-                $exportedOrderIdsSet = array_flip($exportedOrderIds);
-
-                foreach ($orders as $order) {
-                    $orderId = (int) $order->getEntityId();
-                    $storeId = (int) $order->getStoreId();
-
-                    if (!isset($exportedOrderIdsSet[$orderId])) {
-                        continue;
-                    }
-
-                    if (!$this->helper->isEnabled($storeId)) {
-                        continue;
-                    }
-
-                    $this->publisher->publish(TopicInterface::EXPORT_ORDER_UPDATE, $orderId);
-                }
-
-                $currentPage++;
-            } while ($orderCount === static::PAGE_SIZE);
+            $this->processCustomerOrderUpdates($customerId);
+            $connection->commit();
         } catch (\Throwable $exception) {
+            $connection->rollBack();
+            
             $this->logger->error(
                 "Customer {$customerId}: Failed to process customer update: " . $exception->getMessage(),
                 [
@@ -87,6 +56,50 @@ class Handler
                 $exception
             );
         }
+    }
+
+    private function processCustomerOrderUpdates(int $customerId): void
+    {
+        $currentPage = 1;
+
+        do {
+            $orders = $this->getOrdersPage($customerId, $currentPage);
+            $orderCount = count($orders);
+
+            if ($orderCount === 0) {
+                break;
+            }
+
+            $orderIds = array_map(static function (OrderInterface $order): int {
+                $orderId = $order->getEntityId();
+                if (!is_numeric($orderId)) {
+                    throw new UnexpectedValueException(
+                        'Order entity ID is not numeric: ' . get_debug_type($orderId)
+                    );
+                }
+                return (int) $orderId;
+            }, $orders);
+
+            $exportedOrderIds = $this->orderExportManager->getExportedOrderIds($orderIds);
+            $exportedOrderIdsSet = array_flip($exportedOrderIds);
+
+            foreach ($orders as $order) {
+                $orderId = (int) $order->getEntityId();
+                $storeId = (int) $order->getStoreId();
+
+                if (!isset($exportedOrderIdsSet[$orderId])) {
+                    continue;
+                }
+
+                if (!$this->helper->isEnabled($storeId)) {
+                    continue;
+                }
+
+                $this->publisher->publish(TopicInterface::EXPORT_ORDER_UPDATE, $orderId);
+            }
+
+            $currentPage++;
+        } while ($orderCount === static::PAGE_SIZE);
     }
 
     /**

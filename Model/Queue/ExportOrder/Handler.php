@@ -7,6 +7,7 @@ namespace Fera\Ai\Model\Queue\ExportOrder;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
 use Fera\Ai\Services\OrderExporter;
+use Magento\Framework\App\ResourceConnection;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\OrderRepository;
 use Psr\Log\LoggerInterface;
@@ -19,28 +20,22 @@ class Handler
         private OrderExporter $orderExporter,
         private FeraHelper $helper,
         private LoggerInterface $logger,
-        private OrderExportManager $orderExportManager
+        private OrderExportManager $orderExportManager,
+        private ResourceConnection $resourceConnection
     ) {
     }
 
     public function process(int $orderId): void
     {
+        $connection = $this->resourceConnection->getConnection();
+        $connection->beginTransaction();
+
         try {
-            $order = $this->orderRepository->get($orderId);
-
-            $storeId = $order->getStoreId();
-
-            if (!$this->helper->isEnabled($storeId)) {
-                return;
-            }
-
-            $orderId = (int)$order->getEntityId();
-            if ($this->orderExportManager->isExported($orderId)) {
-                throw new RuntimeException('Order ' . $orderId . ' has already been exported to Fera.');
-            }
-
-            $this->orderExporter->pushOrder($order);
+            $this->processOrder($orderId);
+            $connection->commit();
         } catch (\Throwable $exception) {
+            $connection->rollBack();
+            
             $this->logger->error(
                 $exception->getMessage(),
                 ['exception' => $exception, 'trace' => $exception->getTrace()]
@@ -57,5 +52,23 @@ class Handler
                 $this->orderRepository->_resetState();
             }
         }
+    }
+
+    private function processOrder(int $orderId): void
+    {
+        $order = $this->orderRepository->get($orderId);
+
+        $storeId = $order->getStoreId();
+
+        if (!$this->helper->isEnabled($storeId)) {
+            return;
+        }
+
+        $orderId = (int)$order->getEntityId();
+        if ($this->orderExportManager->isExported($orderId)) {
+            throw new RuntimeException('Order ' . $orderId . ' has already been exported to Fera.');
+        }
+
+        $this->orderExporter->pushOrder($order);
     }
 }

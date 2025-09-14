@@ -97,10 +97,11 @@ class ProductExporter
      * Build product data array for API call
      *
      * @param \Magento\Catalog\Api\Data\ProductInterface $product
+     * @param int $storeId
      * @return mixed[]
      * @phpstan-return ProductData
      */
-    private function buildProductData(ProductInterface $product, ?int $storeId): array
+    private function buildProductData(ProductInterface $product, int $storeId): array
     {
         $minimizeDataSharing = $this->helper->isMinimizeDataSharingEnabled($storeId);
 
