@@ -25,12 +25,12 @@ use UnexpectedValueException;
  * @phpstan-type Variant array{
  *     id: int|string,
  *     name: string,
- *     status: string,
+ *     status?: string,
  *     created_at: string,
  *     modified_at: string,
- *     stock: float,
- *     in_stock: bool,
- *     price: float,
+ *     stock?: float,
+ *     in_stock?: bool,
+ *     price?: float,
  *     platform_data: array{sku: string},
  *     thumbnail_url?: string
  * }
@@ -38,19 +38,19 @@ use UnexpectedValueException;
  *     id: int|string,
  *     external_id: int|string,
  *     name: string,
- *     price: float,
- *     status: string,
+ *     price?: float,
+ *     status?: string,
  *     created_at: string,
  *     modified_at: string,
- *     stock: float,
- *     in_stock: bool,
+ *     stock?: float,
+ *     in_stock?: bool,
  *     url: string,
  *     thumbnail_url: string,
  *     needs_shipping: bool,
  *     hidden: bool,
  *     tags: string[],
  *     variants: Variant[],
- *     platform_data: array{sku: string, type: string|mixed[], regular_price: float}
+ *     platform_data: array{sku: string, type: string|mixed[], regular_price?: float}
  * }
  */
 class ProductExporter
@@ -107,7 +107,7 @@ class ProductExporter
                 $product = $this->productRepository->getById($product->getId(), false, $storeId);
             }
             
-            $productData = $this->buildProductData($product);
+            $productData = $this->buildProductData($product, $storeId);
             $externalId = (int) $productData['external_id'];
             $feraId = $map[$externalId] ?? null;
             $isUpdate = $feraId !== null && $feraId !== '';
@@ -127,8 +127,10 @@ class ProductExporter
      * @return mixed[]
      * @phpstan-return ProductData
      */
-    private function buildProductData(ProductInterface $product): array
+    private function buildProductData(ProductInterface $product, ?int $storeId): array
     {
+        $minimizeDataSharing = $this->helper->isMinimizeDataSharingEnabled($storeId);
+
         $thumb = $this->helper->getProductThumbnailUrl($product);
         
         if (!$product instanceof Product) {
@@ -138,19 +140,13 @@ class ProductExporter
         }
 
         $stockId = $this->getStockId($product);
-        $stockQuantity = $this->getSalableQty->execute($product->getSku(), $stockId);
-        $inStock = $this->isSkuSalable($product->getSku(), $stockId);
 
         $productData = [
             'id' => $product->getId(),
             'external_id' => $product->getId(),
             'name' => $product->getName(),
-            'price' => $product->getFinalPrice(),
-            'status' => $product->getStatus() == 1 ? 'published' : 'draft',
             'created_at' => $this->helper->formatDate($product->getCreatedAt()),
             'modified_at' => $this->helper->formatDate($product->getUpdatedAt()),
-            'stock' => $stockQuantity,
-            'in_stock' => $inStock,
             'url' => $product->getProductUrl(),
             'thumbnail_url' => $thumb,
             'needs_shipping' => $product->getTypeId() != 'virtual',
@@ -160,9 +156,19 @@ class ProductExporter
             'platform_data' => [
                 'sku' => $product->getSku(),
                 'type' => $product->getTypeId(),
-                'regular_price' => $product->getPrice(),
             ],
         ];
+
+        if (!$minimizeDataSharing) {
+            $stockQuantity = $this->getSalableQty->execute($product->getSku(), $stockId);
+            $inStock = $this->isSkuSalable($product->getSku(), $stockId);
+ 
+            $productData['price'] = $product->getFinalPrice();
+            $productData['status'] = $product->getStatus() == 1 ? 'published' : 'draft';
+            $productData['stock'] = $stockQuantity;
+            $productData['in_stock'] = $inStock;
+            $productData['platform_data']['regular_price'] = $product->getPrice();
+        }
 
         if ($product->getTypeId() == 'configurable') {
             /** @var \Magento\ConfigurableProduct\Model\Product\Type\Configurable $typeInstance */
@@ -180,16 +186,19 @@ class ProductExporter
                 $variant = [
                     'id' => $subProduct->getId(),
                     'name' => $subProduct->getName(),
-                    'status' => $subProduct->getStatus() == 1 ? 'published' : 'draft',
                     'created_at' => $this->helper->formatDate($subProduct->getCreatedAt()),
                     'modified_at' => $this->helper->formatDate($subProduct->getUpdatedAt()),
-                    'stock' => $this->getSalableQty->execute($subProduct->getSku(), $stockId),
-                    'in_stock' => $this->isSkuSalable($subProduct->getSku(), $stockId),
-                    'price' => $subProduct->getPrice(),
                     'platform_data' => [
                         'sku' => $subProduct->getSku(),
                     ],
                 ];
+
+                if (!$minimizeDataSharing) {
+                    $variant['status'] = $subProduct->getStatus() == 1 ? 'published' : 'draft';
+                    $variant['price'] = $subProduct->getFinalPrice();
+                    $variant['stock'] = $this->getSalableQty->execute($subProduct->getSku(), $stockId);
+                    $variant['in_stock'] = $this->isSkuSalable($subProduct->getSku(), $stockId);
+                }
 
                 $variantImage = $this->helper->getProductThumbnailUrl($subProduct);
                 if ($variantImage != $thumb && stripos($variantImage, '/placeholder') === false) {
