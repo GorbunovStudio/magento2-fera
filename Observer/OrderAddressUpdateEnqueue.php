@@ -6,6 +6,7 @@ namespace Fera\Ai\Observer;
 
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Magento\Framework\App\State;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
@@ -20,7 +21,8 @@ class OrderAddressUpdateEnqueue implements ObserverInterface
         private PublisherInterface $publisher,
         private LoggerInterface $logger,
         private FeraHelper $helper,
-        private OrderRepositoryInterface $orderRepository
+        private OrderRepositoryInterface $orderRepository,
+        private State $state
     ) {
     }
 
@@ -68,11 +70,15 @@ class OrderAddressUpdateEnqueue implements ObserverInterface
                 "Order {$orderId}: Published order update message due to {$addressType} address changes"
             );
         } catch (\Throwable $exception) {
+            // Do not rethrow in prod mode to avoid blocking normal operations
+            if ($this->state->getMode() === State::MODE_DEVELOPER) {
+                throw $exception;
+            }
+
             $this->logger->error(
                 'Failed to publish order update message for address change: ' . $exception->getMessage(),
                 ['exception' => $exception]
             );
-            // Do not rethrow to avoid blocking address save
         }
     }
 

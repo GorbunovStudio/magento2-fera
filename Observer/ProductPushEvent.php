@@ -11,6 +11,7 @@ use Fera\Ai\Services\StoreGroupService;
 use Magento\Bundle\Model\Product\Type as BundleType;
 use Magento\Catalog\Model\Product;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
+use Magento\Framework\App\State;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
@@ -25,15 +26,16 @@ class ProductPushEvent implements ObserverInterface
         private PublisherInterface $publisher,
         private LoggerInterface $logger,
         private MessageInterfaceFactory $messageDataFactory,
-        private StoreGroupService $storeGroupService
+        private StoreGroupService $storeGroupService,
+        private State $state
     ) {
     }
 
     public function execute(Observer $observer)
     {
-        $product = $observer->getEvent()->getProduct();
-
         try {
+            $product = $observer->getEvent()->getProduct();
+
             if (!$product instanceof Product) {
                 throw new UnexpectedValueException(
                     'Incorrect type for Product, expected ' . Product::class . ', got ' . get_debug_type($product)
@@ -67,16 +69,16 @@ class ProductPushEvent implements ObserverInterface
                 
                 $this->publisher->publish(TopicInterface::EXPORT_PRODUCT, $message);
             }
-        } catch (\Throwable $e) {
-            $productIdStr = isset($productId) ? (string)$productId : 'unknown';
-            $this->logger->error(
-                "Failed to publish product export messages: {$productIdStr}. Error: {$e->getMessage()}",
-                [
-                'exception' => $e
-                ]
-            );
+        } catch (\Throwable $exception) {
+            // Do not rethrow in prod mode to avoid blocking normal operations
+            if ($this->state->getMode() === State::MODE_DEVELOPER) {
+                throw $exception;
+            }
 
-            throw $e;
+            $this->logger->error(
+                'Failed to publish product export message: ' . $exception->getMessage(),
+                ['exception' => $exception]
+            );
         }
     }
 
