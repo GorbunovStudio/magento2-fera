@@ -9,8 +9,7 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
-use Magento\Sales\Api\Data\CreditmemoInterface;
-use Magento\Sales\Block\Order\Creditmemo;
+use Magento\Sales\Model\Order\Creditmemo;
 use UnexpectedValueException;
 
 class OrderRefundEvent implements ObserverInterface
@@ -30,7 +29,7 @@ class OrderRefundEvent implements ObserverInterface
         $creditmemo = $event->getCreditmemo();
         if (!$creditmemo instanceof Creditmemo) {
             throw new UnexpectedValueException(
-                'Incorrect type for Order, expected ' . CreditmemoInterface::class . ', got ' . get_debug_type($creditmemo)
+                'Incorrect type for Order, expected ' . Creditmemo::class . ', got ' . get_debug_type($creditmemo)
             );
         }
 
