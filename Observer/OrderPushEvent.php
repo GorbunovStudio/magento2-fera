@@ -67,7 +67,7 @@ class OrderPushEvent implements ObserverInterface
             }
 
             $this->publisher->publish(TopicInterface::EXPORT_ORDER, $orderId);
-        } else {
+        } elseif ($this->hasRelevantOrderUpdates($order)) {
             $this->publisher->publish(TopicInterface::EXPORT_ORDER_UPDATE, $orderId);
         }
 
@@ -84,5 +84,61 @@ class OrderPushEvent implements ObserverInterface
         
         return $currentState === Order::STATE_COMPLETE &&
                $originalState !== Order::STATE_COMPLETE;
+    }
+
+    private function hasRelevantOrderUpdates(Order $order): bool
+    {
+        $currentCustomerId = $this->normalizeCustomerId($order->getCustomerId());
+        $originalCustomerId = $this->normalizeCustomerId($order->getOrigData('customer_id'));
+        if ($currentCustomerId !== $originalCustomerId) {
+            return true;
+        }
+
+        $currentState = $order->getState();
+        $originalState = $order->getOrigData('state');
+        if ($currentState !== $originalState &&
+            in_array($currentState, [Order::STATE_CANCELED, Order::STATE_COMPLETE], true)
+        ) {
+            return true;
+        }
+
+        $nameFields = ['customer_firstname', 'customer_middlename', 'customer_lastname'];
+        foreach ($nameFields as $field) {
+            $currentValue = $this->normalizeString($order->getData($field));
+            $originalValue = $this->normalizeString($order->getOrigData($field));
+            if ($currentValue !== $originalValue) {
+                return true;
+            }
+        }
+
+        $currentEmail = $this->normalizeString($order->getCustomerEmail());
+        $originalEmail = $this->normalizeString($order->getOrigData('customer_email'));
+        if ($currentEmail !== $originalEmail) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function normalizeCustomerId(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        
+        if (is_numeric($value)) {
+            return (int)$value;
+        }
+        
+        return null;
+    }
+
+    private function normalizeString(mixed $value): string
+    {
+        if (!is_string($value)) {
+            return '';
+        }
+        
+        return trim($value);
     }
 }
