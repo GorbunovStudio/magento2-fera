@@ -75,14 +75,8 @@ class CustomerEnqueueUpdateProcessing implements ObserverInterface
             return true;
         }
 
-        $originalEmail = $customer->getOrigData('email');
-        $originalEmail = is_string($originalEmail) ? strtolower(trim($originalEmail)) : '';
-        $currentEmail = strtolower(trim((string) $customer->getEmail()));
-
-        if ($originalEmail !== $currentEmail) {
-            return true;
-        }
-
+        // We don't track email changes because Magento has its own observer,
+        // which updates email in all customer's orders which triggers order update
         return false;
     }
 }
