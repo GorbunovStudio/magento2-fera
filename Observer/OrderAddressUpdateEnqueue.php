@@ -78,7 +78,10 @@ class OrderAddressUpdateEnqueue implements ObserverInterface
 
     private function isInitialCreation(Address $address): bool
     {
-        return $address->isObjectNew();
+        $idField = $address->getIdFieldName();
+        $origId = $address->getOrigData($idField);
+
+        return $origId === null;
     }
 
     private function getOrderId(Address $address): ?int
@@ -119,8 +122,8 @@ class OrderAddressUpdateEnqueue implements ObserverInterface
 
     private function hasFieldChanged(Address $address, string $field): bool
     {
-        $original = $address->getOrigData($field);
-        $current = $address->getData($field);
+        $original = $address->getOrigData($field) ?? '';
+        $current = $address->getData($field) ?? '';
 
         // Normalize strings by trimming
         if (is_string($original)) {
