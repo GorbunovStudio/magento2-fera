@@ -12,6 +12,7 @@ use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Model\Order;
 
 /**
  * @phpstan-import-type FeraLineItem from OrdersClientInterface
@@ -58,6 +59,8 @@ class OrderDataBuilder implements ResettableDependenciesInterface
             );
         }
 
+        $isCancelled = ($order->getState() === Order::STATE_COMPLETE) || empty($lineItems);
+
         $data = [
             'external_updated_at' => $this->helper->formatDate($order->getUpdatedAt() ?? ''),
             'external_id' => (string) $orderId,
@@ -67,7 +70,7 @@ class OrderDataBuilder implements ResettableDependenciesInterface
             'tags' => [],
             'source_name' => 'web',
             'line_items' => $lineItems,
-            'is_cancelled' => empty($lineItems)
+            'is_cancelled' => $isCancelled
         ];
 
         if (!$minimizeDataSharing) {
