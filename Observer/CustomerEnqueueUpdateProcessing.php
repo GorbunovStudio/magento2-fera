@@ -30,9 +30,8 @@ class CustomerEnqueueUpdateProcessing implements ObserverInterface
                 );
             }
 
-            $idField = $customer->getIdFieldName();
             $customerId = $customer->getId();
-            if (!is_numeric($customerId) || $customer->getOrigData($idField) === null) {
+            if (!is_numeric($customerId) || $customer->getOrigData() === null) {
                 // New customer - skip
                 return;
             }
