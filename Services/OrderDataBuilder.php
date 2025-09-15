@@ -59,7 +59,8 @@ class OrderDataBuilder implements ResettableDependenciesInterface
             );
         }
 
-        $isCancelled = ($order->getState() === Order::STATE_COMPLETE) || empty($lineItems);
+        $isCancelled = in_array($order->getState(), [Order::STATE_CANCELED, Order::STATE_CLOSED], true)
+            || empty($lineItems);
 
         $data = [
             'external_updated_at' => $this->helper->formatDate($order->getUpdatedAt() ?? ''),
