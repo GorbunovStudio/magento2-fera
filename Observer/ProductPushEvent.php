@@ -106,7 +106,7 @@ class ProductPushEvent implements ObserverInterface
         $productStoreIds = $product->getStoreIds();
 
         foreach ($productStoreIds as $productStoreId) {
-            $mappedStoreId = $mainStoresMap[$productStoreId] ?? null;
+            $mappedStoreId = $mainStoresMap[(int) $productStoreId] ?? null;
 
             if ($mappedStoreId === null) {
                 continue;

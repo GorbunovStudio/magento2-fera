@@ -58,7 +58,7 @@ class Handler
     {
         $order = $this->orderRepository->get($orderId);
 
-        $storeId = $order->getStoreId();
+        $storeId = (int) $order->getStoreId();
 
         if (!$this->helper->isEnabled($storeId)) {
             return;
