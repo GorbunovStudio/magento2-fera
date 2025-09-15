@@ -11,7 +11,6 @@ use Fera\Ai\Services\StoreGroupService;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\State as AppState;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Store\Model\App\Emulation;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Catalog\Model\ResourceModel\Product\Collection;
@@ -29,7 +28,6 @@ class ExportProductsCommand extends Command
         private ProductExporter $productExporter,
         private FeraHelper $feraHelper,
         private AppState $appState,
-        private Emulation $emulation,
         private StoreManagerInterface $storeManager,
         private StoreGroupService $storeGroupService
     ) {
@@ -99,79 +97,70 @@ class ExportProductsCommand extends Command
 
                 $processedStores++;
 
-                $this->emulation->startEnvironmentEmulation($storeId, Area::AREA_FRONTEND, true);
-                try {
-                    $baseCollection = $this->getProductCollection($storeId, null);
-                    $totalProducts = $baseCollection->getSize();
+                $baseCollection = $this->getProductCollection($storeId, null);
+                $totalProducts = $baseCollection->getSize();
 
-                    if ($totalProducts === 0) {
-                        $output->writeln('<comment>No products found to export in this store.</comment>');
-                        continue;
-                    }
-
-                    $output->writeln("Total products found in store: {$totalProducts}");
-                    
-                    $productsToExport = $limit !== null ? min($totalProducts, $limit) : $totalProducts;
-                    $output->writeln("Exporting {$productsToExport} products...");
-
-                    $exported = 0;
-                    $errors = 0;
-                    $currentPage = 1;
-                    $processedCount = 0;
-                    $pageSize = 50;
-
-                    while ($processedCount < $productsToExport) {
-                        $remainingProducts = $productsToExport - $processedCount;
-                        $currentPageSize = min($pageSize, $remainingProducts);
-                        
-                        $pageCollection = $this->getProductCollection($storeId, null);
-                        $pageCollection->setPageSize($currentPageSize);
-                        $pageCollection->setCurPage($currentPage);
-
-                        /** @var \Magento\Catalog\Api\Data\ProductInterface[] $pageProducts */
-                        $pageProducts = $pageCollection->getItems();
-                        
-                        if (empty($pageProducts)) {
-                            // No more products to process
-                            break;
-                        }
-                        
-                        $output->writeln(sprintf(
-                            'Processing page %d: %d products (processed %d/%d)',
-                            $currentPage,
-                            count($pageProducts),
-                            $processedCount,
-                            $productsToExport
-                        ));
-                        
-                        $result = $this->processBatch($pageProducts, $output, $storeId);
-                        $exported += $result['exported'];
-                        $errors += $result['errors'];
-                        
-                        $processedCount += count($pageProducts);
-                        $currentPage++;
-                        
-                        // Clear the collection to free memory
-                        $pageCollection->clear();
-                        unset($pageCollection, $pageProducts);
-                    }
-
-                    $output->writeln(
-                        "Store '{$storeName}' export completed. Successfully exported: {$exported} products"
-                    );
-                    if ($errors > 0) {
-                        $output->writeln("Errors encountered in store '{$storeName}': {$errors} products");
-                    }
-
-                    $totalExported += $exported;
-                    $totalErrors += $errors;
-                } finally {
-                    try {
-                        $this->emulation->stopEnvironmentEmulation();
-                    } catch (Exception $e) {
-                        $this->feraHelper->debug('Failed to stop environment emulation: ' . $e->getMessage());
-                    }
+                if ($totalProducts === 0) {
+                    $output->writeln('<comment>No products found to export in this store.</comment>');
+                    continue;
                 }
+
+                $output->writeln("Total products found in store: {$totalProducts}");
+                
+                $productsToExport = $limit !== null ? min($totalProducts, $limit) : $totalProducts;
+                $output->writeln("Exporting {$productsToExport} products...");
+
+                $exported = 0;
+                $errors = 0;
+                $currentPage = 1;
+                $processedCount = 0;
+                $pageSize = 50;
+
+                while ($processedCount < $productsToExport) {
+                    $remainingProducts = $productsToExport - $processedCount;
+                    $currentPageSize = min($pageSize, $remainingProducts);
+                    
+                    $pageCollection = $this->getProductCollection($storeId, null);
+                    $pageCollection->setPageSize($currentPageSize);
+                    $pageCollection->setCurPage($currentPage);
+
+                    /** @var \Magento\Catalog\Api\Data\ProductInterface[] $pageProducts */
+                    $pageProducts = $pageCollection->getItems();
+                    
+                    if (empty($pageProducts)) {
+                        // No more products to process
+                        break;
+                    }
+                    
+                    $output->writeln(sprintf(
+                        'Processing page %d: %d products (processed %d/%d)',
+                        $currentPage,
+                        count($pageProducts),
+                        $processedCount,
+                        $productsToExport
+                    ));
+                    
+                    $result = $this->processBatch($pageProducts, $output, $storeId);
+                    $exported += $result['exported'];
+                    $errors += $result['errors'];
+                    
+                    $processedCount += count($pageProducts);
+                    $currentPage++;
+                    
+                    // Clear the collection to free memory
+                    $pageCollection->clear();
+                    unset($pageCollection, $pageProducts);
+                }
+
+                $output->writeln(
+                    "Store '{$storeName}' export completed. Successfully exported: {$exported} products"
+                );
+                if ($errors > 0) {
+                    $output->writeln("Errors encountered in store '{$storeName}': {$errors} products");
+                }
+
+                $totalExported += $exported;
+                $totalErrors += $errors;
             }
 
             if ($processedStores === 0) {

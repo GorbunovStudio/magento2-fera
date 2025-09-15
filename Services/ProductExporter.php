@@ -9,17 +9,19 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
 use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Catalog\Model\ProductRepository;
 use Magento\Catalog\Model\Product as Product;
 use Magento\Catalog\Model\Product\Visibility;
+use Magento\Catalog\Model\ProductRepository;
+use Magento\Framework\App\Area;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\InventoryApi\Api\GetSourceItemsBySkuInterface;
-use Magento\InventorySalesApi\Api\AreProductsSalableInterface;
 use Magento\InventoryConfigurationApi\Model\IsSourceItemManagementAllowedForProductTypeInterface;
+use Magento\InventorySalesApi\Api\AreProductsSalableInterface;
 use Magento\InventorySalesApi\Api\Data\SalesChannelInterface;
 use Magento\InventorySalesApi\Api\GetProductSalableQtyInterface;
 use Magento\InventorySalesApi\Api\StockResolverInterface;
+use Magento\Store\Model\App\Emulation;
 use Magento\Store\Model\Website;
 use UnexpectedValueException;
 
@@ -41,6 +43,7 @@ class ProductExporter implements ResettableDependenciesInterface
         private ProductsClientInterface $productsClient,
         private GetSourceItemsBySkuInterface $getSourceItemsBySku,
         private IsSourceItemManagementAllowedForProductTypeInterface $isSourceItemManagementAllowedForProductType,
+        private Emulation $emulation
     ) {
     }
 
@@ -69,6 +72,8 @@ class ProductExporter implements ResettableDependenciesInterface
         }
 
         $this->validateProductsArray($products);
+
+        $minimizeDataSharing = $this->helper->isMinimizeDataSharingEnabled($storeId);
         
         $ids = [];
         foreach ($products as $p) {
@@ -88,7 +93,13 @@ class ProductExporter implements ResettableDependenciesInterface
                 $product = $this->productRepository->getById($product->getId(), false, $storeId);
             }
             
-            $productData = $this->buildProductData($product, $storeId);
+            $this->emulation->startEnvironmentEmulation($storeId, Area::AREA_FRONTEND, true);
+            try {
+                $productData = $this->buildProductData($product, $minimizeDataSharing);
+            } finally {
+                $this->emulation->stopEnvironmentEmulation();
+            }
+            
             $externalId = (int) $productData['external_id'];
             $feraId = $map[$externalId] ?? null;
             $isUpdate = $feraId !== null && $feraId !== '';
@@ -105,14 +116,12 @@ class ProductExporter implements ResettableDependenciesInterface
      * Build product data array for API call
      *
      * @param \Magento\Catalog\Api\Data\ProductInterface $product
-     * @param int $storeId
+     * @param bool $minimizeDataSharing
      * @return mixed[]
      * @phpstan-return ProductData
      */
-    private function buildProductData(ProductInterface $product, int $storeId): array
+    private function buildProductData(ProductInterface $product, bool $minimizeDataSharing): array
     {
-        $minimizeDataSharing = $this->helper->isMinimizeDataSharingEnabled($storeId);
-
         $thumb = $this->helper->getProductThumbnailUrl($product);
         
         if (!$product instanceof Product) {
