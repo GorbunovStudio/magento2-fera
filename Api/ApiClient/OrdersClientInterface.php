@@ -14,12 +14,7 @@ namespace Fera\Ai\Api\ApiClient;
  *     variant_id?: int
  * }
  *
- * @phpstan-type FeraCustomerData array{
- *     external_id?: int,
- *     name: string,
- *     email: string,
- *     phone_number?: string|null
- * }
+ * @phpstan-import-type FeraCustomerData from CustomersClientInterface
  *
  * @phpstan-type FeraAddressData array{
  *     name: string,
@@ -33,9 +28,27 @@ namespace Fera\Ai\Api\ApiClient;
  * @phpstan-type FeraOrder array{
  *     total?: float,
  *     total_usd?: float,
+ *     external_updated_at: string,
+ *     line_items: array<int, FeraLineItem>,
+ *     external_id: string,
+ *     number: string,
+ *     external_created_at: string,
+ *     customer?: FeraCustomerData,
+ *     customer_id?: string,
+ *     tags?: array<string>,
+ *     source_name?: string,
+ *     shipping_address?: FeraAddressData,
+ *     billing_address?: FeraAddressData,
+ *     phone_number?: string|null,
+ *     is_cancelled?: bool
+ * }
+ *
+ * @phpstan-type FeraOrderUpdate array{
+ *     total?: float,
+ *     total_usd?: float,
  *     external_updated_at?: string,
  *     line_items?: array<int, FeraLineItem>,
- *     external_id: string,
+ *     external_id?: string,
  *     number?: string,
  *     external_created_at?: string,
  *     customer?: FeraCustomerData,
@@ -71,7 +84,7 @@ interface OrdersClientInterface
      *
      * @param string $feraId
      * @param array $order
-     * @phpstan-param FeraOrder $order
+     * @phpstan-param FeraOrderUpdate $order
      * @param int $storeId
      * @return array
      * @phpstan-return FeraOrder

@@ -29,11 +29,17 @@ class ApiClient
     /**
      * @param string $endpoint
      * @param int|null $storeId
+     * @param array<string, mixed> $params Query parameters to append to the endpoint
      * @return array<mixed>
      * @throws FeraApiException
      */
-    public function get(string $endpoint, ?int $storeId = null): array
+    public function get(string $endpoint, ?int $storeId = null, array $params = []): array
     {
+        if (!empty($params)) {
+            $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+            $endpoint .= (strpos($endpoint, '?') !== false ? '&' : '?') . $queryString;
+        }
+        
         return $this->request('GET', $endpoint, [], $storeId);
     }
 

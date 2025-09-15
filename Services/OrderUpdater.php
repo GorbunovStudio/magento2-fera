@@ -15,6 +15,7 @@ use RuntimeException;
 /**
  * @phpstan-import-type FeraOrder from OrdersClientInterface
  * @phpstan-import-type FeraCustomerData from CustomersClientInterface
+ * @phpstan-import-type FeraPersistedCustomerData from CustomersClientInterface
  */
 class OrderUpdater
 {
@@ -48,7 +49,7 @@ class OrderUpdater
         
         // Check if we need to sync customer data
         if (isset($responseData['customer_id'])) {
-            $this->syncCustomerIfNeeded($orderData, $responseData['customer_id'], $storeId);
+            $this->syncCustomerIfNeeded($orderData, $responseData['customer_id'], $feraId, $storeId);
         }
     }
 
@@ -97,9 +98,10 @@ class OrderUpdater
      * @param array $orderData
      * @phpstan-param FeraOrder $orderData
      * @param string $customerId
+     * @param string $feraOrderId
      * @param int $storeId
      */
-    private function syncCustomerIfNeeded(array $orderData, string $customerId, int $storeId): void
+    private function syncCustomerIfNeeded(array $orderData, string $customerId, string $feraOrderId, int $storeId): void
     {
         if (!isset($orderData['customer'])) {
             $this->helper->debug("Customer {$customerId}: No customer data in order, skipping sync");
@@ -109,11 +111,74 @@ class OrderUpdater
         $localCustomerData = $orderData['customer'];
         $remoteCustomerData = $this->fetchCustomer($customerId, $storeId);
         
-        if ($this->needsCustomerUpdate($remoteCustomerData, $localCustomerData)) {
-            $this->helper->debug("Customer {$customerId}: Data differs, sending update");
-            $this->updateCustomer($customerId, $localCustomerData, $storeId);
+        $localEmail = strtolower(trim($localCustomerData['email']));
+        $remoteEmail = strtolower(trim($remoteCustomerData['email']));
+        
+        if ($localEmail === $remoteEmail) {
+            if ($this->needsCustomerUpdate($remoteCustomerData, $localCustomerData)) {
+                $this->helper->debug("Customer {$customerId}: Non-email data differs, sending update");
+                $this->updateCustomer($customerId, $localCustomerData, $storeId);
+            } else {
+                $this->helper->debug("Customer {$customerId}: Data is up to date, skipping update");
+            }
         } else {
-            $this->helper->debug("Customer {$customerId}: Data is up to date, skipping update");
+            $this->handleEmailChange($localCustomerData, $remoteCustomerData, $customerId, $feraOrderId, $storeId);
+        }
+    }
+
+    /**
+     * Handle customer email change scenarios
+     *
+     * @param array $localCustomerData
+     * @phpstan-param FeraCustomerData $localCustomerData
+     * @param array $remoteCustomerData
+     * @phpstan-param FeraPersistedCustomerData $remoteCustomerData
+     * @param string $currentCustomerId
+     * @param string $feraOrderId
+     * @param int $storeId
+     */
+    private function handleEmailChange(
+        array $localCustomerData,
+        array $remoteCustomerData,
+        string $currentCustomerId,
+        string $feraOrderId,
+        int $storeId
+    ): void {
+        $localEmail = $localCustomerData['email'];
+        $this->helper->debug(
+            "Customer {$currentCustomerId}: Email changed to {$localEmail}, searching for existing customer"
+        );
+        
+        $existingFeraCustomer = $this->customersClient->findByEmail($localEmail, $storeId);
+        
+        if ($existingFeraCustomer) {
+            $existingCustomerId = $existingFeraCustomer['id'];
+            $this->helper->debug(
+                "Customer {$currentCustomerId}: Found existing customer {$existingCustomerId} with email {$localEmail}"
+            );
+            
+            if ($this->needsCustomerUpdate($existingFeraCustomer, $localCustomerData)) {
+                $this->helper->debug("Customer {$existingCustomerId}: Updating existing customer data");
+                $this->updateCustomer($existingCustomerId, $localCustomerData, $storeId);
+            }
+            
+            if ($currentCustomerId !== $existingCustomerId) {
+                $this->reassignOrderCustomer($feraOrderId, $existingCustomerId, $storeId);
+            }
+        } else {
+            $localExternalId = $localCustomerData['external_id'] ?? null;
+            $remoteExternalId = $remoteCustomerData['external_id'] ?? null;
+            
+            if ($localExternalId !== null && $localExternalId === $remoteExternalId) {
+                $this->helper->debug(
+                    "Customer {$currentCustomerId}: External IDs match, updating current customer with new email"
+                );
+                $this->updateCustomer($currentCustomerId, $localCustomerData, $storeId);
+            } else {
+                $this->helper->debug("Customer {$currentCustomerId}: External IDs don't match, creating new customer");
+                $newCustomerId = $this->customersClient->create($localCustomerData, $storeId);
+                $this->reassignOrderCustomer($feraOrderId, $newCustomerId, $storeId);
+            }
         }
     }
 
@@ -123,7 +188,7 @@ class OrderUpdater
      * @param string $customerId
      * @param int $storeId
      * @return array
-     * @phpstan-return FeraCustomerData
+     * @phpstan-return FeraPersistedCustomerData
      * @throws \Fera\Ai\Exception\FeraApiException
      */
     private function fetchCustomer(string $customerId, int $storeId): array
@@ -135,25 +200,27 @@ class OrderUpdater
      * Check if customer data needs to be updated
      *
      * @param array $remote
-     * @phpstan-param FeraCustomerData $remote
+     * @phpstan-param FeraPersistedCustomerData $remote
      * @param array $local
      * @phpstan-param FeraCustomerData $local
      * @return bool
      */
     private function needsCustomerUpdate(array $remote, array $local): bool
     {
-        if (($remote['external_id'] ?? null) !== ($local['external_id'] ?? null)) {
+        $remoteExternalId = $remote['external_id'] ?? null;
+        $localExternalId = $local['external_id'] ?? null;
+        if ($remoteExternalId !== $localExternalId) {
             return true;
         }
         
-        $remoteName = trim((string) $remote['name']);
-        $localName = trim((string) $local['name']);
+        $remoteName = trim($remote['name']);
+        $localName = trim($local['name']);
         if ($remoteName !== $localName) {
             return true;
         }
         
-        $remoteEmail = strtolower(trim((string) $remote['email']));
-        $localEmail = strtolower(trim((string) $local['email']));
+        $remoteEmail = strtolower(trim($remote['email']));
+        $localEmail = strtolower(trim($local['email']));
         if ($remoteEmail !== $localEmail) {
             return true;
         }
@@ -179,5 +246,11 @@ class OrderUpdater
     {
         $this->customersClient->update($customerId, $customerData, $storeId);
         $this->helper->debug("Successfully updated customer {$customerId} in Fera API.");
+    }
+
+    private function reassignOrderCustomer(string $feraOrderId, string $newCustomerId, int $storeId): void
+    {
+        $this->ordersClient->update($feraOrderId, ['customer_id' => $newCustomerId], $storeId);
+        $this->helper->debug("Successfully reassigned order {$feraOrderId} to customer {$newCustomerId}");
     }
 }
