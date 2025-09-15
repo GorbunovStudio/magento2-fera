@@ -53,7 +53,13 @@ class OrderPushEvent implements ObserverInterface
         }
         $orderId = (int)$orderId;
 
+        $idField = $order->getIdFieldName();
         $idx = array_search($order, $this->newOrders, true);
+
+        if ($idx === false && $order->getOrigData($idField) === null) {
+            // Original data is missing - order was never read from DB - likely a repeated save of a new order
+            return;
+        }
 
         if ($idx !== false) {
             unset($this->newOrders[$idx]);
