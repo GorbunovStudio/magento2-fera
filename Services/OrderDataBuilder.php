@@ -7,6 +7,7 @@ namespace Fera\Ai\Services;
 use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Customer\Api\CustomerRepositoryInterface;
+use Magento\Customer\Model\CustomerRegistry;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderAddressInterface;
@@ -18,13 +19,19 @@ use Magento\Sales\Api\Data\OrderInterface;
  * @phpstan-import-type FeraAddressData from OrdersClientInterface
  * @phpstan-import-type FeraOrder from OrdersClientInterface
  */
-class OrderDataBuilder
+class OrderDataBuilder implements ResettableDependenciesInterface
 {
     public function __construct(
         private FeraHelper $helper,
         private DirectoryHelperData $directoryHelper,
-        private CustomerRepositoryInterface $customerRepository
+        private CustomerRepositoryInterface $customerRepository,
+        private CustomerRegistry $customerRegistry
     ) {
+    }
+
+    public function resetRepositories(): void
+    {
+        $this->customerRegistry->_resetState();
     }
 
     /**

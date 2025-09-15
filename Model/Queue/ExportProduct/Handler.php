@@ -54,6 +54,7 @@ class Handler
                 // Reset the repository state to avoid stale data issues
                 $this->productRepository->_resetState();
             }
+            $this->productExporter->resetRepositories();
         }
     }
 

@@ -17,7 +17,7 @@ use RuntimeException;
  * @phpstan-import-type FeraCustomerData from CustomersClientInterface
  * @phpstan-import-type FeraPersistedCustomerData from CustomersClientInterface
  */
-class OrderUpdater
+class OrderUpdater implements ResettableDependenciesInterface
 {
     public function __construct(
         private FeraHelper $helper,
@@ -51,6 +51,11 @@ class OrderUpdater
         if (isset($responseData['customer_id'])) {
             $this->syncCustomerIfNeeded($orderData, $responseData['customer_id'], $feraId, $storeId);
         }
+    }
+
+    public function resetRepositories(): void
+    {
+        $this->orderDataBuilder->resetRepositories();
     }
 
     /**

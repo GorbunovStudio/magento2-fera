@@ -12,6 +12,7 @@ use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Model\OrderRepository;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use UnexpectedValueException;
@@ -55,6 +56,10 @@ class Handler
                 $exception->getCode(),
                 $exception
             );
+        } finally {
+            if ($this->orderRepository instanceof OrderRepository) {
+                $this->orderRepository->_resetState();
+            }
         }
     }
 

@@ -9,6 +9,7 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
 use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Catalog\Model\ProductRepository;
 use Magento\Catalog\Model\Product as Product;
 use Magento\Catalog\Model\Product\Visibility;
 use Magento\Framework\DataObjectFactory;
@@ -26,7 +27,7 @@ use UnexpectedValueException;
  * @phpstan-import-type Variant from ProductsClientInterface
  * @phpstan-import-type ProductData from ProductsClientInterface
  */
-class ProductExporter
+class ProductExporter implements ResettableDependenciesInterface
 {
     public function __construct(
         private FeraHelper $helper,
@@ -41,6 +42,13 @@ class ProductExporter
         private GetSourceItemsBySkuInterface $getSourceItemsBySku,
         private IsSourceItemManagementAllowedForProductTypeInterface $isSourceItemManagementAllowedForProductType,
     ) {
+    }
+
+    public function resetRepositories(): void
+    {
+        if ($this->productRepository instanceof ProductRepository) {
+            $this->productRepository->_resetState();
+        }
     }
 
     public function pushProduct(ProductInterface $product, int $storeId): void

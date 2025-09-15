@@ -15,7 +15,7 @@ use RuntimeException;
 /**
  * @phpstan-import-type FeraOrder from OrdersClientInterface
  */
-class OrderExporter
+class OrderExporter implements ResettableDependenciesInterface
 {
     public function __construct(
         private FeraHelper $helper,
@@ -25,6 +25,11 @@ class OrderExporter
         private OrderDataBuilder $orderDataBuilder,
         private OrdersClientInterface $ordersClient
     ) {
+    }
+
+    public function resetRepositories(): void
+    {
+        $this->orderDataBuilder->resetRepositories();
     }
 
     public function pushOrder(OrderInterface $order): ?string
