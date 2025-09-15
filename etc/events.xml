@@ -19,4 +19,9 @@
     <event name="customer_save_after">
         <observer name="fera_ai_customer_save" instance="Fera\Ai\Observer\CustomerEnqueueUpdateProcessing" />
     </event>
+
+    <event name="sales_order_creditmemo_refund">
+        <!-- this event is dispatched within a transaction -->
+        <observer name="fera_ai_order_refund" instance="Fera\Ai\Observer\OrderRefundEvent" />
+    </event>
 </config>
