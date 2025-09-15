@@ -79,8 +79,14 @@ class ApiClient
             ],
         ]]);
 
+        $requestOptions = [];
+        $methodsWithBody = ['POST', 'PUT', 'PATCH'];
+        if (in_array(strtoupper($method), $methodsWithBody, true)) {
+            $requestOptions['json'] = $data;
+        }
+
         try {
-            $response = $client->request($method, $endpoint, ['json' => $data]);
+            $response = $client->request($method, $endpoint, $requestOptions);
         } catch (GuzzleException $e) {
             throw new FeraApiException(sprintf(
                 'Fera API request failed for endpoint %s: %s',
