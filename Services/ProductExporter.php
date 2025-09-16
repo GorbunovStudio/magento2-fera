@@ -149,7 +149,7 @@ class ProductExporter implements ResettableDependenciesInterface
             'tags' => [],
             'variants' => [],
             'price' => 0,
-            'status' => '',
+            'status' => 'published',
             'stock' => 99999,
             'in_stock' => true,
             'platform_data' => [
