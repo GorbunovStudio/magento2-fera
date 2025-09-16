@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Model\Queue\ExportProduct;
 
-use Composer\Platform\Runtime;
 use Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Services\ProductExporter;
