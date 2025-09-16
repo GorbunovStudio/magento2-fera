@@ -199,7 +199,7 @@ class ExportProductsCommand extends Command
         }
 
         $collection->addAttributeToSelect([
-            'name', 'sku', 'price', 'status', 'visibility', 'type_id', 'created_at', 'updated_at',
+            'name', 'sku', 'price', 'special_price', 'status', 'visibility', 'type_id', 'created_at', 'updated_at', 'thumbnail'
         ]);
 
         // @phpstan-ignore argument.type
