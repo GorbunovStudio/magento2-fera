@@ -12,3 +12,4 @@ composer.lock
 
 /app/code/community/Fera/Aiconnector/CustomerBalance/license.txt
 /.idea
+changes.diff
