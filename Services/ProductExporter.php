@@ -144,9 +144,14 @@ class ProductExporter implements ResettableDependenciesInterface
             'hidden' => (int) $product->getVisibility() === Visibility::VISIBILITY_NOT_VISIBLE,
             'tags' => [],
             'variants' => [],
+            'price' => 0,
+            'status' => '',
+            'stock' => 99999,
+            'in_stock' => true,
             'platform_data' => [
                 'sku' => $product->getSku(),
                 'type' => $product->getTypeId(),
+                'regular_price' => 0,
             ],
         ];
 
