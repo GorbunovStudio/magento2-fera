@@ -113,7 +113,7 @@ class OrderDataBuilder implements ResettableDependenciesInterface
      */
     public function getLineItems(OrderInterface $order, bool $minimizeDataSharing = false): array
     {
-        $items = $this->helper->serializeQuoteItems($order->getItems());
+        $items = $this->helper->serializeOrderItems($order->getItems());
         
         if ($minimizeDataSharing) {
             return array_map(static function (array $item): array {

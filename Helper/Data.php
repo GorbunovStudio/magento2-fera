@@ -16,15 +16,12 @@ use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Catalog\Block\Product\Image;
 use Magento\Catalog\Block\Product\ImageFactory;
 use Magento\Catalog\Model\Product;
-use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Helper\Context;
 use Magento\Framework\Intl\DateTimeFactory;
 use Magento\Framework\Module\ResourceInterface as ModuleResourceInterface;
 use Magento\Framework\Serialize\Serializer\Json;
-use Magento\Quote\Model\Quote\Item as QuoteItem;
 use Magento\Sales\Api\Data\OrderItemInterface;
-use Magento\Sales\Model\Order\Item as OrderItem;
 use Magento\Store\Model\ScopeInterface;
 use Stringable;
 
@@ -36,7 +33,6 @@ class Data extends AbstractHelper
         Context $context,
         private ModuleResourceInterface $moduleResource,
         private Json $json,
-        private CheckoutSession $checkoutSession,
         private DateTimeFactory $dateTime,
         private ImageFactory $imageFactory,
         private Logger $logger
@@ -228,7 +224,7 @@ class Data extends AbstractHelper
     }
 
     /**
-     * @param \Magento\Sales\Api\Data\OrderItemInterface[]|\Magento\Quote\Api\Data\CartItemInterface[] $items
+     * @param \Magento\Sales\Api\Data\OrderItemInterface[] $items
      * @return mixed[]
      * @phpstan-return array<int, array{
      *     product_id:int,
@@ -239,44 +235,38 @@ class Data extends AbstractHelper
      *     variant_id?:int
      * }>
      */
-    public function serializeQuoteItems($items): array
+    public function serializeOrderItems(array $items): array
     {
         $parentTypeMap = [];
         $itemMap = [];
         $childItems = [];
 
-        foreach ($items as $cartItem) {
-            if (!($cartItem instanceof OrderItem || $cartItem instanceof QuoteItem)) {
-                throw new \UnexpectedValueException(
-                    'Incorrect type for cart item: expected ' . OrderItem::class . ' or ' . QuoteItem::class . ', got '
-                    . get_debug_type($cartItem)
-                );
-            }
+        foreach ($items as $orderItem) {
 
-            if ($cartItem->getParentItemId()) {
-                $childItems[] = $cartItem;
+            if ($orderItem->getParentItemId()) {
+                $childItems[] = $orderItem;
                 continue;
             }
 
-            $parentId = $cartItem->getId();
-            $parentType = $cartItem->getProductType();
+            $parentId = $orderItem->getItemId();
+            $parentType = $orderItem->getProductType();
             $parentTypeMap[$parentId] = $parentType;
-            $data = $this->buildItemData($cartItem);
+            $data = $this->buildItemData($orderItem);
             if ($data !== null) {
                 $itemMap[$parentId] = $data;
             }
         }
 
-        foreach ($childItems as $cartItem) {
-            $parentId = $cartItem->getParentItemId();
+        foreach ($childItems as $orderItem) {
+            $parentId = $orderItem->getParentItemId();
             $parentType = isset($parentTypeMap[$parentId]) ? $parentTypeMap[$parentId] : null;
 
             if ($parentType === 'configurable') {
-                if ($this->getRemainingQuantity($cartItem) <= 0) {
+                if ($this->getRemainingQuantity($orderItem) <= 0) {
                     unset($itemMap[$parentId]);
                 } elseif (isset($itemMap[$parentId])) {
-                    $itemMap[$parentId]['name'] = $cartItem->getName() ?? '';
-                    $itemMap[$parentId]['variant_id'] = (int) $cartItem->getProductId();
+                    $itemMap[$parentId]['name'] = $orderItem->getName() ?? '';
+                    $itemMap[$parentId]['variant_id'] = (int) $orderItem->getProductId();
                 }
                 continue;
             }
@@ -284,9 +274,9 @@ class Data extends AbstractHelper
             if ($parentType === 'bundle') {
                 continue;
             }
-            $data = $this->buildItemData($cartItem);
+            $data = $this->buildItemData($orderItem);
             if ($data !== null) {
-                $itemMap[$cartItem->getItemId()] = $data;
+                $itemMap[$orderItem->getItemId()] = $data;
             }
         }
 
@@ -294,27 +284,23 @@ class Data extends AbstractHelper
     }
 
     /**
-     * @param \Magento\Sales\Api\Data\OrderItemInterface|\Magento\Quote\Api\Data\CartItemInterface $item
+     * @param \Magento\Sales\Api\Data\OrderItemInterface $item
      */
-    private function getRemainingQuantity($item): int
+    private function getRemainingQuantity(OrderItemInterface $item): int
     {
-        if ($item instanceof OrderItemInterface) {
-            $qtyOrdered = (float) $item->getQtyOrdered();
-            $qtyRefunded = (float) $item->getQtyRefunded();
-            $qtyCanceled = (float) $item->getQtyCanceled();
-            $left = (int) max(0, (int) round($qtyOrdered) - (int) round($qtyRefunded) - (int) round($qtyCanceled));
-            return $left;
-        }
+        $qtyOrdered = (float) $item->getQtyOrdered();
+        $qtyRefunded = (float) $item->getQtyRefunded();
+        $qtyCanceled = (float) $item->getQtyCanceled();
+        $left = (int) max(0, (int) round($qtyOrdered) - (int) round($qtyRefunded) - (int) round($qtyCanceled));
 
-        $qty = (float) $item->getQty();
-        return (int) max(0, (int) round($qty));
+        return $left;
     }
 
     /**
-     * @param \Magento\Sales\Model\Order\Item|\Magento\Quote\Model\Quote\Item $item
+     * @param \Magento\Sales\Api\Data\OrderItemInterface $item
      * @return array{product_id:int,price:float,total:float,name:string,quantity:int}|null
      */
-    private function buildItemData($item): ?array
+    private function buildItemData(OrderItemInterface $item): ?array
     {
         $qty = $this->getRemainingQuantity($item);
         if ($qty <= 0) {
@@ -322,12 +308,10 @@ class Data extends AbstractHelper
         }
 
         $rowTotal = (float) ($item->getRowTotal() ?? 0.0);
-        if ($item instanceof OrderItemInterface) {
-            $qtyOrdered = (float) $item->getQtyOrdered();
-            if ($qtyOrdered > 0 && $qty < (int) round($qtyOrdered)) {
-                $ratio = $qty / $qtyOrdered;
-                $rowTotal = $rowTotal * $ratio;
-            }
+        $qtyOrdered = (float) $item->getQtyOrdered();
+        if ($qtyOrdered > 0 && $qty < (int) round($qtyOrdered)) {
+            $ratio = $qty / $qtyOrdered;
+            $rowTotal = $rowTotal * $ratio;
         }
 
         return [
@@ -337,21 +321,6 @@ class Data extends AbstractHelper
             'name' => $item->getName() ?? '',
             'quantity' => $qty,
         ];
-    }
-
-    public function getCartJson(): string
-    {
-        $quote = $this->checkoutSession->getQuote();
-
-        $data = [
-            'currency' => (string) $quote->getQuoteCurrencyCode(),
-            'total' => $quote->getSubtotal(),
-            'grand_total' => $quote->getGrandTotal()
-        ];
-
-        $data['items'] = $this->serializeQuoteItems($quote->getAllVisibleItems());
-
-        return $this->jsonEncode($data);
     }
 
     public function getDebugJs(): string
