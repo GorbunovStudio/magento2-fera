@@ -12,6 +12,7 @@ use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Api\Data\OrderInterface;
+use Magento\Sales\Api\Data\OrderItemInterface;
 use Magento\Sales\Model\Order;
 
 /**
@@ -113,7 +114,7 @@ class OrderDataBuilder implements ResettableDependenciesInterface
      */
     public function getLineItems(OrderInterface $order, bool $minimizeDataSharing = false): array
     {
-        $items = $this->helper->serializeOrderItems($order->getItems());
+        $items = $this->serializeOrderItems($order->getItems());
         
         if ($minimizeDataSharing) {
             return array_map(static function (array $item): array {
@@ -209,5 +210,105 @@ class OrderDataBuilder implements ResettableDependenciesInterface
         }
 
         return $firstAssignment->getShipping()->getAddress();
+    }
+
+    /**
+     * @param \Magento\Sales\Api\Data\OrderItemInterface[] $items
+     * @return mixed[]
+     * @phpstan-return array<int, array{
+     *     product_id:int,
+     *     price:float,
+     *     total:float,
+     *     name:string,
+     *     quantity:int,
+     *     variant_id?:int
+     * }>
+     */
+    public function serializeOrderItems(array $items): array
+    {
+        $parentTypeMap = [];
+        $itemMap = [];
+        $childItems = [];
+
+        foreach ($items as $orderItem) {
+
+            if ($orderItem->getParentItemId()) {
+                $childItems[] = $orderItem;
+                continue;
+            }
+
+            $parentId = $orderItem->getItemId();
+            $parentType = $orderItem->getProductType();
+            $parentTypeMap[$parentId] = $parentType;
+            $data = $this->buildItemData($orderItem);
+            if ($data !== null) {
+                $itemMap[$parentId] = $data;
+            }
+        }
+
+        foreach ($childItems as $orderItem) {
+            $parentId = $orderItem->getParentItemId();
+            $parentType = isset($parentTypeMap[$parentId]) ? $parentTypeMap[$parentId] : null;
+
+            if ($parentType === 'configurable') {
+                if ($this->getRemainingQuantity($orderItem) <= 0) {
+                    unset($itemMap[$parentId]);
+                } elseif (isset($itemMap[$parentId])) {
+                    $itemMap[$parentId]['name'] = $orderItem->getName() ?? '';
+                    $itemMap[$parentId]['variant_id'] = (int) $orderItem->getProductId();
+                }
+                continue;
+            }
+
+            if ($parentType === 'bundle') {
+                continue;
+            }
+            $data = $this->buildItemData($orderItem);
+            if ($data !== null) {
+                $itemMap[$orderItem->getItemId()] = $data;
+            }
+        }
+
+        return array_values($itemMap);
+    }
+
+    /**
+     * @param \Magento\Sales\Api\Data\OrderItemInterface $item
+     */
+    private function getRemainingQuantity(OrderItemInterface $item): int
+    {
+        $qtyOrdered = (float) $item->getQtyOrdered();
+        $qtyRefunded = (float) $item->getQtyRefunded();
+        $qtyCanceled = (float) $item->getQtyCanceled();
+        $left = (int) max(0, (int) round($qtyOrdered) - (int) round($qtyRefunded) - (int) round($qtyCanceled));
+
+        return $left;
+    }
+
+    /**
+     * @param \Magento\Sales\Api\Data\OrderItemInterface $item
+     * @return array{product_id:int,price:float,total:float,name:string,quantity:int}|null
+     */
+    private function buildItemData(OrderItemInterface $item): ?array
+    {
+        $qty = $this->getRemainingQuantity($item);
+        if ($qty <= 0) {
+            return null;
+        }
+
+        $rowTotal = (float) ($item->getRowTotal() ?? 0.0);
+        $qtyOrdered = (float) $item->getQtyOrdered();
+        if ($qtyOrdered > 0 && $qty < (int) round($qtyOrdered)) {
+            $ratio = $qty / $qtyOrdered;
+            $rowTotal = $rowTotal * $ratio;
+        }
+
+        return [
+            'product_id' => (int) $item->getProductId(),
+            'price' => $item->getPrice() ?? 0.0,
+            'total' => $rowTotal,
+            'name' => $item->getName() ?? '',
+            'quantity' => $qty,
+        ];
     }
 }
