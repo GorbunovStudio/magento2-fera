@@ -10,6 +10,7 @@ use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Model\CustomerRegistry;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Magento\Sales\Api\Data\OrderAddressInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\Data\OrderItemInterface;
@@ -21,7 +22,7 @@ use Magento\Sales\Model\Order;
  * @phpstan-import-type FeraAddressData from OrdersClientInterface
  * @phpstan-import-type FeraOrder from OrdersClientInterface
  */
-class OrderDataBuilder implements ResettableDependenciesInterface
+class OrderDataBuilder implements ResetAfterRequestInterface
 {
     public function __construct(
         private FeraHelper $helper,
@@ -31,7 +32,7 @@ class OrderDataBuilder implements ResettableDependenciesInterface
     ) {
     }
 
-    public function resetRepositories(): void
+    public function _resetState(): void
     {
         $this->customerRegistry->_resetState();
     }

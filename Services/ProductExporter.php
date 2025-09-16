@@ -16,6 +16,7 @@ use Magento\Catalog\Model\ProductRepository;
 use Magento\Framework\App\Area;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
+use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Magento\InventoryApi\Api\GetSourceItemsBySkuInterface;
 use Magento\InventoryConfigurationApi\Model\IsSourceItemManagementAllowedForProductTypeInterface;
 use Magento\InventorySalesApi\Api\AreProductsSalableInterface;
@@ -30,7 +31,7 @@ use UnexpectedValueException;
  * @phpstan-import-type Variant from ProductsClientInterface
  * @phpstan-import-type ProductData from ProductsClientInterface
  */
-class ProductExporter implements ResettableDependenciesInterface
+class ProductExporter implements ResetAfterRequestInterface
 {
     public function __construct(
         private FeraHelper $helper,
@@ -48,7 +49,7 @@ class ProductExporter implements ResettableDependenciesInterface
     ) {
     }
 
-    public function resetRepositories(): void
+    public function _resetState(): void
     {
         if ($this->productRepository instanceof ProductRepository) {
             $this->productRepository->_resetState();

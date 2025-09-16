@@ -9,6 +9,7 @@ use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
+use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use RuntimeException;
 
@@ -17,7 +18,7 @@ use RuntimeException;
  * @phpstan-import-type FeraCustomerData from CustomersClientInterface
  * @phpstan-import-type FeraPersistedCustomerData from CustomersClientInterface
  */
-class OrderUpdater implements ResettableDependenciesInterface
+class OrderUpdater implements ResetAfterRequestInterface
 {
     public function __construct(
         private FeraHelper $helper,
@@ -53,9 +54,9 @@ class OrderUpdater implements ResettableDependenciesInterface
         }
     }
 
-    public function resetRepositories(): void
+    public function _resetState(): void
     {
-        $this->orderDataBuilder->resetRepositories();
+        $this->orderDataBuilder->_resetState();
     }
 
     /**

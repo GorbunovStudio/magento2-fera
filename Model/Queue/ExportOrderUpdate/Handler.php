@@ -51,7 +51,7 @@ class Handler
                 // Reset the repository state to avoid stale data issues
                 $this->orderRepository->_resetState();
             }
-            $this->orderUpdater->resetRepositories();
+            $this->orderUpdater->_resetState();
         }
     }
 

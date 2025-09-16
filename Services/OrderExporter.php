@@ -9,13 +9,14 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
 use Magento\Framework\DataObjectFactory;
 use Magento\Framework\Event\ManagerInterface as EventManager;
+use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use RuntimeException;
 
 /**
  * @phpstan-import-type FeraOrder from OrdersClientInterface
  */
-class OrderExporter implements ResettableDependenciesInterface
+class OrderExporter implements ResetAfterRequestInterface
 {
     public function __construct(
         private FeraHelper $helper,
@@ -28,9 +29,9 @@ class OrderExporter implements ResettableDependenciesInterface
     ) {
     }
 
-    public function resetRepositories(): void
+    public function _resetState(): void
     {
-        $this->orderDataBuilder->resetRepositories();
+        $this->orderDataBuilder->_resetState();
     }
 
     public function pushOrder(OrderInterface $order): ?string
