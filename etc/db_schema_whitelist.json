@@ -1,0 +1,34 @@
+{
+    "fera_orders": {
+        "column": {
+            "id": true,
+            "order_id": true,
+            "fera_id": true,
+            "exported_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "FERA_ORDERS_ORDER_ID_UNQ": true
+        },
+        "index": {
+            "FERA_ORDERS_FERA_ID_IDX": true
+        }
+    },
+    "fera_products": {
+        "column": {
+            "id": true,
+            "product_id": true,
+            "fera_id": true,
+            "store_id": true,
+            "exported_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "FERA_PRODUCTS_PRODUCT_ID_STORE_ID_UNQ": true,
+            "FERA_PRODUCTS_STORE_ID_STORE_STORE_ID": true
+        },
+        "index": {
+            "FERA_PRODUCTS_FERA_ID_IDX": true
+        }
+    }
+}

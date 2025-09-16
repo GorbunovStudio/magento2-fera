@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface" type="Fera\Ai\Model\Queue\ExportProduct\Message" />
+    
+    <preference for="Fera\Ai\Api\ApiClient\OrdersClientInterface" type="Fera\Ai\Services\ApiClient\OrdersClient" />
+    <preference for="Fera\Ai\Api\ApiClient\CustomersClientInterface" type="Fera\Ai\Services\ApiClient\CustomersClient" />
+    <preference for="Fera\Ai\Api\ApiClient\ProductsClientInterface" type="Fera\Ai\Services\ApiClient\ProductsClient" />
+
+    <type name="Fera\Ai\Logger\Handler">
+        <arguments>
+            <argument name="filesystem" xsi:type="object">Magento\Framework\Filesystem\Driver\File</argument>
+        </arguments>
+    </type>
+    <type name="Fera\Ai\Logger\Logger">
+        <arguments>
+            <argument name="name" xsi:type="string">FeraAiLogger</argument>
+            <argument name="handlers" xsi:type="array">
+                <item name="system" xsi:type="object">Fera\Ai\Logger\Handler</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- Console Commands -->
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="fera_export_products" xsi:type="object">Fera\Ai\Console\Command\ExportProductsCommand</item>
+                <item name="fera_backfill_product_mappings" xsi:type="object">Fera\Ai\Console\Command\BackfillProductMappingsCommand</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

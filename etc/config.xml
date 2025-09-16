@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <fera_ai>
+            <general>
+                <enabled>1</enabled>
+                <debug_mode>0</debug_mode>
+            </general>
+            <fera_ai_group>
+                <app_url>https://app.fera.ai/</app_url>
+                <api_url>https://app.fera.ai/api/</api_url>
+                <js_url>https://cdn.fera.ai/js/v3/fera.js</js_url>
+                <secret_key backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
+            </fera_ai_group>
+            <sync_settings>
+                <orders_export_on_creation>1</orders_export_on_creation>
+                <minimize_data_sharing>1</minimize_data_sharing>
+            </sync_settings>
+        </fera_ai>
+    </default>
+</config>
