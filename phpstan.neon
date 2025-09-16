@@ -1,0 +1,10 @@
+parameters:
+	level: 9
+	paths:
+		- .
+	excludePaths:
+		analyse:
+			- vendor/*
+			- generated/*
+	typeAliases:
+		UnstructuredArray: array
