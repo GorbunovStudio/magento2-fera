@@ -107,6 +107,7 @@
     "intelephense.compatibility.preferPsalmPhpstanPrefixedAnnotations": true,
     "cSpell.words": [
         "adminhtml",
+        "analyse",
         "Fera",
         "feraai",
         "innodb",
