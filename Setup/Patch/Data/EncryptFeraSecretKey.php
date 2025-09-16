@@ -53,18 +53,19 @@ class EncryptFeraSecretKey implements DataPatchInterface
         foreach ($configRows as $row) {
             $value = $row['value'];
             
-            try {
-                $this->encryptor->decrypt($value);
+            $decryptedValue = $this->encryptor->decrypt($value);
+            if (strlen($decryptedValue) === 67) {
+                // Value is already encrypted (decryption returned proper key), skip it
                 continue;
-            } catch (\Exception $e) {
-                $encryptedValue = $this->encryptor->encrypt($value);
-                
-                $connection->update(
-                    $tableName,
-                    ['value' => $encryptedValue],
-                    ['config_id = ?' => $row['config_id']]
-                );
             }
+            
+            $encryptedValue = $this->encryptor->encrypt($value);
+            
+            $connection->update(
+                $tableName,
+                ['value' => $encryptedValue],
+                ['config_id = ?' => $row['config_id']]
+            );
         }
 
         $connection->endSetup();
