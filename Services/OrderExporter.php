@@ -23,7 +23,8 @@ class OrderExporter implements ResettableDependenciesInterface
         private DataObjectFactory $dataObjectFactory,
         private OrderExportManager $orderExportManager,
         private OrderDataBuilder $orderDataBuilder,
-        private OrdersClientInterface $ordersClient
+        private OrdersClientInterface $ordersClient,
+        private MissingProductExportScheduler $missingProductExportScheduler
     ) {
     }
 
@@ -47,6 +48,8 @@ class OrderExporter implements ResettableDependenciesInterface
         }
 
         $orderData = $this->enrichOrderData($order, $orderData);
+
+        $this->missingProductExportScheduler->scheduleForOrder($order, $orderData);
 
         $feraId = $this->send($orderData, (int)$storeId);
 

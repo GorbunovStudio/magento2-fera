@@ -77,6 +77,7 @@ The extension provides flexible order export options that can be configured per 
 - This setting is store-scoped, allowing different behavior per store view
 - When disabled, orders will still be exported when they transition to "Complete" status
 - Queue processing handles the actual export, so changes take effect on the next queue run
+- During order export, the module automatically schedules product exports for any order line items that don't have existing Fera product mappings, ensuring all products are available in Fera before the order is processed
 
 ## Help
 If you're seeing this repo you're probably a trusted developer - so just feel free to email help a-t fera dot ai with any questions.
