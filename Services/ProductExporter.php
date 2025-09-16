@@ -149,7 +149,7 @@ class ProductExporter implements ResettableDependenciesInterface
             'tags' => [],
             'variants' => [],
             'price' => 0,
-            'status' => 'published',
+            'status' => $product->getStatus() == 1 ? 'published' : 'draft',
             'stock' => 99999,
             'in_stock' => true,
             'platform_data' => [
@@ -161,7 +161,6 @@ class ProductExporter implements ResettableDependenciesInterface
 
         if (!$minimizeDataSharing) {
             $productData['price'] = $product->getFinalPrice();
-            $productData['status'] = $product->getStatus() == 1 ? 'published' : 'draft';
 
             if ($this->isInventoryManaged($product)) {
                 $productData['stock'] = (float) $this->getSalableQtySafe($product->getSku(), $stockId);
@@ -189,13 +188,13 @@ class ProductExporter implements ResettableDependenciesInterface
                     'name' => $subProduct->getName(),
                     'created_at' => $this->helper->formatDate($subProduct->getCreatedAt()),
                     'modified_at' => $this->helper->formatDate($subProduct->getUpdatedAt()),
+                    'status' => $subProduct->getStatus() == 1 ? 'published' : 'draft',
                     'platform_data' => [
                         'sku' => $subProduct->getSku(),
                     ],
                 ];
 
                 if (!$minimizeDataSharing) {
-                    $variant['status'] = $subProduct->getStatus() == 1 ? 'published' : 'draft';
                     $variant['price'] = $subProduct->getFinalPrice();
 
                     if ($this->isInventoryManaged($subProduct)) {

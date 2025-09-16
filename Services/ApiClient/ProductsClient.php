@@ -27,6 +27,12 @@ class ProductsClient implements ProductsClientInterface
 
     public function create(array $product, ?int $storeId = null): string
     {
+        $status = null;
+        if (($product['status'] ?? null) !== null) {
+            $status = $product['status'];
+            unset($product['status']);
+        }
+
         $response = $this->apiClient->post(static::BASE_ENDPOINT, $product, $storeId);
 
         $createdId = $response['id'] ?? null;
@@ -36,6 +42,11 @@ class ProductsClient implements ProductsClientInterface
                 (string) ($product['external_id']),
                 $this->helper->jsonEncode($response)
             ));
+        }
+
+        if ($status) {
+            $endpoint = static::BASE_ENDPOINT . '/' . $createdId;
+            $this->apiClient->put($endpoint, ['status' => $status], $storeId);
         }
 
         return $createdId;
