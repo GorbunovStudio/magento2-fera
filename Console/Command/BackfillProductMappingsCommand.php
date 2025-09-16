@@ -49,6 +49,7 @@ class BackfillProductMappingsCommand extends Command
             try {
                 $this->appState->setAreaCode('adminhtml');
             } catch (\Exception $e) {
+                // Area code may be already set
             }
 
             $storeIdOpt = $input->getOption('store-id');
@@ -79,110 +80,108 @@ class BackfillProductMappingsCommand extends Command
             $storeIds = array_keys($storesGroups);
 
             $inserted = 0;
-            $skippedExisting = 0;
+            $updated = 0;
+            $deleted = 0;
+            $skipped = 0;
             $missingLocal = 0;
-            $seen = 0;
 
             foreach ($storeIds as $currentStoreId) {
                 $output->writeln(sprintf('Processing store ID: %d', $currentStoreId));
-                
-                $page = 1;
+
+                $output->writeln(sprintf('[Store %d] Fetching all Fera products...', $currentStoreId));
+                $allFeraProducts = $this->fetchAllFeraProducts($currentStoreId, $pageSize, $maxPages);
+                $output->writeln(sprintf('[Store %d] Fetched %d products from Fera.', $currentStoreId, count($allFeraProducts)));
+
+                if (empty($allFeraProducts)) {
+                    $output->writeln(sprintf('[Store %d] No products found in Fera. Skipping.', $currentStoreId));
+                    continue;
+                }
+
+                $localIdToRemoteFeraIdMap = [];
+                foreach ($allFeraProducts as $row) {
+                    $localIdToRemoteFeraIdMap[(int) $row['external_id']] = (string) $row['id'];
+                }
+
+                $productIds = array_keys($localIdToRemoteFeraIdMap);
+
+                $builder = $this->searchCriteriaBuilderFactory->create();
+                $searchCriteria = $builder->addFilter('entity_id', $productIds, 'in')->create();
+                $result = $this->productRepository->getList($searchCriteria);
+
+                $localProducts = [];
+                foreach ($result->getItems() as $product) {
+                    $localProducts[(int) $product->getId()] = $product;
+                }
+
+                $existingMap = $this->exportManager->getFeraIdsByProductIds(
+                    array_keys($localProducts),
+                    $currentStoreId
+                );
+
                 $storeInserted = 0;
-                $storeSkippedExisting = 0;
+                $storeUpdated = 0;
+                $storeSkipped = 0;
                 $storeMissingLocal = 0;
-                $storeSeen = 0;
-                $stop = false;
 
-                while (!$stop) {
-                    if ($maxPages > 0 && $page > $maxPages) {
-                        break;
+                foreach ($localIdToRemoteFeraIdMap as $productId => $feraId) {
+                    if (!isset($localProducts[$productId])) {
+                        $storeMissingLocal++;
+                        continue;
                     }
-
-                    $decoded = $this->productsClient->list($page, $pageSize, $currentStoreId);
-
-                    $items = $decoded['data'];
-                    if (empty($items)) {
-                        break;
+                    if (isset($existingMap[$productId])) {
+                        if ($existingMap[$productId] !== $feraId) {
+                            $this->exportManager->updateFeraId(
+                                $productId,
+                                $feraId,
+                                $currentStoreId
+                            );
+                            $storeUpdated++;
+                        } else {
+                            $storeSkipped++;
+                        }
+                        continue;
                     }
-
-                    $idMap = [];
-                    foreach ($items as $row) {
-                        $idMap[(int) $row['external_id']] = (string) $row['id'];
-                    }
-                    $storeSeen += count($idMap);
-
-                    $productIds = array_keys($idMap);
-                    $builder = $this->searchCriteriaBuilderFactory->create();
-                    $searchCriteria = $builder->addFilter('entity_id', $productIds, 'in')->create();
-                    $result = $this->productRepository->getList($searchCriteria);
-                    $localProducts = [];
-                    foreach ($result->getItems() as $product) {
-                        $localProducts[(int) $product->getId()] = $product;
-                    }
-
-                    $existingMap = $this->exportManager->getFeraIdsByProductIds(
-                        array_keys($localProducts),
+                    $this->exportManager->saveSuccessfulExport(
+                        $localProducts[$productId],
+                        $feraId,
                         $currentStoreId
                     );
-
-                    foreach ($idMap as $productId => $feraId) {
-                        if (!isset($localProducts[$productId])) {
-                            $storeMissingLocal++;
-                            continue;
-                        }
-                        if (isset($existingMap[$productId])) {
-                            $storeSkippedExisting++;
-                            continue;
-                        }
-                        $this->exportManager->saveSuccessfulExport(
-                            $localProducts[$productId],
-                            $feraId,
-                            $currentStoreId
-                        );
-                        $storeInserted++;
-                    }
-
-                    $meta = $decoded['meta'] ?? [];
-                    $pageCount = isset($meta['page_count']) ? (int) $meta['page_count'] : 0;
-                    $curPage = isset($meta['page']) ? (int) $meta['page'] : $page;
-                    $output->writeln(sprintf(
-                        '[Store %d] Processed page %d%s: seen=%d, inserted=%d, skipped=%d, missing=%d',
-                        $currentStoreId,
-                        $curPage,
-                        $pageCount > 0 ? sprintf('/%d', $pageCount) : '',
-                        $storeSeen,
-                        $storeInserted,
-                        $storeSkippedExisting,
-                        $storeMissingLocal
-                    ));
-
-                    if ($pageCount > 0 && $curPage >= $pageCount) {
-                        $stop = true;
-                    } else {
-                        $page++;
-                    }
+                    $storeInserted++;
                 }
 
                 $output->writeln(sprintf(
-                    '[Store %d] Completed: seen=%d, inserted=%d, skipped=%d, missing=%d',
+                    '[Store %d] Processed: inserted=%d, updated=%d, skipped=%d, missing_local=%d',
                     $currentStoreId,
-                    $storeSeen,
                     $storeInserted,
-                    $storeSkippedExisting,
+                    $storeUpdated,
+                    $storeSkipped,
                     $storeMissingLocal
                 ));
 
-                $seen += $storeSeen;
+                $allLocalMappings = $this->exportManager->getAllMappingsByStore($currentStoreId);
+                $remoteFeraIds = array_values($localIdToRemoteFeraIdMap);
+                $staleMappings = array_diff(array_values($allLocalMappings), $remoteFeraIds);
+
+                if (!empty($staleMappings)) {
+                    $output->writeln(sprintf('[Store %d] Deleting %d stale mappings...', $currentStoreId, count($staleMappings)));
+                    $deletedInStore = $this->exportManager->deleteMappingsByFeraIds($staleMappings, $currentStoreId);
+                    $deleted += $deletedInStore;
+                    $output->writeln(sprintf('[Store %d] Deleted %d stale mappings.', $currentStoreId, $deletedInStore));
+                }
+
+
                 $inserted += $storeInserted;
-                $skippedExisting += $storeSkippedExisting;
+                $updated += $storeUpdated;
+                $skipped += $storeSkipped;
                 $missingLocal += $storeMissingLocal;
             }
 
             $output->writeln(sprintf(
-                'Done. Total: seen=%d, inserted=%d, skipped=%d, missing=%d',
-                $seen,
+                'Done. Total: inserted=%d, updated=%d, deleted=%d, skipped=%d, missing_local=%d',
                 $inserted,
-                $skippedExisting,
+                $updated,
+                $deleted,
+                $skipped,
                 $missingLocal
             ));
             return Cli::RETURN_SUCCESS;
@@ -190,5 +189,47 @@ class BackfillProductMappingsCommand extends Command
             $output->writeln(sprintf('Error: %s', $e->getMessage()));
             return Cli::RETURN_FAILURE;
         }
+    }
+
+    /**
+     * @param int $storeId
+     * @param int $pageSize
+     * @param int $maxPages
+     * @return array
+     * @throws \Fera\Ai\Exception\FeraApiException
+     * @phpstan-return ProductsListResponse['data']
+     */
+    private function fetchAllFeraProducts(int $storeId, int $pageSize, int $maxPages): array
+    {
+        $allProducts = [];
+        $page = 1;
+        $stop = false;
+
+        while (!$stop) {
+            if ($maxPages > 0 && $page > $maxPages) {
+                break;
+            }
+
+            $decoded = $this->productsClient->list($page, $pageSize, $storeId);
+            $items = $decoded['data'];
+
+            if (empty($items)) {
+                break;
+            }
+
+            $allProducts = array_merge($allProducts, $items);
+
+            $meta = $decoded['meta'] ?? [];
+            $pageCount = isset($meta['page_count']) ? (int) $meta['page_count'] : 0;
+            $curPage = isset($meta['page']) ? (int) $meta['page'] : $page;
+
+            if ($pageCount > 0 && $curPage >= $pageCount) {
+                $stop = true;
+            } else {
+                $page++;
+            }
+        }
+
+        return $allProducts;
     }
 }

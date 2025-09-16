@@ -64,6 +64,21 @@ class ProductExportManager
         return $result;
     }
 
+    /**
+     * @param int $storeId
+     * @return array<int,string> Map of product_id => fera_id
+     */
+    public function getAllMappingsByStore(int $storeId): array
+    {
+        $collection = $this->collectionFactory->create();
+        $collection->addFieldToFilter(FeraProductInterface::STORE_ID, (string) $storeId);
+        $result = [];
+        foreach ($collection->getItems() as $item) {
+            $result[(int) $item->getProductId()] = (string) $item->getFeraId();
+        }
+        return $result;
+    }
+
     public function saveSuccessfulExport(ProductInterface $product, string $feraId, int $storeId): void
     {
         if (!$product->getId()) {
@@ -78,6 +93,44 @@ class ProductExportManager
         $model->setStoreId($storeId);
         $model->setExportedAt($this->dateTime->gmtDate());
         $this->resource->save($model);
+    }
+
+    public function updateFeraId(int $productId, string $feraId, int $storeId): void
+    {
+        $collection = $this->collectionFactory->create();
+        $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, (string) $productId);
+        $collection->addFieldToFilter(FeraProductInterface::STORE_ID, (string) $storeId);
+        $collection->setPageSize(1);
+        $item = $collection->getFirstItem();
+        if (!$item->getId()) {
+            throw new UnexpectedValueException(
+                sprintf('No Fera product mapping found for product ID %d and store ID %d', $productId, $storeId)
+            );
+        }
+        $item->setFeraId($feraId);
+        $this->resource->save($item);
+    }
+
+    /**
+     * @param string[] $feraIds
+     * @param int $storeId
+     * @return int
+     * @throws \Magento\Framework\Exception\CouldNotDeleteException
+     */
+    public function deleteMappingsByFeraIds(array $feraIds, int $storeId): int
+    {
+        if (empty($feraIds)) {
+            return 0;
+        }
+        $collection = $this->collectionFactory->create();
+        $collection->addFieldToFilter(FeraProductInterface::FERA_ID, ['in' => $feraIds]);
+        $collection->addFieldToFilter(FeraProductInterface::STORE_ID, (string) $storeId);
+        $deletedCount = 0;
+        foreach ($collection->getItems() as $item) {
+            $this->resource->delete($item);
+            $deletedCount++;
+        }
+        return $deletedCount;
     }
 
     public function deleteMapping(int $productId, int $storeId): void
