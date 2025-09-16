@@ -79,4 +79,15 @@ class ProductExportManager
         $model->setExportedAt($this->dateTime->gmtDate());
         $this->resource->save($model);
     }
+
+    public function deleteMapping(int $productId, int $storeId): void
+    {
+        $collection = $this->collectionFactory->create();
+        $collection->addFieldToFilter(FeraProductInterface::PRODUCT_ID, (string) $productId);
+        $collection->addFieldToFilter(FeraProductInterface::STORE_ID, (string) $storeId);
+        
+        foreach ($collection->getItems() as $item) {
+            $this->resource->delete($item);
+        }
+    }
 }

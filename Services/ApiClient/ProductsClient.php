@@ -6,6 +6,8 @@ namespace Fera\Ai\Services\ApiClient;
 
 use Fera\Ai\Api\ApiClient\ProductsClientInterface;
 use Fera\Ai\Exception\FeraApiException;
+use Fera\Ai\Exception\HttpRequestException;
+use Fera\Ai\Exception\ProductNotFoundException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Services\ApiClient;
 
@@ -42,7 +44,21 @@ class ProductsClient implements ProductsClientInterface
     public function update(string $feraId, array $product, ?int $storeId = null): void
     {
         $endpoint = static::BASE_ENDPOINT . '/' . $feraId;
-        $this->apiClient->put($endpoint, $product, $storeId);
+        
+        try {
+            $this->apiClient->put($endpoint, $product, $storeId);
+        } catch (HttpRequestException $e) {
+            if ($e->getStatusCode() === 404) {
+                $responseData = $e->getResponseData();
+                if (is_array($responseData) && isset($responseData['code']) && $responseData['code'] === 'not_found') {
+                    throw new ProductNotFoundException($feraId, '', 0, $e);
+                }
+            }
+            
+            throw $e;
+        } catch (FeraApiException $e) {
+            throw $e;
+        }
     }
 
     public function list(int $page, int $pageSize, ?int $storeId = null): array

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fera\Ai\Services;
 
 use Fera\Ai\Api\ApiClient\ProductsClientInterface;
+use Fera\Ai\Exception\ProductNotFoundException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
 use Magento\Catalog\Api\Data\ProductInterface;
@@ -102,11 +103,14 @@ class ProductExporter implements ResettableDependenciesInterface
             
             $externalId = (int) $productData['external_id'];
             $feraId = $map[$externalId] ?? null;
-            $isUpdate = $feraId !== null && $feraId !== '';
 
             $resultFeraId = $this->sendProductData($productData, $feraId, $storeId);
 
-            if (!$isUpdate) {
+            if ($feraId && $feraId !== $resultFeraId) {
+                $this->productExportManager->deleteMapping($externalId, $storeId);
+            }
+
+            if ($feraId !== $resultFeraId) {
                 $this->productExportManager->saveSuccessfulExport($product, $resultFeraId, $storeId);
             }
         }
@@ -265,17 +269,24 @@ class ProductExporter implements ResettableDependenciesInterface
      * @param mixed[] $data
      * @phpstan-param ProductData $data
      * @param string|null $feraId
-     * @param int|null $storeId
+     * @param int $storeId
      * @return string Fera ID
      */
-    private function sendProductData(array $data, ?string $feraId, ?int $storeId = null): string
+    private function sendProductData(array $data, ?string $feraId, int $storeId): string
     {
         $isUpdate = $feraId !== null && $feraId !== '';
 
         if ($isUpdate) {
-            $this->productsClient->update($feraId, $data, $storeId);
-            $this->helper->debug('Successfully updated product ' . $data['external_id'] . ' in Fera API');
-            return (string) $feraId;
+            try {
+                $this->productsClient->update($feraId, $data, $storeId);
+                $this->helper->debug('Successfully updated product ' . $data['external_id'] . ' in Fera API');
+                return (string) $feraId;
+            } catch (ProductNotFoundException) {
+                $this->helper->log(
+                    'Product not found during update (Fera ID: ' . $feraId . ', external_id: ' . $data['external_id'] .
+                    '), falling back to create'
+                );
+            }
         }
 
         $createdId = $this->productsClient->create($data, $storeId);

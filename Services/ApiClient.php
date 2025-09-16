@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Fera\Ai\Services;
 
 use Fera\Ai\Exception\FeraApiException;
+use Fera\Ai\Exception\HttpRequestException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use GuzzleHttp\ClientFactory;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
 use Magento\Framework\Serialize\Serializer\Json;
 
 class ApiClient
@@ -93,6 +95,35 @@ class ApiClient
 
         try {
             $response = $client->request($method, $endpoint, $requestOptions);
+        } catch (RequestException $e) {
+            $response = $e->getResponse();
+            $statusCode = $response ? $response->getStatusCode() : null;
+            $responseBody = $response ? $response->getBody()->getContents() : null;
+            $responseData = null;
+            
+            if ($responseBody) {
+                try {
+                    $decoded = $this->json->unserialize($responseBody);
+                    if (is_array($decoded)) {
+                        $responseData = $decoded;
+                    }
+                } catch (\Throwable) {
+                    // Response body is not valid JSON, keep responseData as null
+                }
+            }
+            
+            throw new HttpRequestException(
+                sprintf(
+                    'Fera API request failed for endpoint %s: %s',
+                    $endpoint,
+                    $e->getMessage()
+                ),
+                0,
+                $e,
+                $statusCode,
+                $responseBody,
+                $responseData
+            );
         } catch (GuzzleException $e) {
             throw new FeraApiException(sprintf(
                 'Fera API request failed for endpoint %s: %s',

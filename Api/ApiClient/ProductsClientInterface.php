@@ -68,6 +68,7 @@ interface ProductsClientInterface
      * @phpstan-param ProductData $product
      * @param int|null $storeId
      * @throws \Fera\Ai\Exception\FeraApiException
+     * @throws \Fera\Ai\Exception\ProductNotFoundException
      */
     public function update(string $feraId, array $product, ?int $storeId = null): void;
 
