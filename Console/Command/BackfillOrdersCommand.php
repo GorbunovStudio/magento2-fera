@@ -207,18 +207,41 @@ class BackfillOrdersCommand extends Command
                                 $storeExcluded++;
                                 $globalExcluded++;
                                 $globalProcessed++;
+
+                                $output->writeln(sprintf(
+                                    'Processed order %d with email %s excluded from export',
+                                    $orderId,
+                                    $customerEmail
+                                ));
+
                                 continue;
                             }
                         }
 
                         try {
                             $feraId = $this->orderExporter->pushOrder($order);
+
+                            $globalProcessed++;
+
                             if ($feraId === null) {
                                 $storeSkipped++;
                                 $globalSkipped++;
+
+                                $output->writeln(sprintf(
+                                    'Processed order %d don\'t return a correct FeraAI ID',
+                                    $orderId,
+                                ));
                             } else {
                                 $storeExported++;
                                 $globalExported++;
+
+                                $output->writeln(sprintf(
+                                    'Exported order %d, FeraAI ID %s. Already processed %d and exported %d orders.',
+                                    $orderId,
+                                    $feraId,
+                                    $globalProcessed,
+                                    $globalExported
+                                ));
                             }
                         } catch (Throwable $exception) {
                             $storeErrors++;
@@ -229,16 +252,7 @@ class BackfillOrdersCommand extends Command
                             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                                 $output->writeln($exception->getTraceAsString());
                             }
-                        }
-
-                        $output->writeln(sprintf(
-                            'Processed order %d, FeraAI ID %s. Already processed %d orders.',
-                            $orderId,
-                            $feraId,
-                            $globalProcessed
-                        ));
-
-                        $globalProcessed++;
+                        } 
                     }
                 }
 
