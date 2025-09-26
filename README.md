@@ -104,6 +104,7 @@ php bin/magento fera:orders:backfill [options]
 - `--store-id (-s)`: export orders only from the provided store. By default, all stores configured for Fera.ai are processed.
 - `--batch-size (-b)`: number of orders to process per batch (default: 100).
 - `--max (-m)`: maximum number of orders to export during this run.
+- `--exclude-emails-csv`: path to a CSV file containing customer emails to exclude from export (useful for avoiding duplicate review requests from other platforms like TrustPilot).
 - `--dry-run (-d)`: list matching orders without exporting them (shows sample IDs for one batch).
 
 **Examples:**
@@ -116,6 +117,29 @@ php bin/magento fera:orders:backfill --from 2024-01-01
 Dry run for store ID 3 between specific dates:
 ```bash
 php bin/magento fera:orders:backfill --from "2024-01-01 00:00:00" --to "2024-06-30 23:59:59" --store-id 3 --dry-run
+```
+
+Export orders while excluding customers who already reviewed on TrustPilot:
+```bash
+php bin/magento fera:orders:backfill --from 2024-01-01 --exclude-emails-csv /path/to/trustpilot_emails.csv
+```
+
+#### Email Exclusion CSV Format
+
+The `--exclude-emails-csv` option accepts a CSV file with customer emails to skip during export. This is useful to avoid sending duplicate review requests to customers who have already reviewed your products on other platforms.
+
+**CSV Format:**
+- Single column containing email addresses
+- Optional header row with "email" (case-insensitive)
+- Empty lines and invalid email formats are automatically skipped
+- Email matching is case-insensitive
+
+**Example CSV:**
+```csv
+email
+customer1@example.com
+CUSTOMER2@EXAMPLE.COM
+customer3@domain.org
 ```
 
 ## Configuration
