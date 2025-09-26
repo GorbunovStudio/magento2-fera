@@ -231,6 +231,13 @@ class BackfillOrdersCommand extends Command
                             }
                         }
 
+                        $output->writeln(sprintf(
+                            'Processed order %d, FeraAI ID %s. Already processed %d orders.',
+                            $orderId,
+                            $feraId,
+                            $globalProcessed
+                        ));
+
                         $globalProcessed++;
                     }
                 }
@@ -435,7 +442,7 @@ class BackfillOrdersCommand extends Command
 
                 $email = trim(strtolower($row[0]));
 
-                if ($isFirstLine && $email === 'email' && !str_contains($email, '@')) {
+                if ($isFirstLine && $email === 'email') {
                     $isFirstLine = false;
                     continue;
                 }
