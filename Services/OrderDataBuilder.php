@@ -76,6 +76,13 @@ class OrderDataBuilder implements ResetAfterRequestInterface
             'is_cancelled' => $isCancelled
         ];
 
+        if ($order->getState() === Order::STATE_COMPLETE) {
+            $completedAt = $order->getUpdatedAt() ?: $order->getCreatedAt();
+            if (is_string($completedAt) && $completedAt !== '') {
+                $data['fulfilled_at'] = $this->helper->formatDate($completedAt);
+            }
+        }
+
         if (!$minimizeDataSharing) {
             $data['total'] = $total;
             $data['total_usd'] = $totalUsd;
