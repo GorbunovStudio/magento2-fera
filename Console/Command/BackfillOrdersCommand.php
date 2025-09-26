@@ -53,6 +53,7 @@ class BackfillOrdersCommand extends Command
             ->addOption('store-id', 's', InputOption::VALUE_OPTIONAL, 'Store ID to process')
             ->addOption('batch-size', 'b', InputOption::VALUE_OPTIONAL, 'Orders to process per batch', (string) self::DEFAULT_BATCH_SIZE)
             ->addOption('max', 'm', InputOption::VALUE_OPTIONAL, 'Maximum number of orders to process during this run')
+            ->addOption('exclude-emails-csv', null, InputOption::VALUE_OPTIONAL, 'Path to CSV file containing emails to exclude from export')
             ->addOption('dry-run', 'd', InputOption::VALUE_NONE, 'List candidate orders without exporting them');
     }
 
@@ -84,6 +85,12 @@ class BackfillOrdersCommand extends Command
             }
 
             $isDryRun = (bool) $input->getOption('dry-run');
+            
+            $excludeEmailsCsvPath = $input->getOption('exclude-emails-csv');
+            $excludedEmails = [];
+            if (is_string($excludeEmailsCsvPath) && trim($excludeEmailsCsvPath) !== '') {
+                $excludedEmails = $this->loadExcludedEmails(trim($excludeEmailsCsvPath), $output);
+            }
 
             $storeIds = $this->resolveStoreIds($storeId);
             if (empty($storeIds)) {
@@ -93,6 +100,7 @@ class BackfillOrdersCommand extends Command
 
             $globalExported = 0;
             $globalSkipped = 0;
+            $globalExcluded = 0;
             $globalErrors = 0;
             $globalProcessed = 0;
             $maxReached = false;
@@ -146,6 +154,7 @@ class BackfillOrdersCommand extends Command
 
                 $storeExported = 0;
                 $storeSkipped = 0;
+                $storeExcluded = 0;
                 $storeErrors = 0;
                 $lastProcessedId = 0;
 
@@ -192,6 +201,16 @@ class BackfillOrdersCommand extends Command
                             continue;
                         }
 
+                        if ($excludedEmails) {
+                            $customerEmail = strtolower(trim((string) $order->getCustomerEmail()));
+                            if ($customerEmail && isset($excludedEmails[$customerEmail])) {
+                                $storeExcluded++;
+                                $globalExcluded++;
+                                $globalProcessed++;
+                                continue;
+                            }
+                        }
+
                         try {
                             $feraId = $this->orderExporter->pushOrder($order);
                             if ($feraId === null) {
@@ -217,9 +236,10 @@ class BackfillOrdersCommand extends Command
                 }
 
                 $output->writeln(sprintf(
-                    'Store summary — exported: %d, skipped: %d, errors: %d',
+                    'Store summary — exported: %d, skipped: %d, excluded: %d, errors: %d',
                     $storeExported,
                     $storeSkipped,
+                    $storeExcluded,
                     $storeErrors
                 ));
 
@@ -239,9 +259,10 @@ class BackfillOrdersCommand extends Command
 
             $output->writeln('');
             $output->writeln(sprintf(
-                'Export summary — exported: %d, skipped: %d, errors: %d',
+                'Export summary — exported: %d, skipped: %d, excluded: %d, errors: %d',
                 $globalExported,
                 $globalSkipped,
+                $globalExcluded,
                 $globalErrors
             ));
 
@@ -377,5 +398,80 @@ class BackfillOrdersCommand extends Command
         $select->where('fo.order_id IS NULL');
 
         return $collection;
+    }
+
+    /**
+     * @return array<string, true> Associative array with email as key and true as value
+     */
+    private function loadExcludedEmails(string $filePath, OutputInterface $output): array
+    {
+        if (!file_exists($filePath)) {
+            throw new InvalidArgumentException(sprintf('CSV file not found: %s', $filePath));
+        }
+
+        if (!is_readable($filePath)) {
+            throw new InvalidArgumentException(sprintf('CSV file is not readable: %s', $filePath));
+        }
+
+        $excludedEmails = [];
+        $totalLines = 0;
+        $validEmails = 0;
+        $invalidSkipped = 0;
+        $duplicatesSkipped = 0;
+
+        $handle = fopen($filePath, 'r');
+        if ($handle === false) {
+            throw new InvalidArgumentException(sprintf('Failed to open CSV file: %s', $filePath));
+        }
+
+        try {
+            $isFirstLine = true;
+            while (($row = fgetcsv($handle)) !== false) {
+                $totalLines++;
+
+                if (empty($row) || (count($row) === 1 && trim($row[0]) === '')) {
+                    continue;
+                }
+
+                $email = trim(strtolower($row[0]));
+
+                if ($isFirstLine && $email === 'email' && !str_contains($email, '@')) {
+                    $isFirstLine = false;
+                    continue;
+                }
+                $isFirstLine = false;
+
+                if ($email === '') {
+                    continue;
+                }
+
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $invalidSkipped++;
+                    continue;
+                }
+
+                if (isset($excludedEmails[$email])) {
+                    $duplicatesSkipped++;
+                    continue;
+                }
+
+                $excludedEmails[$email] = true;
+                $validEmails++;
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE || $validEmails === 0) {
+            $output->writeln(sprintf(
+                'Loaded %d exclusion emails from CSV (lines: %d, invalid: %d, duplicates: %d)',
+                $validEmails,
+                $totalLines,
+                $invalidSkipped,
+                $duplicatesSkipped
+            ));
+        }
+
+        return $excludedEmails;
     }
 }
