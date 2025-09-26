@@ -6,6 +6,8 @@ namespace Fera\Ai\Services;
 
 use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
+use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Model\CustomerRegistry;
 use Magento\Directory\Helper\Data as DirectoryHelperData;
@@ -28,7 +30,9 @@ class OrderDataBuilder implements ResetAfterRequestInterface
         private FeraHelper $helper,
         private DirectoryHelperData $directoryHelper,
         private CustomerRepositoryInterface $customerRepository,
-        private CustomerRegistry $customerRegistry
+        private CustomerRegistry $customerRegistry,
+        private CollectionFactory $productCollectionFactory,
+        private Status $productStatus
     ) {
     }
 
@@ -61,8 +65,7 @@ class OrderDataBuilder implements ResetAfterRequestInterface
             );
         }
 
-        $isCancelled = in_array($order->getState(), [Order::STATE_CANCELED, Order::STATE_CLOSED], true)
-            || empty($lineItems);
+        $isCancelled = in_array($order->getState(), [Order::STATE_CANCELED, Order::STATE_CLOSED], true);
 
         $data = [
             'external_updated_at' => $this->helper->formatDate($order->getUpdatedAt() ?? ''),
@@ -122,7 +125,7 @@ class OrderDataBuilder implements ResetAfterRequestInterface
      */
     public function getLineItems(OrderInterface $order, bool $minimizeDataSharing = false): array
     {
-        $items = $this->serializeOrderItems($order->getItems());
+        $items = $this->serializeOrderItems($order->getItems(), (int) $order->getStoreId());
         
         if ($minimizeDataSharing) {
             return array_map(static function (array $item): array {
@@ -221,7 +224,48 @@ class OrderDataBuilder implements ResetAfterRequestInterface
     }
 
     /**
+     * Get map of enabled product IDs from order items
+     *
      * @param \Magento\Sales\Api\Data\OrderItemInterface[] $items
+     * @param int $storeId
+     * @return array<int, bool>
+     */
+    private function getEnabledProductIdMap(array $items, int $storeId): array
+    {
+        $productIds = [];
+        foreach ($items as $item) {
+            $productId = (int) $item->getProductId();
+            if ($productId > 0) {
+                $productIds[] = $productId;
+            }
+        }
+
+        if (empty($productIds)) {
+            return [];
+        }
+
+        $collection = $this->productCollectionFactory->create();
+        $collection->addFieldToFilter('entity_id', ['in' => array_unique($productIds)]);
+        $collection->addAttributeToSelect('status');
+        $collection->setStoreId($storeId);
+
+        $enabledMap = [];
+        foreach ($collection as $product) {
+            $enabledMap[(int) $product->getId()] = (int) $product->getStatus() === Status::STATUS_ENABLED;
+        }
+
+        foreach ($productIds as $productId) {
+            if (!isset($enabledMap[$productId])) {
+                $enabledMap[$productId] = false;
+            }
+        }
+
+        return $enabledMap;
+    }
+
+    /**
+     * @param \Magento\Sales\Api\Data\OrderItemInterface[] $items
+     * @param int $storeId
      * @return mixed[]
      * @phpstan-return array<int, array{
      *     product_id:int,
@@ -232,14 +276,14 @@ class OrderDataBuilder implements ResetAfterRequestInterface
      *     variant_id?:int
      * }>
      */
-    public function serializeOrderItems(array $items): array
+    public function serializeOrderItems(array $items, int $storeId): array
     {
+        $enabledProductMap = $this->getEnabledProductIdMap($items, $storeId);
         $parentTypeMap = [];
         $itemMap = [];
         $childItems = [];
 
         foreach ($items as $orderItem) {
-
             if ($orderItem->getParentItemId()) {
                 $childItems[] = $orderItem;
                 continue;
@@ -248,6 +292,12 @@ class OrderDataBuilder implements ResetAfterRequestInterface
             $parentId = $orderItem->getItemId();
             $parentType = $orderItem->getProductType();
             $parentTypeMap[$parentId] = $parentType;
+
+            $productId = (int) $orderItem->getProductId();
+            if (!($enabledProductMap[$productId] ?? false)) {
+                continue;
+            }
+            
             $data = $this->buildItemData($orderItem);
             if ($data !== null) {
                 $itemMap[$parentId] = $data;
@@ -259,11 +309,14 @@ class OrderDataBuilder implements ResetAfterRequestInterface
             $parentType = isset($parentTypeMap[$parentId]) ? $parentTypeMap[$parentId] : null;
 
             if ($parentType === 'configurable') {
-                if ($this->getRemainingQuantity($orderItem) <= 0) {
+                $childProductId = (int) $orderItem->getProductId();
+                $isChildEnabled = $enabledProductMap[$childProductId] ?? false;
+                
+                if ($this->getRemainingQuantity($orderItem) <= 0 || !$isChildEnabled) {
                     unset($itemMap[$parentId]);
                 } elseif (isset($itemMap[$parentId])) {
                     $itemMap[$parentId]['name'] = $orderItem->getName() ?? '';
-                    $itemMap[$parentId]['variant_id'] = (int) $orderItem->getProductId();
+                    $itemMap[$parentId]['variant_id'] = $childProductId;
                 }
                 continue;
             }
@@ -271,6 +324,11 @@ class OrderDataBuilder implements ResetAfterRequestInterface
             if ($parentType === 'bundle') {
                 continue;
             }
+
+            if (!($enabledProductMap[(int) $orderItem->getProductId()] ?? false)) {
+                continue;
+            }
+            
             $data = $this->buildItemData($orderItem);
             if ($data !== null) {
                 $itemMap[$orderItem->getItemId()] = $data;
