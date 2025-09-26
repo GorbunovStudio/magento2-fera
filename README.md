@@ -89,6 +89,35 @@ Backfill mappings for store with ID 1:
 php bin/magento fera:products:backfill-mappings --store-id 1
 ```
 
+### Backfill Orders
+
+Use this command to export historical fulfilled orders to Fera.ai so you can run one-time review campaigns without impacting the automatic review request quotas. The command skips orders that were already exported and works in batches to limit memory usage.
+
+**Command:**
+```bash
+php bin/magento fera:orders:backfill [options]
+```
+
+**Options:**
+- `--from`: *required* lower bound for the order creation date (`YYYY-MM-DD` or full datetime).
+- `--to`: optional upper bound for the order creation date.
+- `--store-id (-s)`: export orders only from the provided store. By default, all stores configured for Fera.ai are processed.
+- `--batch-size (-b)`: number of orders to process per batch (default: 100).
+- `--max (-m)`: maximum number of orders to export during this run.
+- `--dry-run (-d)`: list matching orders without exporting them (shows sample IDs for one batch).
+
+**Examples:**
+
+Export orders created since Jan 1, 2024:
+```bash
+php bin/magento fera:orders:backfill --from 2024-01-01
+```
+
+Dry run for store ID 3 between specific dates:
+```bash
+php bin/magento fera:orders:backfill --from "2024-01-01 00:00:00" --to "2024-06-30 23:59:59" --store-id 3 --dry-run
+```
+
 ## Configuration
 
 All configuration options for the Fera.ai extension are located under `Stores > Configuration > Fera Commerce > Fera.ai`. These settings are available at the store view scope, allowing for different configurations per store.
