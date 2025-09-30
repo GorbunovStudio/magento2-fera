@@ -11,6 +11,7 @@ use Fera\Ai\Model\ResourceModel\FeraOrder as FeraOrderResource;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Services\StoreGroupService;
 use InvalidArgumentException;
+use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\State as AppState;
 use Magento\Framework\Console\Cli;
@@ -35,6 +36,7 @@ class BackfillOrdersCommand extends Command
     public function __construct(
         private OrderCollectionFactory $orderCollectionFactory,
         private OrderRepositoryInterface $orderRepository,
+        private CustomerRepositoryInterface $customerRepository,
         private OrderExporter $orderExporter,
         private FeraHelper $feraHelper,
         private StoreGroupService $storeGroupService,
@@ -190,15 +192,23 @@ class BackfillOrdersCommand extends Command
                         }
 
                         if ($excludedEmails) {
-                            $customerEmail = strtolower(trim((string) $order->getCustomerEmail()));
-                            if ($customerEmail && isset($excludedEmails[$customerEmail])) {
+                            $customer = $order->getCustomerId() ? $this->customerRepository->getById((int) $order->getCustomerId()) : null;
+
+                            $customerEmail = null;
+                            if ($customer && $customer->getEmail()) {
+                                $customerEmail = strtolower(trim((string) $customer->getEmail()));
+                            }
+
+                            $orderEmail = strtolower(trim((string) $order->getCustomerEmail()));
+                            if (($customerEmail || $orderEmail) && (isset($excludedEmails[$customerEmail]) || isset($excludedEmails[$orderEmail]))) {
                                 $storeExcluded++;
                                 $globalExcluded++;
                                 $globalProcessed++;
 
                                 $output->writeln(sprintf(
-                                    'Processed order %d with email %s excluded from export',
+                                    'Processed order %d with email %s (customer email %s) excluded from export',
                                     $orderId,
+                                    $orderEmail,
                                     $customerEmail
                                 ));
 
@@ -242,6 +252,8 @@ class BackfillOrdersCommand extends Command
                             }
                         } 
                     }
+
+                    $this->orderExporter->_resetState();
                 }
 
                 $output->writeln(sprintf(
