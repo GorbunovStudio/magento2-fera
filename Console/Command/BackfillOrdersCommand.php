@@ -192,7 +192,11 @@ class BackfillOrdersCommand extends Command
                         }
 
                         if ($excludedEmails) {
-                            $customer = $order->getCustomerId() ? $this->customerRepository->getById((int) $order->getCustomerId()) : null;
+                            try {
+                                $customer = $order->getCustomerId() ? $this->customerRepository->getById((int) $order->getCustomerId()) : null;
+                            } catch (NoSuchEntityException $e) {
+                                $customer = null;
+                            }
 
                             $customerEmail = null;
                             if ($customer && $customer->getEmail()) {
@@ -200,7 +204,10 @@ class BackfillOrdersCommand extends Command
                             }
 
                             $orderEmail = strtolower(trim((string) $order->getCustomerEmail()));
-                            if (($customerEmail || $orderEmail) && (isset($excludedEmails[$customerEmail]) || isset($excludedEmails[$orderEmail]))) {
+                            if (
+                                ($orderEmail && isset($excludedEmails[$orderEmail])) ||
+                                ($customerEmail && isset($excludedEmails[$customerEmail]))
+                            ) {
                                 $storeExcluded++;
                                 $globalExcluded++;
                                 $globalProcessed++;
@@ -301,7 +308,6 @@ class BackfillOrdersCommand extends Command
      */
     private function resolveStoreIds(?int $storeId): array
     {
-        $storesGroups = $this->storeGroupService->getByFeraAccount();
         $storesToMainStores = $this->storeGroupService->getStoresToMainStoresMap();
 
         if ($storeId === null) {
@@ -312,10 +318,6 @@ class BackfillOrdersCommand extends Command
             throw new InvalidArgumentException(
                 sprintf('Store ID %d is not configured or not enabled for Fera.ai.', $storeId)
             );
-        }
-
-        if (isset($storesGroups[$storeId])) {
-            return $storesGroups[$storeId];
         }
 
         return [$storeId];
