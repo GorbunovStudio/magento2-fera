@@ -94,7 +94,7 @@ class BackfillOrdersCommand extends Command
 
             $storeIds = $this->resolveStoreIds($storeId);
             if (empty($storeIds)) {
-                $output->writeln('<error>No stores are configured for Fera.ai.</error>');
+                $output->writeln('<error>No stores are configured and enabled for Fera.ai.</error>');
                 return Cli::RETURN_FAILURE;
             }
 
@@ -107,12 +107,6 @@ class BackfillOrdersCommand extends Command
 
             foreach ($storeIds as $currentStoreId) {
                 if ($maxCount !== null && $globalProcessed >= $maxCount) {
-                    $maxReached = true;
-                    break;
-                }
-
-                $remainingAllowance = $maxCount !== null ? $maxCount - $globalProcessed : null;
-                if ($remainingAllowance !== null && $remainingAllowance <= 0) {
                     $maxReached = true;
                     break;
                 }
@@ -138,6 +132,7 @@ class BackfillOrdersCommand extends Command
                 }
 
                 $effectiveTotal = $storeTotal;
+                $remainingAllowance = $maxCount !== null ? $maxCount - $globalProcessed : null;
                 if ($remainingAllowance !== null) {
                     $effectiveTotal = min($storeTotal, $remainingAllowance);
                 }
@@ -191,13 +186,6 @@ class BackfillOrdersCommand extends Command
                             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                                 $output->writeln($exception->getTraceAsString());
                             }
-                            continue;
-                        }
-
-                        if (!$this->feraHelper->isEnabled((int) $order->getStoreId())) {
-                            $storeSkipped++;
-                            $globalSkipped++;
-                            $globalProcessed++;
                             continue;
                         }
 
@@ -303,19 +291,22 @@ class BackfillOrdersCommand extends Command
     {
         $storesGroups = $this->storeGroupService->getByFeraAccount();
         $storesToMainStores = $this->storeGroupService->getStoresToMainStoresMap();
-        if ($storeId !== null) {
-            if (!isset($storesToMainStores[$storeId])) {
-                throw new InvalidArgumentException(sprintf('Store ID %d is not configured for Fera.ai.', $storeId));
-            }
 
-            $mainStoreId = $storesToMainStores[$storeId];
-
-            $storesGroups = array_filter($storesGroups, function ($key) use ($mainStoreId) {
-                return $key === $mainStoreId;
-            }, ARRAY_FILTER_USE_KEY);
+        if ($storeId === null) {
+            return array_keys($storesToMainStores);
         }
 
-        return array_keys($storesGroups);
+        if (!isset($storesToMainStores[$storeId])) {
+            throw new InvalidArgumentException(
+                sprintf('Store ID %d is not configured or not enabled for Fera.ai.', $storeId)
+            );
+        }
+
+        if (isset($storesGroups[$storeId])) {
+            return $storesGroups[$storeId];
+        }
+
+        return [$storeId];
     }
 
     private function requireDateOption(InputInterface $input, string $optionName): string
@@ -454,7 +445,9 @@ class BackfillOrdersCommand extends Command
                     continue;
                 }
 
-                $email = trim(strtolower($row[0]));
+                $email = $isFirstLine ? $this->removeBom($row[0]) : $row[0];
+
+                $email = trim(strtolower($email), "; \n\r\t\v\0");
 
                 if ($isFirstLine && $email === 'email') {
                     $isFirstLine = false;
@@ -494,5 +487,31 @@ class BackfillOrdersCommand extends Command
         }
 
         return $excludedEmails;
+    }
+
+    private function removeBom(string $text): string
+    {
+        // UTF-32 BE BOM
+        if (str_starts_with($text, "\x00\x00\xFE\xFF")) {
+            return substr($text, 4);
+        }
+        // UTF-32 LE BOM
+        if (str_starts_with($text, "\xFF\xFE\x00\x00")) {
+            return substr($text, 4);
+        }
+        // UTF-8 BOM
+        if (str_starts_with($text, "\xEF\xBB\xBF")) {
+            return substr($text, 3);
+        }
+        // UTF-16 BE BOM
+        if (str_starts_with($text, "\xFE\xFF")) {
+            return substr($text, 2);
+        }
+        // UTF-16 LE BOM
+        if (str_starts_with($text, "\xFF\xFE")) {
+            return substr($text, 2);
+        }
+
+        return $text;
     }
 }
