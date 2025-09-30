@@ -89,6 +89,59 @@ Backfill mappings for store with ID 1:
 php bin/magento fera:products:backfill-mappings --store-id 1
 ```
 
+### Backfill Orders
+
+Use this command to export historical fulfilled orders to Fera.ai so you can run one-time review campaigns without impacting the automatic review request quotas. The command skips orders that were already exported and works in batches to limit memory usage.
+
+**Command:**
+```bash
+php bin/magento fera:orders:backfill [options]
+```
+
+**Options:**
+- `--from`: *required* lower bound for the order creation date (`YYYY-MM-DD` or full datetime).
+- `--to`: optional upper bound for the order creation date.
+- `--store-id (-s)`: export orders only from the provided store. By default, all stores configured for Fera.ai are processed.
+- `--batch-size (-b)`: number of orders to process per batch (default: 100).
+- `--max (-m)`: maximum number of orders to export during this run.
+- `--exclude-emails-csv`: path to a CSV file containing customer emails to exclude from export (useful for avoiding duplicate review requests from other platforms like TrustPilot).
+- `--dry-run (-d)`: list matching orders without exporting them (shows sample IDs for one batch).
+
+**Examples:**
+
+Export orders created since Jan 1, 2024:
+```bash
+php bin/magento fera:orders:backfill --from 2024-01-01
+```
+
+Dry run for store ID 3 between specific dates:
+```bash
+php bin/magento fera:orders:backfill --from "2024-01-01 00:00:00" --to "2024-06-30 23:59:59" --store-id 3 --dry-run
+```
+
+Export orders while excluding customers who already reviewed on TrustPilot:
+```bash
+php bin/magento fera:orders:backfill --from 2024-01-01 --exclude-emails-csv /path/to/trustpilot_emails.csv
+```
+
+#### Email Exclusion CSV Format
+
+The `--exclude-emails-csv` option accepts a CSV file with customer emails to skip during export. This is useful to avoid sending duplicate review requests to customers who have already reviewed your products on other platforms.
+
+**CSV Format:**
+- Single column containing email addresses
+- Optional header row with "email" (case-insensitive)
+- Empty lines and invalid email formats are automatically skipped
+- Email matching is case-insensitive
+
+**Example CSV:**
+```csv
+email
+customer1@example.com
+CUSTOMER2@EXAMPLE.COM
+customer3@domain.org
+```
+
 ## Configuration
 
 All configuration options for the Fera.ai extension are located under `Stores > Configuration > Fera Commerce > Fera.ai`. These settings are available at the store view scope, allowing for different configurations per store.

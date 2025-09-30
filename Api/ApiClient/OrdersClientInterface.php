@@ -40,7 +40,8 @@ namespace Fera\Ai\Api\ApiClient;
  *     shipping_address?: FeraAddressData,
  *     billing_address?: FeraAddressData,
  *     phone_number?: string|null,
- *     is_cancelled?: bool
+ *     is_cancelled?: bool,
+ *     fulfilled_at?: string
  * }
  *
  * @phpstan-type FeraOrderUpdate array{
