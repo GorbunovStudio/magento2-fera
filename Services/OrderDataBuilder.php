@@ -79,8 +79,21 @@ class OrderDataBuilder implements ResetAfterRequestInterface
             'is_cancelled' => $isCancelled
         ];
 
-        if ($order->getState() === Order::STATE_COMPLETE && $order instanceof Order) {
-            $shipments = $order->getShipmentsCollection()->getItems();
+        if ($order->getState() === Order::STATE_COMPLETE) {
+            if (!$order instanceof Order) {
+                throw new \RuntimeException(
+                    'Incorrect type for Product: expected ' . Order::class . ', got ' . get_debug_type($order)
+                );
+            }
+
+            $shipmentsCollection = $order->getShipmentsCollection();
+            if ($shipmentsCollection === false) {
+                throw new \RuntimeException(
+                    'Shipments collection is not available on the order instance. Order ID: ' . $orderId
+                );
+            }
+
+            $shipments = $shipmentsCollection->getItems();
 
             $fulfilledAt = $order->getCreatedAt();
 
