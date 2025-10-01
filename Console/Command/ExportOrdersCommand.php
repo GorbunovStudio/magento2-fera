@@ -27,10 +27,11 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
+use Zend_Db_Expr;
 
-class BackfillOrdersCommand extends Command
+class ExportOrdersCommand extends Command
 {
-    private const NAME = 'fera:orders:backfill';
+    private const NAME = 'fera:orders:export';
     private const DEFAULT_BATCH_SIZE = 100;
 
     public function __construct(
@@ -50,12 +51,35 @@ class BackfillOrdersCommand extends Command
     {
         $this->setName(self::NAME)
             ->setDescription('Export historical fulfilled orders to Fera.ai for one-time review requests')
-            ->addOption('from', null, InputOption::VALUE_REQUIRED, 'Lower bound for order creation date (inclusive)')
-            ->addOption('to', null, InputOption::VALUE_OPTIONAL, 'Upper bound for order creation date (inclusive)')
+            ->addOption(
+                'from',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Lower bound for order fulfillment date (inclusive). '
+                . 'Fulfillment date is the latest shipment date or order creation date if no shipments.'
+            )
+            ->addOption(
+                'to',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Upper bound for order fulfillment date (inclusive). '
+                . 'Fulfillment date is the latest shipment date or order creation date if no shipments.'
+            )
             ->addOption('store-id', 's', InputOption::VALUE_OPTIONAL, 'Store ID to process')
-            ->addOption('batch-size', 'b', InputOption::VALUE_OPTIONAL, 'Orders to process per batch', (string) self::DEFAULT_BATCH_SIZE)
+            ->addOption(
+                'batch-size',
+                'b',
+                InputOption::VALUE_OPTIONAL,
+                'Orders to process per batch',
+                (string) self::DEFAULT_BATCH_SIZE
+            )
             ->addOption('max', 'm', InputOption::VALUE_OPTIONAL, 'Maximum number of orders to process during this run')
-            ->addOption('exclude-emails-csv', null, InputOption::VALUE_OPTIONAL, 'Path to CSV file containing emails to exclude from export')
+            ->addOption(
+                'exclude-emails-csv',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Path to CSV file containing emails to exclude from export'
+            )
             ->addOption('dry-run', 'd', InputOption::VALUE_NONE, 'List candidate orders without exporting them');
     }
 
@@ -142,9 +166,16 @@ class BackfillOrdersCommand extends Command
                 $output->writeln(sprintf('Found %d candidate orders (processing up to %d).', $storeTotal, $effectiveTotal));
 
                 if ($isDryRun) {
-                    $sampleIds = $this->fetchSampleIds($currentStoreId, $from, $to, $batchSize);
-                    if (!empty($sampleIds)) {
-                        $output->writeln('Sample order IDs: ' . implode(', ', $sampleIds));
+                    $sampleData = $this->fetchSampleOrdersWithDates($currentStoreId, $from, $to, $batchSize);
+                    if (!empty($sampleData)) {
+                        $output->writeln('Sample orders:');
+                        foreach ($sampleData as $orderData) {
+                            $output->writeln(sprintf(
+                                '  Order ID: %d, Fulfillment Date: %s',
+                                $orderData['id'],
+                                $orderData['fulfillment_date']
+                            ));
+                        }
                     }
                     continue;
                 }
@@ -204,8 +235,7 @@ class BackfillOrdersCommand extends Command
                             }
 
                             $orderEmail = strtolower(trim((string) $order->getCustomerEmail()));
-                            if (
-                                ($orderEmail && isset($excludedEmails[$orderEmail])) ||
+                            if (($orderEmail && isset($excludedEmails[$orderEmail])) ||
                                 ($customerEmail && isset($excludedEmails[$customerEmail]))
                             ) {
                                 $storeExcluded++;
@@ -257,7 +287,7 @@ class BackfillOrdersCommand extends Command
                             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                                 $output->writeln($exception->getTraceAsString());
                             }
-                        } 
+                        }
                     }
 
                     $this->orderExporter->_resetState();
@@ -335,12 +365,23 @@ class BackfillOrdersCommand extends Command
 
     private function optionalDateOption(InputInterface $input, string $optionName): ?string
     {
-        $raw = $input->getOption($optionName);
-        if (!is_string($raw) || trim($raw) === '') {
+        $rawValue = $input->getOption($optionName);
+        if (!is_string($rawValue) || trim($rawValue) === '') {
             return null;
         }
 
-        return $this->parseDate($raw, '--' . $optionName)->format('Y-m-d H:i:s');
+        $date = $this->parseDate($rawValue, '--' . $optionName);
+        
+        if ($optionName === 'to') {
+            $trimmedValue = trim($rawValue);
+            $userProvidedTime = preg_match('/\d{2}:\d{2}/', $trimmedValue) === 1;
+            
+            if (!$userProvidedTime) {
+                $date = $date->setTime(23, 59, 59);
+            }
+        }
+        
+        return $date->format('Y-m-d H:i:s');
     }
 
     private function optionalIntOption(InputInterface $input, string $optionName, ?int $default = null): ?int
@@ -405,6 +446,34 @@ class BackfillOrdersCommand extends Command
         return array_map(static fn($value) => (int) $value, $ids);
     }
 
+    /**
+     * @return array<int, array{id: int, fulfillment_date: string}>
+     */
+    private function fetchSampleOrdersWithDates(int $storeId, string $from, ?string $to, int $limit): array
+    {
+        $collection = $this->createCandidateCollection($storeId, $from, $to);
+        
+        $select = $collection->getSelect();
+        $fulfillmentDateExpr = new Zend_Db_Expr(
+            'COALESCE(shipment_dates.latest_shipment_date, main_table.created_at)'
+        );
+        $select->columns(['fulfillment_date' => $fulfillmentDateExpr]);
+        
+        $collection->setOrder('entity_id', 'ASC');
+        $collection->setPageSize($limit);
+        $collection->setCurPage(1);
+
+        $result = [];
+        foreach ($collection as $order) {
+            $result[] = [
+                'id' => (int) $order->getEntityId(),
+                'fulfillment_date' => (string) $order->getData('fulfillment_date'),
+            ];
+        }
+
+        return $result;
+    }
+
     private function createCandidateCollection(int $storeId, string $from, ?string $to): OrderCollection
     {
         $collection = $this->orderCollectionFactory->create();
@@ -412,16 +481,41 @@ class BackfillOrdersCommand extends Command
         $collection->addFieldToFilter('store_id', $storeId);
         $collection->addFieldToFilter('state', Order::STATE_COMPLETE);
 
-        $createdAtFilter = ['from' => $from];
-        if ($to !== null) {
-            $createdAtFilter['to'] = $to;
-        }
-        $collection->addFieldToFilter('created_at', $createdAtFilter);
-
-        $tableName = $collection->getTable(FeraOrderResource::TABLE_NAME);
         $select = $collection->getSelect();
-        $select->joinLeft(['fo' => $tableName], 'main_table.entity_id = fo.order_id', []);
-        $select->where('fo.order_id IS NULL');
+        
+        $shipmentTable = $collection->getTable('sales_shipment');
+        $latestShipmentSubquery = $collection->getConnection()->select()
+            ->from(
+                ['shipment' => $shipmentTable],
+                [
+                    'order_id' => 'shipment.order_id',
+                    'latest_shipment_date' => new Zend_Db_Expr('MAX(shipment.created_at)')
+                ]
+            )
+            ->group('shipment.order_id');
+        
+        $select->joinLeft(
+            ['shipment_dates' => $latestShipmentSubquery],
+            'main_table.entity_id = shipment_dates.order_id',
+            []
+        );
+        
+        $fulfillmentDateExpr = new Zend_Db_Expr(
+            'COALESCE(shipment_dates.latest_shipment_date, main_table.created_at)'
+        );
+        
+        $select->where($fulfillmentDateExpr . ' >= ?', $from);
+        if ($to !== null) {
+            $select->where($fulfillmentDateExpr . ' <= ?', $to);
+        }
+
+        $feraOrderTable = $collection->getTable(FeraOrderResource::TABLE_NAME);
+        $select->joinLeft(
+            ['fera_order' => $feraOrderTable],
+            'main_table.entity_id = fera_order.order_id',
+            []
+        );
+        $select->where('fera_order.order_id IS NULL');
 
         return $collection;
     }
