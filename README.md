@@ -99,8 +99,8 @@ php bin/magento fera:orders:backfill [options]
 ```
 
 **Options:**
-- `--from`: *required* lower bound for the order creation date (`YYYY-MM-DD` or full datetime).
-- `--to`: optional upper bound for the order creation date.
+- `--from`: *required* lower bound for the order fulfillment date (`YYYY-MM-DD` or full datetime).
+- `--to`: optional upper bound for the order fulfillment date.
 - `--store-id (-s)`: export orders only from the provided store. By default, all stores configured for Fera.ai are processed.
 - `--batch-size (-b)`: number of orders to process per batch (default: 100).
 - `--max (-m)`: maximum number of orders to export during this run.
@@ -109,7 +109,7 @@ php bin/magento fera:orders:backfill [options]
 
 **Examples:**
 
-Export orders created since Jan 1, 2024:
+Export orders fulfillment since Jan 1, 2024:
 ```bash
 php bin/magento fera:orders:backfill --from 2024-01-01
 ```

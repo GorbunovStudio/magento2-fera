@@ -41,6 +41,32 @@ class OrderDataBuilder implements ResetAfterRequestInterface
         $this->customerRegistry->_resetState();
     }
 
+    public function calculateFulfillmentDate(Order $order): ?string
+    {
+        if ($order->getState() !== Order::STATE_COMPLETE) {
+            return null;
+        }
+
+        $shipmentsCollection = $order->getShipmentsCollection();
+        if ($shipmentsCollection === false) {
+            $orderId = $order->getEntityId();
+            throw new \RuntimeException(
+                'Shipments collection is not available on the order instance. Order ID: ' . $orderId
+            );
+        }
+
+        $shipments = $shipmentsCollection->getItems();
+        $fulfilledAt = $order->getCreatedAt();
+
+        foreach ($shipments as $shipment) {
+            if ($fulfilledAt === null || $shipment->getCreatedAt() > $fulfilledAt) {
+                $fulfilledAt = $shipment->getCreatedAt();
+            }
+        }
+
+        return is_string($fulfilledAt) && $fulfilledAt !== '' ? $fulfilledAt : null;
+    }
+
     /**
      * Build order data for Fera API - used for both creation and updates
      *
@@ -86,24 +112,8 @@ class OrderDataBuilder implements ResetAfterRequestInterface
                 );
             }
 
-            $shipmentsCollection = $order->getShipmentsCollection();
-            if ($shipmentsCollection === false) {
-                throw new \RuntimeException(
-                    'Shipments collection is not available on the order instance. Order ID: ' . $orderId
-                );
-            }
-
-            $shipments = $shipmentsCollection->getItems();
-
-            $fulfilledAt = $order->getCreatedAt();
-
-            foreach ($shipments as $shipment) {
-                if ($fulfilledAt === null || $shipment->getCreatedAt() > $fulfilledAt) {
-                    $fulfilledAt = $shipment->getCreatedAt();
-                }
-            }
-
-            if (is_string($fulfilledAt) && $fulfilledAt !== '') {
+            $fulfilledAt = $this->calculateFulfillmentDate($order);
+            if ($fulfilledAt !== null) {
                 $data['fulfilled_at'] = $this->helper->formatDate($fulfilledAt);
             }
         }
