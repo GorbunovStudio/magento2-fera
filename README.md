@@ -89,13 +89,13 @@ Backfill mappings for store with ID 1:
 php bin/magento fera:products:backfill-mappings --store-id 1
 ```
 
-### Backfill Orders
+### Export Past Orders
 
 Use this command to export historical fulfilled orders to Fera.ai so you can run one-time review campaigns without impacting the automatic review request quotas. The command skips orders that were already exported and works in batches to limit memory usage.
 
 **Command:**
 ```bash
-php bin/magento fera:orders:backfill [options]
+php bin/magento fera:orders:export [options]
 ```
 
 **Options:**
@@ -111,17 +111,17 @@ php bin/magento fera:orders:backfill [options]
 
 Export orders fulfillment since Jan 1, 2024:
 ```bash
-php bin/magento fera:orders:backfill --from 2024-01-01
+php bin/magento fera:orders:export --from 2024-01-01
 ```
 
 Dry run for store ID 3 between specific dates:
 ```bash
-php bin/magento fera:orders:backfill --from "2024-01-01 00:00:00" --to "2024-06-30 23:59:59" --store-id 3 --dry-run
+php bin/magento fera:orders:export --from "2024-01-01 00:00:00" --to "2024-06-30 23:59:59" --store-id 3 --dry-run
 ```
 
 Export orders while excluding customers who already reviewed on TrustPilot:
 ```bash
-php bin/magento fera:orders:backfill --from 2024-01-01 --exclude-emails-csv /path/to/trustpilot_emails.csv
+php bin/magento fera:orders:export --from 2024-01-01 --exclude-emails-csv /path/to/trustpilot_emails.csv
 ```
 
 #### Email Exclusion CSV Format

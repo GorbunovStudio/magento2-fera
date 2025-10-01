@@ -29,9 +29,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 use Zend_Db_Expr;
 
-class BackfillOrdersCommand extends Command
+class ExportOrdersCommand extends Command
 {
-    private const NAME = 'fera:orders:backfill';
+    private const NAME = 'fera:orders:export';
     private const DEFAULT_BATCH_SIZE = 100;
 
     public function __construct(
