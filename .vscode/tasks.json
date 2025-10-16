@@ -65,7 +65,7 @@
             "id": "diffTarget",
             "type": "promptString",
             "description": "Enter diff target",
-            "default": "master"
+            "default": "budsies"
         },
     ]
 }
