@@ -8,8 +8,8 @@ use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
 use Fera\Ai\Services\OrderExporter;
 use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
-use Magento\Sales\Model\OrderRepository;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -47,7 +47,7 @@ class Handler
                 $exception
             );
         } finally {
-            if ($this->orderRepository instanceof OrderRepository) {
+            if ($this->orderRepository instanceof ResetAfterRequestInterface) {
                 // Reset the repository state to avoid stale data issues
                 $this->orderRepository->_resetState();
             }

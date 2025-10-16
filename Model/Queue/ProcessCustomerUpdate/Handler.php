@@ -10,9 +10,9 @@ use Fera\Ai\Model\OrderExportManager;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\MessageQueue\PublisherInterface;
+use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
-use Magento\Sales\Model\OrderRepository;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use UnexpectedValueException;
@@ -57,7 +57,7 @@ class Handler
                 $exception
             );
         } finally {
-            if ($this->orderRepository instanceof OrderRepository) {
+            if ($this->orderRepository instanceof ResetAfterRequestInterface) {
                 $this->orderRepository->_resetState();
             }
         }

@@ -10,8 +10,8 @@ use Fera\Ai\Services\ProductExporter;
 use Fera\Ai\Services\StoreGroupService;
 use InvalidArgumentException;
 use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Catalog\Model\ProductRepository;
 use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -49,7 +49,7 @@ class Handler
                 $exception
             );
         } finally {
-            if ($this->productRepository instanceof ProductRepository) {
+            if ($this->productRepository instanceof ResetAfterRequestInterface) {
                 // Reset the repository state to avoid stale data issues
                 $this->productRepository->_resetState();
             }
