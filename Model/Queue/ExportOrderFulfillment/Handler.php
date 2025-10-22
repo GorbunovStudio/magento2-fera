@@ -83,6 +83,7 @@ class Handler
                 $this->helper->debug('Order export skipped for order ' . $orderId . ', skipping status update');
                 return;
             }
+            return;
         }
 
         $orderData = [
