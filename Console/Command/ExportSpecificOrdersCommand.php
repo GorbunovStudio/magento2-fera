@@ -175,8 +175,12 @@ class ExportSpecificOrdersCommand extends Command
 
         $storesToMainStores = $this->storeGroupService->getStoresToMainStoresMap();
 
-        foreach ($orderData as $data) {
-            $entityId = $data['entity_id'];
+        foreach ($ids as $entityId) {
+            if (!isset($orderData[$entityId])) {
+                continue;
+            }
+
+            $data = $orderData[$entityId];
             $storeId = $data['store_id'];
             $exportedOrderId = $data['exported_order_id'];
 
