@@ -32,7 +32,6 @@ class OrderDataBuilder implements ResetAfterRequestInterface
         private CustomerRepositoryInterface $customerRepository,
         private CustomerRegistry $customerRegistry,
         private CollectionFactory $productCollectionFactory,
-        private Status $productStatus
     ) {
     }
 
