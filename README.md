@@ -124,6 +124,51 @@ Export orders while excluding customers who already reviewed on TrustPilot:
 php bin/magento fera:orders:export --from 2024-01-01 --exclude-emails-csv /path/to/trustpilot_emails.csv
 ```
 
+### Export Specific Orders
+
+Use this command to export specific orders by providing a CSV file of order entity IDs. This is useful for targeted exports, re-exporting failed orders, or manual backfills. The command preserves the order of IDs from the CSV file.
+
+**Command:**
+```bash
+php bin/magento fera:orders:export:specific [options]
+```
+
+**Options:**
+- `--ids-csv`: *required* path to the CSV file containing order entity IDs.
+- `--batch-size (-b)`: number of orders to process per batch (default: 100).
+- `--max (-m)`: maximum number of orders to process from the CSV.
+- `--dry-run (-d)`: list orders that would be exported without actually sending them to Fera.ai.
+
+**Examples:**
+
+Export orders from a CSV file:
+```bash
+php bin/magento fera:orders:export:specific --ids-csv var/import/order_ids.csv
+```
+
+Dry run for the first 50 orders from a CSV:
+```bash
+php bin/magento fera:orders:export:specific --ids-csv orders.csv --max 50 --dry-run
+```
+
+#### Order ID CSV Format
+
+The `--ids-csv` option accepts a simple, single-column CSV file.
+
+**CSV Format:**
+- Single column containing `sales_order.entity_id` values.
+- Optional header row (e.g., `order_id`, `id`).
+- Delimiter can be a comma (`,`) or semicolon (`;`); it is auto-detected.
+- Empty lines, invalid IDs, and duplicates are automatically skipped.
+
+**Example CSV:**
+```csv
+order_id
+1001
+1002
+1005
+```
+
 #### Email Exclusion CSV Format
 
 The `--exclude-emails-csv` option accepts a CSV file with customer emails to skip during export. This is useful to avoid sending duplicate review requests to customers who have already reviewed your products on other platforms.
@@ -140,6 +185,75 @@ email
 customer1@example.com
 CUSTOMER2@EXAMPLE.COM
 customer3@domain.org
+```
+
+### Import Reviews from CSV
+
+This command allows you to import historical reviews from a CSV file directly into Fera.ai. It is useful for migrating reviews from another platform or for bulk-adding reviews that were collected offline.
+
+**Command:**
+```bash
+php bin/magento fera:reviews:import [options]
+```
+
+**Options:**
+- `--csv`: *required* path to the CSV file containing the reviews to import.
+- `--store-id (-s)`: The store ID to associate the reviews with. This is required if you have multiple stores configured with different Fera.ai accounts.
+- `--batch-size (-b)`: The number of reviews to process in each batch (default: 100).
+- `--max (-m)`: The maximum total number of reviews to process from the CSV file.
+
+**Examples:**
+
+Import reviews for store ID 1 from a CSV file:
+```bash
+php bin/magento fera:reviews:import --csv var/import/reviews.csv --store-id 1
+```
+
+Import a maximum of 500 reviews with a smaller batch size:
+```bash
+php bin/magento fera:reviews:import --csv path/to/your/reviews.csv --store-id 1 --max 500 --batch-size 50
+```
+
+#### Review Import CSV Format
+
+The `--csv` option requires a specifically formatted CSV file with a header row. The command validates the headers and data types for each column.
+
+**CSV Headers (must be in this order):**
+1.  `External Order ID`
+2.  `External Customer ID`
+3.  `Product ID`
+4.  `Heading`
+5.  `Body`
+6.  `Rating`
+7.  `State`
+8.  `Is Verified`
+9.  `Created At`
+10. `Updated At` (Note: This column is expected in the header but its value is currently ignored by the import process).
+11. `Store Reply`
+12. `Store Replied At`
+13. `Customer Media 1`
+14. `Customer Media 2`
+
+**Column Descriptions:**
+-   **External Order ID** (string, required): Your internal order identifier.
+-   **External Customer ID** (string, required): Your internal customer identifier.
+-   **Product ID** (string, required): The Magento Product ID the review is for.
+-   **Heading** (string): The title of the review.
+-   **Body** (string, required): The main content of the review.
+-   **Rating** (integer, required): A rating from `1` to `5`.
+-   **State** (string, required): The moderation state of the review. Must be one of: `approved`, `pending_approval`, `pending_update`, `declined_approval`.
+-   **Is Verified** (boolean, required): Indicates if the review is from a verified buyer. Accepts `true`, `1`, `yes`, `y`, `on` or `false`, `0`, `no`, `n`, `off`.
+-   **Created At** (string, required): The date the review was submitted. The format should be parsable by PHP's `strtotime` (e.g., `YYYY-MM-DD HH:MM:SS`).
+-   **Store Reply** (string): The text of your reply to the customer's review.
+-   **Store Replied At** (string): The date your reply was submitted.
+-   **Customer Media 1** (string): A public URL to an image or video submitted with the review.
+-   **Customer Media 2** (string): A public URL to a second media file.
+
+**Example CSV:**
+```csv
+External Order ID,External Customer ID,Product ID,Heading,Body,Rating,State,Is Verified,Created At,Updated At,Store Reply,Store Replied At,Customer Media 1,Customer Media 2
+ORD-001,CUST-123,45,Great product!,I really loved this product. It exceeded my expectations.,5,approved,true,2024-01-15 10:00:00,,Thank you for your review!,,https://example.com/media1.jpg,
+ORD-002,CUST-124,46,Could be better,"It was okay, but I expected more for the price.",3,pending_approval,true,2024-01-16 12:30:00,,,,,,
 ```
 
 ## Configuration
