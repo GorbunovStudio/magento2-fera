@@ -124,6 +124,51 @@ Export orders while excluding customers who already reviewed on TrustPilot:
 php bin/magento fera:orders:export --from 2024-01-01 --exclude-emails-csv /path/to/trustpilot_emails.csv
 ```
 
+### Export Specific Orders
+
+Use this command to export specific orders by providing a CSV file of order entity IDs. This is useful for targeted exports, re-exporting failed orders, or manual backfills. The command preserves the order of IDs from the CSV file.
+
+**Command:**
+```bash
+php bin/magento fera:orders:export:specific [options]
+```
+
+**Options:**
+- `--ids-csv`: *required* path to the CSV file containing order entity IDs.
+- `--batch-size (-b)`: number of orders to process per batch (default: 100).
+- `--max (-m)`: maximum number of orders to process from the CSV.
+- `--dry-run (-d)`: list orders that would be exported without actually sending them to Fera.ai.
+
+**Examples:**
+
+Export orders from a CSV file:
+```bash
+php bin/magento fera:orders:export:specific --ids-csv var/import/order_ids.csv
+```
+
+Dry run for the first 50 orders from a CSV:
+```bash
+php bin/magento fera:orders:export:specific --ids-csv orders.csv --max 50 --dry-run
+```
+
+#### Order ID CSV Format
+
+The `--ids-csv` option accepts a simple, single-column CSV file.
+
+**CSV Format:**
+- Single column containing `sales_order.entity_id` values.
+- Optional header row (e.g., `order_id`, `id`).
+- Delimiter can be a comma (`,`) or semicolon (`;`); it is auto-detected.
+- Empty lines, invalid IDs, and duplicates are automatically skipped.
+
+**Example CSV:**
+```csv
+order_id
+1001
+1002
+1005
+```
+
 #### Email Exclusion CSV Format
 
 The `--exclude-emails-csv` option accepts a CSV file with customer emails to skip during export. This is useful to avoid sending duplicate review requests to customers who have already reviewed your products on other platforms.
