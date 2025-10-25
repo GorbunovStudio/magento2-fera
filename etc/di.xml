@@ -7,6 +7,7 @@
     <preference for="Fera\Ai\Api\ApiClient\OrdersClientInterface" type="Fera\Ai\Services\ApiClient\OrdersClient" />
     <preference for="Fera\Ai\Api\ApiClient\CustomersClientInterface" type="Fera\Ai\Services\ApiClient\CustomersClient" />
     <preference for="Fera\Ai\Api\ApiClient\ProductsClientInterface" type="Fera\Ai\Services\ApiClient\ProductsClient" />
+    <preference for="Fera\Ai\Api\ApiClient\ReviewsClientInterface" type="Fera\Ai\Services\ApiClient\ReviewsClient" />
 
     <type name="Fera\Ai\Logger\Handler">
         <arguments>
@@ -30,6 +31,7 @@
                 <item name="fera_backfill_product_mappings" xsi:type="object">Fera\Ai\Console\Command\BackfillProductMappingsCommand</item>
                 <item name="fera_backfill_orders" xsi:type="object">Fera\Ai\Console\Command\ExportOrdersCommand</item>
                 <item name="fera_export_specific_orders" xsi:type="object">Fera\Ai\Console\Command\ExportSpecificOrdersCommand</item>
+                <item name="fera_export_reviews" xsi:type="object">Fera\Ai\Console\Command\ExportReviewsCommand</item>
             </argument>
         </arguments>
     </type>
