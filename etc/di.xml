@@ -31,7 +31,7 @@
                 <item name="fera_backfill_product_mappings" xsi:type="object">Fera\Ai\Console\Command\BackfillProductMappingsCommand</item>
                 <item name="fera_backfill_orders" xsi:type="object">Fera\Ai\Console\Command\ExportOrdersCommand</item>
                 <item name="fera_export_specific_orders" xsi:type="object">Fera\Ai\Console\Command\ExportSpecificOrdersCommand</item>
-                <item name="fera_export_reviews" xsi:type="object">Fera\Ai\Console\Command\ExportReviewsCommand</item>
+                <item name="fera_import_reviews" xsi:type="object">Fera\Ai\Console\Command\ImportReviewsCommand</item>
             </argument>
         </arguments>
     </type>

@@ -22,9 +22,9 @@ use Throwable;
 /**
  * @phpstan-import-type FeraReviewData from ReviewsClientInterface
  */
-class ExportReviewsCommand extends Command
+class ImportReviewsCommand extends Command
 {
-    private const NAME = 'fera:reviews:export';
+    private const NAME = 'fera:reviews:import';
     private const DEFAULT_BATCH_SIZE = 100;
 
     private const COL_EXTERNAL_ORDER_ID = 0;
