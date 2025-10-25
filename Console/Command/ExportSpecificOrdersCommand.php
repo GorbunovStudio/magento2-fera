@@ -278,7 +278,7 @@ class ExportSpecificOrdersCommand extends Command
         $select->joinLeft(
             ['fera_order' => $feraOrderTable],
             'main_table.entity_id = fera_order.order_id',
-            ['exported_order_id' => 'fera_order.order_id']
+            ['exported_order_id' => 'fera_order.fera_id']
         );
 
         return $collection;
