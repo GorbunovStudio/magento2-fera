@@ -71,10 +71,11 @@ class OrderDataBuilder implements ResetAfterRequestInterface
      * Build order data for Fera API - used for both creation and updates
      *
      * @param \Magento\Sales\Api\Data\OrderInterface $order
+     * @param string[] $tags
      * @return array
      * @phpstan-return FeraOrder
      */
-    public function buildOrderData(OrderInterface $order): array
+    public function buildOrderData(OrderInterface $order, array $tags = []): array
     {
         $storeId = (int) $order->getStoreId();
         $minimizeDataSharing = $this->helper->isMinimizeDataSharingEnabled($storeId);
@@ -99,7 +100,7 @@ class OrderDataBuilder implements ResetAfterRequestInterface
             'number' => $order->getIncrementId() ?? '',
             'external_created_at' => $this->helper->formatDate($order->getCreatedAt() ?? ''),
             'customer' => $this->getCustomerData($order, $minimizeDataSharing),
-            'tags' => [],
+            'tags' => $tags,
             'source_name' => 'web',
             'line_items' => $lineItems,
             'is_cancelled' => $isCancelled
