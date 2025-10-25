@@ -3,7 +3,7 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface" type="Fera\Ai\Model\Queue\ExportProduct\Message" />
-    
+
     <preference for="Fera\Ai\Api\ApiClient\OrdersClientInterface" type="Fera\Ai\Services\ApiClient\OrdersClient" />
     <preference for="Fera\Ai\Api\ApiClient\CustomersClientInterface" type="Fera\Ai\Services\ApiClient\CustomersClient" />
     <preference for="Fera\Ai\Api\ApiClient\ProductsClientInterface" type="Fera\Ai\Services\ApiClient\ProductsClient" />
@@ -29,6 +29,7 @@
                 <item name="fera_export_products" xsi:type="object">Fera\Ai\Console\Command\ExportProductsCommand</item>
                 <item name="fera_backfill_product_mappings" xsi:type="object">Fera\Ai\Console\Command\BackfillProductMappingsCommand</item>
                 <item name="fera_backfill_orders" xsi:type="object">Fera\Ai\Console\Command\ExportOrdersCommand</item>
+                <item name="fera_export_specific_orders" xsi:type="object">Fera\Ai\Console\Command\ExportSpecificOrdersCommand</item>
             </argument>
         </arguments>
     </type>
