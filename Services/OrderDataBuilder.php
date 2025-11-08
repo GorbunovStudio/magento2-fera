@@ -71,10 +71,11 @@ class OrderDataBuilder implements ResetAfterRequestInterface
      *
      * @param \Magento\Sales\Api\Data\OrderInterface $order
      * @param string[] $tags
+     * @param bool $exportFulfillmentDate
      * @return array
      * @phpstan-return FeraOrder
      */
-    public function buildOrderData(OrderInterface $order, array $tags = []): array
+    public function buildOrderData(OrderInterface $order, array $tags = [], $exportFulfillmentDate = false): array
     {
         $storeId = (int) $order->getStoreId();
         $minimizeDataSharing = $this->helper->isMinimizeDataSharingEnabled($storeId);
@@ -105,7 +106,7 @@ class OrderDataBuilder implements ResetAfterRequestInterface
             'is_cancelled' => $isCancelled
         ];
 
-        if ($order->getState() === Order::STATE_COMPLETE) {
+        if ($exportFulfillmentDate && $order->getState() === Order::STATE_COMPLETE) {
             if (!$order instanceof Order) {
                 throw new \RuntimeException(
                     'Incorrect type for Product: expected ' . Order::class . ', got ' . get_debug_type($order)

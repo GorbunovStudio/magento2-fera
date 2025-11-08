@@ -229,7 +229,7 @@ class ExportSpecificOrdersCommand extends Command
             }
 
             try {
-                $feraId = $this->orderExporter->pushOrder($order, ['backfill']);
+                $feraId = $this->orderExporter->pushOrder($order, ['backfill'], true);
             } catch (Throwable $exception) {
                 $counters['errors']++;
                 $counters['processed']++;

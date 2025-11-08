@@ -78,12 +78,11 @@ class Handler
 
         $feraId = $this->orderExportManager->getFeraId($orderId);
         if (!$feraId) {
-            $feraId = $this->orderExporter->pushOrder($order);
+            $feraId = $this->orderExporter->pushOrder($order, [], false);
             if (!$feraId) {
                 $this->helper->debug('Order export skipped for order ' . $orderId . ', skipping status update');
                 return;
             }
-            return;
         }
 
         $orderData = [

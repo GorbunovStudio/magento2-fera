@@ -38,7 +38,7 @@ class OrderUpdater implements ResetAfterRequestInterface
             throw new RuntimeException('Order does not have an entity ID');
         }
 
-        $orderData = $this->orderDataBuilder->buildOrderData($order);
+        $orderData = $this->orderDataBuilder->buildOrderData($order, [], false);
 
         $orderData = $this->enrichOrderData($order, $orderData);
 

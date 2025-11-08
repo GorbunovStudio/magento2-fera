@@ -254,7 +254,7 @@ class ExportOrdersCommand extends Command
                         }
 
                         try {
-                            $feraId = $this->orderExporter->pushOrder($order, ['backfill']);
+                            $feraId = $this->orderExporter->pushOrder($order, ['backfill'], true);
 
                             $globalProcessed++;
 

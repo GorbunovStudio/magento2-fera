@@ -70,6 +70,6 @@ class Handler
             throw new RuntimeException('Order ' . $orderId . ' has already been exported to Fera.');
         }
 
-        $this->orderExporter->pushOrder($order);
+        $this->orderExporter->pushOrder($order, [], false);
     }
 }

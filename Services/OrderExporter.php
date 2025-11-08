@@ -37,10 +37,11 @@ class OrderExporter implements ResetAfterRequestInterface
     /**
      * @param \Magento\Sales\Api\Data\OrderInterface $order
      * @param string[] $tags
+     * @param bool $exportFulfillmentDate
      * @return null|string
      * @throws \RuntimeException
      */
-    public function pushOrder(OrderInterface $order, array $tags = []): ?string
+    public function pushOrder(OrderInterface $order, array $tags = [], $exportFulfillmentDate = false): ?string
     {
         $storeId = (int) $order->getStoreId();
         $orderId = $order->getEntityId();
@@ -48,7 +49,7 @@ class OrderExporter implements ResetAfterRequestInterface
             throw new RuntimeException('Order entity ID is not numeric: ' . get_debug_type($orderId));
         }
 
-        $orderData = $this->orderDataBuilder->buildOrderData($order, $tags);
+        $orderData = $this->orderDataBuilder->buildOrderData($order, $tags, $exportFulfillmentDate);
         if (empty($orderData['line_items'])) {
             $this->helper->debug('No line items to export for order ' . $order->getEntityId() . ', skipping export');
             return null;
