@@ -6,6 +6,8 @@ namespace Fera\Ai\Observer;
 
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\FeraOrderFulfillmentFactory;
+use Fera\Ai\Model\ResourceModel\FeraOrderFulfillment as FulfillmentResource;
 use Magento\Framework\App\State;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
@@ -23,7 +25,9 @@ class OrderPushEvent implements ObserverInterface
         private FeraHelper $helper,
         private PublisherInterface $publisher,
         private LoggerInterface $logger,
-        private State $state
+        private State $state,
+        private FeraOrderFulfillmentFactory $fulfillmentFactory,
+        private FulfillmentResource $fulfillmentResource
     ) {
     }
 
@@ -77,7 +81,7 @@ class OrderPushEvent implements ObserverInterface
             }
 
             if ($this->hasOrderBecomeComplete($order)) {
-                $this->publisher->publish(TopicInterface::EXPORT_ORDER_FULFILLMENT, $orderId);
+                $this->recordPendingFulfillment($orderId, (int)$order->getStoreId());
                 return;
             }
         } catch (\Throwable $exception) {
@@ -156,5 +160,21 @@ class OrderPushEvent implements ObserverInterface
         }
         
         return trim($value);
+    }
+
+    private function recordPendingFulfillment(int $orderId, int $storeId): void
+    {
+        $fulfillment = $this->fulfillmentFactory->create();
+        $this->fulfillmentResource->load($fulfillment, $orderId, 'order_id');
+        
+        if (!$fulfillment->getId()) {
+            $fulfillment->setOrderId($orderId);
+            $fulfillment->setStoreId($storeId);
+            $fulfillment->setCompletedAt(date('Y-m-d H:i:s'));
+        } elseif ($fulfillment->getCompletedAt() === null) {
+            $fulfillment->setCompletedAt(date('Y-m-d H:i:s'));
+        }
+        
+        $this->fulfillmentResource->save($fulfillment);
     }
 }
