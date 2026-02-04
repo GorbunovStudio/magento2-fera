@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
         <tab id="fera_ai" translate="label" sortOrder="100">
             <label>Fera Commerce</label>
@@ -44,22 +44,28 @@
             </group>
             <group id="sync_settings" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Sync Settings</label>
-                <field id="orders_export_on_creation" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="orders_export_on_creation" translate="label comment" type="select" sortOrder="10" showInDefault="1"
+                    showInWebsite="1" showInStore="1">
                     <label>Export orders on creation</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>When enabled, orders are exported to Fera.ai immediately after creation. When disabled, orders are only exported when they are marked as complete.</comment>
+                    <comment>When enabled, orders are exported to Fera.ai immediately after creation. When disabled, orders are only
+                        exported when they are marked as complete.</comment>
                 </field>
-                <field id="minimize_data_sharing" translate="label comment" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="minimize_data_sharing" translate="label comment" type="select" sortOrder="20" showInDefault="1" showInWebsite="1"
+                    showInStore="1">
                     <label>Minimize data sharing</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                    <comment>When enabled, sensitive data like addresses, phone numbers, and monetary amounts are not sent to Fera.ai. Orders will still include product names, quantities, and customer names/emails for review functionality.</comment>
+                    <comment>When enabled, sensitive data like addresses, phone numbers, and monetary amounts are not sent to Fera.ai.
+                        Orders will still include product names, quantities, and customer names/emails for review functionality.</comment>
                 </field>
-                <field id="fulfillment_export_delay_days" translate="label comment" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="fulfillment_export_delay_days" translate="label comment" type="text" sortOrder="30" showInDefault="1"
+                    showInWebsite="1" showInStore="1">
                     <label>Fulfillment export delay (days)</label>
                     <validate>validate-zero-or-greater validate-digits</validate>
-                    <comment>Number of days to wait after an order becomes Complete before sending fulfillment notification to Fera.ai. This ensures customers receive their orders before being asked for reviews. Set to 0 for no delay.</comment>
+                    <comment>Number of days to wait after an order becomes Complete before sending fulfillment notification to Fera.ai. This
+                        ensures customers receive their orders before being asked for reviews. Set to 0 for no delay.</comment>
                 </field>
             </group>
-         </section>
+        </section>
     </system>
 </config>

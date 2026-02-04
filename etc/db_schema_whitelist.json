@@ -30,5 +30,24 @@
         "index": {
             "FERA_PRODUCTS_FERA_ID_IDX": true
         }
+    },
+    "fera_order_fulfillment": {
+        "column": {
+            "id": true,
+            "order_id": true,
+            "store_id": true,
+            "completed_at": true,
+            "exported_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "FERA_ORDER_FULFILLMENT_ORDER_ID_UNQ": true,
+            "FERA_ORDER_FULFILLMENT_ORDER_ID_SALES_ORDER_ENTITY_ID": true,
+            "FERA_ORDER_FULFILLMENT_STORE_ID_STORE_STORE_ID": true
+        },
+        "index": {
+            "FERA_ORDER_FULFILLMENT_EXPORTED_AT_IDX": true,
+            "FERA_ORDER_FULFILLMENT_STORE_ID_EXPORTED_AT_COMPLETED_AT_IDX": true
+        }
     }
 }
