@@ -17,6 +17,7 @@
             <sync_settings>
                 <orders_export_on_creation>1</orders_export_on_creation>
                 <minimize_data_sharing>1</minimize_data_sharing>
+                <fulfillment_export_delay_days>7</fulfillment_export_delay_days>
             </sync_settings>
         </fera_ai>
     </default>
