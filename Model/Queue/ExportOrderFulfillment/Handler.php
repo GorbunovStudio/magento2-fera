@@ -7,6 +7,7 @@ namespace Fera\Ai\Model\Queue\ExportOrderFulfillment;
 use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
+use Fera\Ai\Model\ResourceModel\FeraOrderFulfillment as FulfillmentResource;
 use Fera\Ai\Services\OrderExporter;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
@@ -26,7 +27,8 @@ class Handler
         private OrderExportManager $orderExportManager,
         private OrderExporter $orderExporter,
         private OrdersClientInterface $ordersClient,
-        private ResourceConnection $resourceConnection
+        private ResourceConnection $resourceConnection,
+        private FulfillmentResource $fulfillmentResource
     ) {
     }
 
@@ -91,6 +93,7 @@ class Handler
         ];
 
         $this->updateOrderStatus($orderData, $storeId, $feraId);
+        $this->markAsExported($orderId);
     }
 
     /**
@@ -101,5 +104,20 @@ class Handler
     private function updateOrderStatus(array $data, int $storeId, string $feraId): void
     {
         $this->ordersClient->fulfill($feraId, $data, $storeId);
+    }
+
+    private function markAsExported(int $orderId): void
+    {
+        $connection = $this->fulfillmentResource->getConnection();
+        $tableName = $this->fulfillmentResource->getMainTable();
+
+        $connection->update(
+            $tableName,
+            ['exported_at' => date('Y-m-d H:i:s')],
+            [
+                'order_id = ?' => $orderId,
+                'exported_at IS NULL'
+            ]
+        );
     }
 }
