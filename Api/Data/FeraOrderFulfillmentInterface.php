@@ -11,6 +11,7 @@ interface FeraOrderFulfillmentInterface
     public const STORE_ID = 'store_id';
     public const COMPLETED_AT = 'completed_at';
     public const EXPORTED_AT = 'exported_at';
+    public const ENQUEUED_AT = 'enqueued_at';
 
     /**
      * @return int
@@ -31,6 +32,11 @@ interface FeraOrderFulfillmentInterface
      * @return string|null
      */
     public function getExportedAt(): ?string;
+
+    /**
+     * @return string|null
+     */
+    public function getEnqueuedAt(): ?string;
 
     /**
      * @param int $value
@@ -55,4 +61,11 @@ interface FeraOrderFulfillmentInterface
      * @return $this
      */
     public function setExportedAt(?string $value): static;
+
+    /**
+     * @param string|null $value
+     * @return $this
+     */
+    public function setEnqueuedAt(?string $value): static;
 }
+

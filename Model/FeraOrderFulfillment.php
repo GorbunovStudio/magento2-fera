@@ -66,6 +66,20 @@ class FeraOrderFulfillment extends AbstractModel implements FeraOrderFulfillment
         return $value;
     }
 
+    public function getEnqueuedAt(): ?string
+    {
+        $value = parent::getData(self::ENQUEUED_AT);
+        if ($value === null) {
+            return null;
+        }
+        if (!is_string($value)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for ' . self::ENQUEUED_AT . ': expected string|null, got ' . get_debug_type($value)
+            );
+        }
+        return $value;
+    }
+
     public function setOrderId(int $value): static
     {
         $this->setData(self::ORDER_ID, $value);
@@ -89,4 +103,11 @@ class FeraOrderFulfillment extends AbstractModel implements FeraOrderFulfillment
         $this->setData(self::EXPORTED_AT, $value);
         return $this;
     }
+
+    public function setEnqueuedAt(?string $value): static
+    {
+        $this->setData(self::ENQUEUED_AT, $value);
+        return $this;
+    }
 }
+

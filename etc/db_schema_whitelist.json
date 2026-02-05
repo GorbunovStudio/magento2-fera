@@ -37,7 +37,8 @@
             "order_id": true,
             "store_id": true,
             "completed_at": true,
-            "exported_at": true
+            "exported_at": true,
+            "enqueued_at": true
         },
         "constraint": {
             "PRIMARY": true,
@@ -47,7 +48,8 @@
         },
         "index": {
             "FERA_ORDER_FULFILLMENT_EXPORTED_AT_IDX": true,
-            "FERA_ORDER_FULFILLMENT_STORE_ID_EXPORTED_AT_COMPLETED_AT_IDX": true
+            "FERA_ORDER_FULFILLMENT_STORE_ID_EXPORTED_AT_COMPLETED_AT_IDX": true,
+            "FERA_ORDER_FULFILLMENT_ENQUEUED_AT_IDX": true
         }
     }
 }
