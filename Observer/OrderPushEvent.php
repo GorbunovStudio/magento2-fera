@@ -12,6 +12,7 @@ use Magento\Framework\App\State;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
+use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Sales\Model\Order;
 use Psr\Log\LoggerInterface;
 use UnexpectedValueException;
@@ -27,7 +28,8 @@ class OrderPushEvent implements ObserverInterface
         private LoggerInterface $logger,
         private State $state,
         private FeraOrderFulfillmentFactory $fulfillmentFactory,
-        private FulfillmentResource $fulfillmentResource
+        private FulfillmentResource $fulfillmentResource,
+        private DateTime $dateTime
     ) {
     }
 
@@ -170,9 +172,9 @@ class OrderPushEvent implements ObserverInterface
         if (!$fulfillment->getId()) {
             $fulfillment->setOrderId($orderId);
             $fulfillment->setStoreId($storeId);
-            $fulfillment->setCompletedAt(date('Y-m-d H:i:s'));
+            $fulfillment->setCompletedAt($this->dateTime->gmtDate());
         } elseif ($fulfillment->getCompletedAt() === null) {
-            $fulfillment->setCompletedAt(date('Y-m-d H:i:s'));
+            $fulfillment->setCompletedAt($this->dateTime->gmtDate());
         }
         
         $this->fulfillmentResource->save($fulfillment);

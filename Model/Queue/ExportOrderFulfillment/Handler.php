@@ -96,8 +96,8 @@ class Handler
             'external_id' => $orderId,
         ];
 
-        $this->updateOrderStatus($orderData, $storeId, $feraId);
         $this->markAsExported($orderId, $connection);
+        $this->updateOrderStatus($orderData, $storeId, $feraId);
     }
 
     /**
