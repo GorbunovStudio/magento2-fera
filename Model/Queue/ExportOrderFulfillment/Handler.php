@@ -118,7 +118,6 @@ class Handler
             $tableName,
             [
                 FeraOrderFulfillmentInterface::EXPORTED_AT => $this->dateTime->gmtDate(),
-                FeraOrderFulfillmentInterface::ENQUEUED_AT => null
             ],
             [
                 FeraOrderFulfillmentInterface::ORDER_ID . ' = ?' => $orderId,
