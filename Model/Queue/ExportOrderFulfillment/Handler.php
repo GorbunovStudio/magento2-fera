@@ -5,16 +5,20 @@ declare(strict_types=1);
 namespace Fera\Ai\Model\Queue\ExportOrderFulfillment;
 
 use Fera\Ai\Api\ApiClient\OrdersClientInterface;
+use Fera\Ai\Api\Data\FeraOrderFulfillmentInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\OrderExportManager;
+use Fera\Ai\Model\ResourceModel\FeraOrderFulfillment as FulfillmentResource;
 use Fera\Ai\Services\OrderExporter;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
+use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
+use Magento\Framework\DB\Adapter\AdapterInterface;
 use UnexpectedValueException;
 
 class Handler
@@ -26,7 +30,9 @@ class Handler
         private OrderExportManager $orderExportManager,
         private OrderExporter $orderExporter,
         private OrdersClientInterface $ordersClient,
-        private ResourceConnection $resourceConnection
+        private ResourceConnection $resourceConnection,
+        private FulfillmentResource $fulfillmentResource,
+        private DateTime $dateTime
     ) {
     }
 
@@ -36,7 +42,7 @@ class Handler
         $connection->beginTransaction();
 
         try {
-            $this->processFulfillment($orderId);
+            $this->processFulfillment($orderId, $connection);
             $connection->commit();
         } catch (Throwable $exception) {
             $connection->rollBack();
@@ -60,7 +66,7 @@ class Handler
         }
     }
 
-    private function processFulfillment(int $orderId): void
+    private function processFulfillment(int $orderId, AdapterInterface $connection): void
     {
         $order = $this->orderRepository->get($orderId);
         
@@ -90,6 +96,7 @@ class Handler
             'external_id' => $orderId,
         ];
 
+        $this->markAsExported($orderId, $connection);
         $this->updateOrderStatus($orderData, $storeId, $feraId);
     }
 
@@ -101,5 +108,21 @@ class Handler
     private function updateOrderStatus(array $data, int $storeId, string $feraId): void
     {
         $this->ordersClient->fulfill($feraId, $data, $storeId);
+    }
+
+    private function markAsExported(int $orderId, AdapterInterface $connection): void
+    {
+        $tableName = $this->fulfillmentResource->getMainTable();
+
+        $connection->update(
+            $tableName,
+            [
+                FeraOrderFulfillmentInterface::EXPORTED_AT => $this->dateTime->gmtDate(),
+            ],
+            [
+                FeraOrderFulfillmentInterface::ORDER_ID . ' = ?' => $orderId,
+                FeraOrderFulfillmentInterface::EXPORTED_AT . ' IS NULL'
+            ]
+        );
     }
 }

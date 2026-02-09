@@ -141,6 +141,21 @@ class Data extends AbstractHelper
         );
     }
 
+    public function getFulfillmentExportDelayDays(?int $storeId = null): int
+    {
+        $value = $this->scopeConfig->getValue(
+            ConfigOptionInterface::FULFILLMENT_EXPORT_DELAY_DAYS,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+        
+        if (!is_numeric($value)) {
+            return 0;
+        }
+
+        return max(0, (int) $value);
+    }
+
     /**
      * True if the current Fera Ai configuration is setup to work properly
      *

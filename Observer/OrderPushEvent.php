@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Observer;
 
+use Fera\Ai\Api\Data\FeraOrderFulfillmentInterface;
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\FeraOrderFulfillmentFactory;
+use Fera\Ai\Model\ResourceModel\FeraOrderFulfillment as FulfillmentResource;
 use Magento\Framework\App\State;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
+use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Sales\Model\Order;
 use Psr\Log\LoggerInterface;
 use UnexpectedValueException;
+use Throwable;
 
 class OrderPushEvent implements ObserverInterface
 {
@@ -23,7 +28,10 @@ class OrderPushEvent implements ObserverInterface
         private FeraHelper $helper,
         private PublisherInterface $publisher,
         private LoggerInterface $logger,
-        private State $state
+        private State $state,
+        private FeraOrderFulfillmentFactory $fulfillmentFactory,
+        private FulfillmentResource $fulfillmentResource,
+        private DateTime $dateTime
     ) {
     }
 
@@ -77,10 +85,10 @@ class OrderPushEvent implements ObserverInterface
             }
 
             if ($this->hasOrderBecomeComplete($order)) {
-                $this->publisher->publish(TopicInterface::EXPORT_ORDER_FULFILLMENT, $orderId);
+                $this->recordPendingFulfillment($orderId, (int)$order->getStoreId());
                 return;
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             // Do not rethrow in prod mode to avoid blocking order placement
             if ($this->state->getMode() === State::MODE_DEVELOPER) {
                 throw $exception;
@@ -156,5 +164,21 @@ class OrderPushEvent implements ObserverInterface
         }
         
         return trim($value);
+    }
+
+    private function recordPendingFulfillment(int $orderId, int $storeId): void
+    {
+        $fulfillment = $this->fulfillmentFactory->create();
+        $this->fulfillmentResource->load($fulfillment, $orderId, FeraOrderFulfillmentInterface::ORDER_ID);
+        
+        if (!$fulfillment->getId()) {
+            $fulfillment->setOrderId($orderId);
+            $fulfillment->setStoreId($storeId);
+            $fulfillment->setCompletedAt($this->dateTime->gmtDate());
+        } elseif ($fulfillment->getCompletedAt() === null) {
+            $fulfillment->setCompletedAt($this->dateTime->gmtDate());
+        }
+        
+        $this->fulfillmentResource->save($fulfillment);
     }
 }

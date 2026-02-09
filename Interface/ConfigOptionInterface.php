@@ -15,4 +15,5 @@ interface ConfigOptionInterface
     public const JS_URL = 'fera_ai/fera_ai_group/js_url';
     public const EXPORT_ORDER_ON_CREATION = 'fera_ai/sync_settings/orders_export_on_creation';
     public const MINIMIZE_DATA_SHARING = 'fera_ai/sync_settings/minimize_data_sharing';
+    public const FULFILLMENT_EXPORT_DELAY_DAYS = 'fera_ai/sync_settings/fulfillment_export_delay_days';
 }

@@ -1,39 +1,72 @@
 <?xml version="1.0"?>
-<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
     <table name="fera_orders" resource="default" engine="innodb" comment="Fera Exported Orders">
-        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="ID"/>
-        <column xsi:type="int" name="order_id" padding="10" unsigned="true" nullable="false" comment="Magento Order ID"/>
-        <column xsi:type="varchar" name="fera_id" nullable="false" length="64" comment="Fera Order ID"/>
-        <column xsi:type="timestamp" name="exported_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="false" comment="Exported At"/>
+        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="ID" />
+        <column xsi:type="int" name="order_id" padding="10" unsigned="true" nullable="false" comment="Magento Order ID" />
+        <column xsi:type="varchar" name="fera_id" nullable="false" length="64" comment="Fera Order ID" />
+        <column xsi:type="timestamp" name="exported_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="false" comment="Exported At" />
 
         <constraint xsi:type="primary" referenceId="PRIMARY">
-            <column name="id"/>
+            <column name="id" />
         </constraint>
         <constraint xsi:type="unique" referenceId="FERA_ORDERS_ORDER_ID_UNQ">
-            <column name="order_id"/>
+            <column name="order_id" />
         </constraint>
         <index referenceId="FERA_ORDERS_FERA_ID_IDX">
-            <column name="fera_id"/>
+            <column name="fera_id" />
         </index>
     </table>
     <table name="fera_products" resource="default" engine="innodb" comment="Fera Exported Products">
-        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="ID"/>
-        <column xsi:type="int" name="product_id" padding="10" unsigned="true" nullable="false" comment="Magento Product ID"/>
-        <column xsi:type="varchar" name="fera_id" nullable="false" length="64" comment="Fera Product ID"/>
-        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" identity="false" comment="Store ID"/>
-        <column xsi:type="timestamp" name="exported_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="false" comment="Exported At"/>
+        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="ID" />
+        <column xsi:type="int" name="product_id" padding="10" unsigned="true" nullable="false" comment="Magento Product ID" />
+        <column xsi:type="varchar" name="fera_id" nullable="false" length="64" comment="Fera Product ID" />
+        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" identity="false" comment="Store ID" />
+        <column xsi:type="timestamp" name="exported_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="false" comment="Exported At" />
 
         <constraint xsi:type="primary" referenceId="PRIMARY">
-            <column name="id"/>
+            <column name="id" />
         </constraint>
         <constraint xsi:type="unique" referenceId="FERA_PRODUCTS_PRODUCT_ID_STORE_ID_UNQ">
-            <column name="product_id"/>
-            <column name="store_id"/>
+            <column name="product_id" />
+            <column name="store_id" />
         </constraint>
         <constraint xsi:type="foreign" referenceId="FERA_PRODUCTS_STORE_ID_STORE_STORE_ID" table="fera_products"
-                    column="store_id" referenceTable="store" referenceColumn="store_id" onDelete="CASCADE"/>
+            column="store_id" referenceTable="store" referenceColumn="store_id" onDelete="CASCADE" />
         <index referenceId="FERA_PRODUCTS_FERA_ID_IDX">
-            <column name="fera_id"/>
+            <column name="fera_id" />
+        </index>
+    </table>
+    <table name="fera_order_fulfillment" resource="default" engine="innodb" comment="Fera Order Fulfillment Queue">
+        <column xsi:type="int" name="id" padding="10" unsigned="true" nullable="false" identity="true" comment="ID" />
+        <column xsi:type="int" name="order_id" padding="10" unsigned="true" nullable="false" comment="Magento Order ID" />
+        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="false" comment="Store ID" />
+        <column xsi:type="timestamp" name="completed_at" nullable="true" comment="Order Completed At" />
+        <column xsi:type="timestamp" name="exported_at" nullable="true" comment="Fulfillment Exported At" />
+        <column xsi:type="timestamp" name="enqueued_at" nullable="true" comment="Fulfillment Enqueued At" />
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id" />
+        </constraint>
+        <constraint xsi:type="unique" referenceId="FERA_ORDER_FULFILLMENT_ORDER_ID_UNQ">
+            <column name="order_id" />
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="FERA_ORDER_FULFILLMENT_ORDER_ID_SALES_ORDER_ENTITY_ID"
+            table="fera_order_fulfillment" column="order_id" referenceTable="sales_order"
+            referenceColumn="entity_id" onDelete="CASCADE" />
+        <constraint xsi:type="foreign" referenceId="FERA_ORDER_FULFILLMENT_STORE_ID_STORE_STORE_ID"
+            table="fera_order_fulfillment" column="store_id" referenceTable="store"
+            referenceColumn="store_id" onDelete="CASCADE" />
+        <index referenceId="FERA_ORDER_FULFILLMENT_EXPORTED_AT_IDX">
+            <column name="exported_at" />
+        </index>
+        <index referenceId="FERA_ORDER_FULFILLMENT_STORE_ID_EXPORTED_AT_COMPLETED_AT_IDX">
+            <column name="store_id" />
+            <column name="exported_at" />
+            <column name="completed_at" />
+        </index>
+        <index referenceId="FERA_ORDER_FULFILLMENT_ENQUEUED_AT_IDX">
+            <column name="enqueued_at" />
         </index>
     </table>
 </schema>
