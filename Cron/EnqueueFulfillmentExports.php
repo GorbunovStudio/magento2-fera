@@ -51,7 +51,10 @@ class EnqueueFulfillmentExports
         } catch (\Throwable $exception) {
             $this->logger->error(
                 'Failed to enqueue fulfillment exports: ' . $exception->getMessage(),
-                ['exception' => $exception]
+                [
+                    'exception' => $exception,
+                    'trace' => $exception->getTraceAsString()
+                ]
             );
         }
     }
@@ -78,15 +81,22 @@ class EnqueueFulfillmentExports
 
         $count = 0;
         foreach ($collection as $fulfillment) {
-            $orderId = $fulfillment->getOrderId();
-            $connection->update(
-                $tableName,
-                [FeraOrderFulfillmentInterface::ENQUEUED_AT => $this->dateTime->gmtDate()],
-                [FeraOrderFulfillmentInterface::ORDER_ID . ' = ?' => $orderId]
-            );
-            
-            $this->publisher->publish(TopicInterface::EXPORT_ORDER_FULFILLMENT, $orderId);
-            $count++;
+            $connection->beginTransaction();
+            try {
+                $orderId = $fulfillment->getOrderId();
+                $connection->update(
+                    $tableName,
+                    [FeraOrderFulfillmentInterface::ENQUEUED_AT => $this->dateTime->gmtDate()],
+                    [FeraOrderFulfillmentInterface::ORDER_ID . ' = ?' => $orderId]
+                );
+
+                $this->publisher->publish(TopicInterface::EXPORT_ORDER_FULFILLMENT, $orderId);
+                $count++;
+                $connection->commit();
+            } catch (\Throwable $exception) {
+                $connection->rollBack();
+                throw $exception;
+            }
         }
 
         return $count;
