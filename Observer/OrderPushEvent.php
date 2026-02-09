@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Observer;
 
+use Fera\Ai\Api\Data\FeraOrderFulfillmentInterface;
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\FeraOrderFulfillmentFactory;
@@ -16,6 +17,7 @@ use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Sales\Model\Order;
 use Psr\Log\LoggerInterface;
 use UnexpectedValueException;
+use Throwable;
 
 class OrderPushEvent implements ObserverInterface
 {
@@ -86,7 +88,7 @@ class OrderPushEvent implements ObserverInterface
                 $this->recordPendingFulfillment($orderId, (int)$order->getStoreId());
                 return;
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             // Do not rethrow in prod mode to avoid blocking order placement
             if ($this->state->getMode() === State::MODE_DEVELOPER) {
                 throw $exception;
@@ -167,7 +169,7 @@ class OrderPushEvent implements ObserverInterface
     private function recordPendingFulfillment(int $orderId, int $storeId): void
     {
         $fulfillment = $this->fulfillmentFactory->create();
-        $this->fulfillmentResource->load($fulfillment, $orderId, 'order_id');
+        $this->fulfillmentResource->load($fulfillment, $orderId, FeraOrderFulfillmentInterface::ORDER_ID);
         
         if (!$fulfillment->getId()) {
             $fulfillment->setOrderId($orderId);

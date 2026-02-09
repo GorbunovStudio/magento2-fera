@@ -13,6 +13,7 @@ use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Store\Model\StoreManagerInterface;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 class EnqueueFulfillmentExports
 {
@@ -46,7 +47,7 @@ class EnqueueFulfillmentExports
             }
 
             if ($processedCount > 0) {
-                $this->logger->info("Enqueued {$processedCount} fulfillment export(s)");
+                $this->logger->debug("Enqueued {$processedCount} fulfillment export(s)");
             }
         } catch (\Throwable $exception) {
             $this->logger->error(
@@ -93,7 +94,7 @@ class EnqueueFulfillmentExports
                 $this->publisher->publish(TopicInterface::EXPORT_ORDER_FULFILLMENT, $orderId);
                 $count++;
                 $connection->commit();
-            } catch (\Throwable $exception) {
+            } catch (Throwable $exception) {
                 $connection->rollBack();
                 throw $exception;
             }
