@@ -7,6 +7,7 @@ namespace Fera\Ai\Model\Queue\ExportOrderFulfillment;
 use Fera\Ai\Api\ApiClient\OrdersClientInterface;
 use Fera\Ai\Api\Data\FeraOrderFulfillmentInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\FeraOrderFulfillmentFactory;
 use Fera\Ai\Model\OrderExportManager;
 use Fera\Ai\Model\ResourceModel\FeraOrderFulfillment as FulfillmentResource;
 use Fera\Ai\Services\OrderExporter;
@@ -15,10 +16,10 @@ use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
+use Magento\Framework\DB\Adapter\AdapterInterface;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
-use Magento\Framework\DB\Adapter\AdapterInterface;
 use UnexpectedValueException;
 
 class Handler
@@ -32,6 +33,7 @@ class Handler
         private OrdersClientInterface $ordersClient,
         private ResourceConnection $resourceConnection,
         private FulfillmentResource $fulfillmentResource,
+        private FeraOrderFulfillmentFactory $fulfillmentFactory,
         private DateTime $dateTime
     ) {
     }
@@ -82,6 +84,16 @@ class Handler
             );
         }
 
+        $fulfillment = $this->fulfillmentFactory->create();
+        $this->fulfillmentResource->load($fulfillment, $orderId, FeraOrderFulfillmentInterface::ORDER_ID);
+
+        $completedAt = $fulfillment->getCompletedAt();
+        if ($completedAt === null || $completedAt === '') {
+            throw new UnexpectedValueException(
+                'Order ' . $orderId . ' has no completed_at recorded; cannot export fulfillment reliably'
+            );
+        }
+
         $feraId = $this->orderExportManager->getFeraId($orderId);
         if (!$feraId) {
             $feraId = $this->orderExporter->pushOrder($order, [], false);
@@ -92,7 +104,7 @@ class Handler
         }
 
         $orderData = [
-            'fulfilled_at' => $this->helper->formatDate($order->getUpdatedAt() ?? ''),
+            'fulfilled_at' => $this->helper->formatDate($completedAt),
             'external_id' => $orderId,
         ];
 
