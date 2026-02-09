@@ -149,6 +149,10 @@ class Data extends AbstractHelper
             $storeId
         );
         
+        if (!is_numeric($value)) {
+            return 0;
+        }
+
         return max(0, (int) $value);
     }
 
