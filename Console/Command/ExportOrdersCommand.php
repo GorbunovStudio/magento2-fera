@@ -7,6 +7,7 @@ namespace Fera\Ai\Console\Command;
 use DateTimeImmutable;
 use Exception;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Model\OrderExportManager;
 use Fera\Ai\Model\ResourceModel\FeraOrder as FeraOrderResource;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Services\StoreGroupService;
@@ -39,6 +40,7 @@ class ExportOrdersCommand extends Command
         private OrderRepositoryInterface $orderRepository,
         private CustomerRepositoryInterface $customerRepository,
         private OrderExporter $orderExporter,
+        private OrderExportManager $orderExportManager,
         private FeraHelper $feraHelper,
         private StoreGroupService $storeGroupService,
         private AppState $appState,
@@ -219,6 +221,19 @@ class ExportOrdersCommand extends Command
                             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                                 $output->writeln($exception->getTraceAsString());
                             }
+                            continue;
+                        }
+
+                        if ($this->orderExportManager->isExported($orderId)) {
+                            $storeSkipped++;
+                            $globalSkipped++;
+                            $globalProcessed++;
+
+                            $output->writeln(sprintf(
+                                'Skipped order %d: already exists in fera_orders table',
+                                $orderId
+                            ));
+
                             continue;
                         }
 
