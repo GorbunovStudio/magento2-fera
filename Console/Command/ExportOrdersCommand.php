@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Exception;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ResourceModel\FeraOrder as FeraOrderResource;
+use Fera\Ai\Model\ResourceModel\FeraOrderFulfillment as FeraOrderFulfillmentResource;
 use Fera\Ai\Services\OrderExporter;
 use Fera\Ai\Services\StoreGroupService;
 use InvalidArgumentException;
@@ -516,6 +517,14 @@ class ExportOrdersCommand extends Command
             []
         );
         $select->where('fera_order.order_id IS NULL');
+
+        $feraOrderFulfillmentTable = $collection->getTable(FeraOrderFulfillmentResource::TABLE_NAME);
+        $select->joinLeft(
+            ['fera_order_fulfillment' => $feraOrderFulfillmentTable],
+            'main_table.entity_id = fera_order_fulfillment.order_id',
+            []
+        );
+        $select->where('fera_order_fulfillment.order_id IS NULL');
 
         return $collection;
     }
