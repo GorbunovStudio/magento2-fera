@@ -478,9 +478,9 @@ class ExportOrdersCommand extends Command
     private function createCandidateCollection(int $storeId, string $from, ?string $to): OrderCollection
     {
         $collection = $this->orderCollectionFactory->create();
-        $collection->addFieldToSelect('entity_id');
-        $collection->addFieldToFilter('store_id', $storeId);
-        $collection->addFieldToFilter('state', Order::STATE_COMPLETE);
+        $collection->addFieldToSelect('main_table.entity_id');
+        $collection->addFieldToFilter('main_table.store_id', $storeId);
+        $collection->addFieldToFilter('main_table.state', Order::STATE_COMPLETE);
 
         $select = $collection->getSelect();
         
