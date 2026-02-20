@@ -41,7 +41,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             throw new RuntimeException('Forbidden');
         }
 
-        $claims = $this->jwtValidator->validateReviewCreateToken($jwt, $storeId);
+        $claims = $this->jwtValidator->validateToken($jwt, $storeId, 'review_create');
         $feraStoreId = $this->resolveFeraStoreId($claims);
 
         $payload = $this->request->getBodyParams();
