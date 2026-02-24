@@ -19,6 +19,14 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
 {
     private const TOPIC_NOTIFY_NEGATIVE_REVIEW = 'fera.review.notify_negative';
 
+    /**
+     * @param Request $request
+     * @param ScopeConfigInterface $scopeConfig
+     * @param StoreManagerInterface $storeManager
+     * @param PublisherInterface $publisher
+     * @param FeraWebhookJwtValidator $jwtValidator
+     * @param MessageInterfaceFactory $messageFactory
+     */
     public function __construct(
         private Request $request,
         private ScopeConfigInterface $scopeConfig,
@@ -29,6 +37,11 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
     ) {
     }
 
+    /**
+     * Process incoming review-created webhook request.
+     *
+     * @return void
+     */
     public function execute(): void
     {
         $storeId = (int) $this->storeManager->getStore()->getId();
@@ -71,6 +84,12 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         $this->publisher->publish(self::TOPIC_NOTIFY_NEGATIVE_REVIEW, $message);
     }
 
+    /**
+     * Check whether review notifications are enabled for store.
+     *
+     * @param int $storeId
+     * @return bool
+     */
     private function isEnabled(int $storeId): bool
     {
         return $this->scopeConfig->isSetFlag(
@@ -80,6 +99,12 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         );
     }
 
+    /**
+     * Resolve configured rating threshold for store.
+     *
+     * @param int $storeId
+     * @return float
+     */
     private function getRatingThreshold(int $storeId): float
     {
         $value = $this->scopeConfig->getValue(
