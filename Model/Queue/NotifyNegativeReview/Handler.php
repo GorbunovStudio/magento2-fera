@@ -102,7 +102,7 @@ class Handler
             'rating' => $message->getRating(),
             'customer_name' => $this->fallback($message->getCustomerName()),
             'heading' => $this->fallback($message->getHeading()),
-            'body' => $this->truncate($this->fallback($message->getBody()), 100),
+            'body' => $this->fallback($message->getBody()),
             'product_name' => $this->fallback($message->getProductName()),
             'external_order_id' => $this->fallback($message->getExternalOrderId()),
             'fera_review_url' => $feraReviewUrl,
@@ -363,12 +363,4 @@ class Handler
         return $trimmedValue;
     }
 
-    private function truncate(string $value, int $maxLength): string
-    {
-        if (mb_strlen($value) <= $maxLength) {
-            return $value;
-        }
-
-        return rtrim(mb_substr($value, 0, $maxLength - 1)) . '…';
-    }
 }

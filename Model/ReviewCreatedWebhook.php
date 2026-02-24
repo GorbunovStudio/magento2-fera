@@ -18,6 +18,7 @@ use RuntimeException;
 class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
 {
     private const TOPIC_NOTIFY_NEGATIVE_REVIEW = 'fera.review.notify_negative';
+    private const REVIEW_BODY_MAX_LENGTH = 200;
 
     /**
      * @param Request $request
@@ -78,7 +79,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             ->setExternalOrderId($this->extractString($payload, 'external_order_id'))
             ->setCustomerName($this->extractNestedString($payload, ['customer', 'name']))
             ->setHeading($this->extractString($payload, 'heading'))
-            ->setBody($this->extractString($payload, 'body'))
+            ->setBody($this->normalizeReviewBody($this->extractString($payload, 'body')))
             ->setProductName($this->extractNestedString($payload, ['product', 'name']));
 
         $this->publisher->publish(self::TOPIC_NOTIFY_NEGATIVE_REVIEW, $message);
@@ -192,5 +193,19 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         }
 
         return is_string($current) ? $current : '';
+    }
+
+    private function normalizeReviewBody(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (mb_strlen($value) <= self::REVIEW_BODY_MAX_LENGTH) {
+            return $value;
+        }
+
+        return rtrim(mb_substr($value, 0, self::REVIEW_BODY_MAX_LENGTH));
     }
 }
