@@ -34,7 +34,7 @@ class FeraWebhookJwtValidator
 
         $claims = get_object_vars($decoded);
 
-        $claimEventName = $claims['event_name'] ?? null;
+        $claimEventName = $claims['webhook_event_name'] ?? null;
         if (!is_string($claimEventName) || $claimEventName !== $eventName) {
             throw new RuntimeException('Forbidden');
         }
