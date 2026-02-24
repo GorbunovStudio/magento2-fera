@@ -193,7 +193,16 @@ class Handler
      */
     private function sendSlack(string $webhookUrl, array $notificationData): void
     {
-        $elements = [
+        $storeName = is_string($notificationData['store_name']) ? $notificationData['store_name'] : '';
+        $rating = is_numeric($notificationData['rating'] ?? null) ? (float) $notificationData['rating'] : 0.0;
+        $starsString = $this->formatStarsString($rating);
+
+        $productName = is_string($notificationData['product_name']) ? $notificationData['product_name'] : '';
+        $customerName = is_string($notificationData['customer_name']) ? $notificationData['customer_name'] : '-';
+        $reviewHeading = is_string($notificationData['heading']) ? $notificationData['heading'] : '-';
+        $reviewBody = is_string($notificationData['body']) ? $notificationData['body'] : '';
+
+        $actions = [
             [
                 'type' => 'button',
                 'text' => [
@@ -201,11 +210,12 @@ class Handler
                     'text' => 'View in Fera',
                 ],
                 'url' => $notificationData['fera_review_url'],
+                'style' => 'primary',
             ],
         ];
 
         if (is_string($notificationData['magento_order_url']) && $notificationData['magento_order_url'] !== '') {
-            $elements[] = [
+            $actions[] = [
                 'type' => 'button',
                 'text' => [
                     'type' => 'plain_text',
@@ -216,30 +226,53 @@ class Handler
         }
 
         $payload = [
-            'text' => 'Negative review received',
+            'text' => '🚨 Negative Review Alert',
             'blocks' => [
                 [
                     'type' => 'header',
                     'text' => [
                         'type' => 'plain_text',
-                        'text' => 'Negative review received',
+                        'text' => '🚨 Negative Review Alert',
+                        'emoji' => true,
+                    ],
+                ],
+                [
+                    'type' => 'divider',
+                ],
+                [
+                    'type' => 'section',
+                    'fields' => [
+                        [
+                            'type' => 'mrkdwn',
+                            'text' => "*Store:*\n" . $storeName,
+                        ],
+                        [
+                            'type' => 'mrkdwn',
+                            'text' => "*Rating:*\n" . $starsString,
+                        ],
+                    ],
+                ],
+                [
+                    'type' => 'section',
+                    'fields' => [
+                        [
+                            'type' => 'mrkdwn',
+                            'text' => "*Product:* " . $productName,
+                        ],
                     ],
                 ],
                 [
                     'type' => 'section',
                     'text' => [
                         'type' => 'mrkdwn',
-                        'text' => '*Store:* ' . $notificationData['store_name'] . ' (`' . $notificationData['store_code'] . "`)\n"
-                            . '*Rating:* ' . $notificationData['rating'] . "\n"
-                            . '*Customer:* ' . $notificationData['customer_name'] . "\n"
-                            . '*Product:* ' . $notificationData['product_name'] . "\n"
-                            . '*Title:* ' . $notificationData['heading'] . "\n"
-                            . '*Review:* ' . $notificationData['body'],
+                        'text' => "*Customer:* {$customerName}\n"
+                            . "*Title:* {$reviewHeading}\n"
+                            . "*Review:*\n" . $reviewBody,
                     ],
                 ],
                 [
                     'type' => 'actions',
-                    'elements' => $elements,
+                    'elements' => $actions,
                 ],
             ],
         ];
@@ -250,6 +283,16 @@ class Handler
             'connect_timeout' => self::SLACK_CONNECT_TIMEOUT_SECONDS,
             'timeout' => self::SLACK_TIMEOUT_SECONDS,
         ]);
+    }
+
+    private function formatStarsString(float $rating): string
+    {
+        $maxStars = 5;
+        $ratingRounded = max(0, min($maxStars, (int) round($rating)));
+
+        return str_repeat('★', $ratingRounded)
+            . str_repeat('☆', $maxStars - $ratingRounded)
+            . ' (' . $ratingRounded . '/' . $maxStars . ')';
     }
 
     private function sendEmail(string $recipientConfig, array $notificationData, int $storeId): void
