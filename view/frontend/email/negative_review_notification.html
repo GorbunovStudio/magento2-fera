@@ -1,4 +1,4 @@
-<!--@subject {{trans "Negative Fera review alert ({{var store_name}})" store_name=$store_name}} @-->
+<!--@subject {{trans "Negative Fera review alert (%store_name)" store_name=$store_name}} @-->
 <!--@vars {
 "var store_name":"Store name",
 "var store_code":"Store code",
@@ -7,7 +7,7 @@
 "var heading":"Review heading",
 "var body":"Review body",
 "var product_name":"Product name",
-"var external_order_id":"Order increment ID",
+"var external_order_id":"Order ID",
 "var fera_review_url":"Fera review URL",
 "var magento_order_url":"Magento order URL"
 } @-->
@@ -19,7 +19,7 @@
 <p><strong>{{trans "Product:"}}</strong> {{var product_name}}</p>
 <p><strong>{{trans "Title:"}}</strong> {{var heading}}</p>
 <p><strong>{{trans "Review:"}}</strong><br />{{var body}}</p>
-<p><strong>{{trans "Order Increment ID:"}}</strong> {{var external_order_id}}</p>
+<p><strong>{{trans "Order ID:"}}</strong> {{var external_order_id}}</p>
 <p><a href="{{var fera_review_url}}">{{trans "View in Fera"}}</a></p>
 {{if magento_order_url}}
 <p><a href="{{var magento_order_url}}">{{trans "View Magento Order"}}</a></p>
