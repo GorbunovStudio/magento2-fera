@@ -12,6 +12,7 @@ use Magento\Backend\Model\UrlInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Mail\Template\TransportBuilder;
 use Magento\Framework\Validator\EmailAddress;
 use Magento\Sales\Api\Data\OrderInterface;
@@ -150,20 +151,18 @@ class Handler
 
     private function resolveOrderUrl(string $externalOrderId): string
     {
-        $orderIncrementId = trim($externalOrderId);
-        if ($orderIncrementId === '') {
+        $orderId = trim($externalOrderId);
+        if ($orderId === '') {
             return '';
         }
 
-        $searchCriteria = $this->searchCriteriaBuilder
-            ->addFilter('increment_id', $orderIncrementId)
-            ->setPageSize(1)
-            ->setCurrentPage(1)
-            ->create();
+        if (!is_numeric($orderId)) {
+            return '';
+        }
 
-        $orders = $this->orderRepository->getList($searchCriteria)->getItems();
-        $order = reset($orders);
-        if ($order === false) {
+        try {
+            $order = $this->orderRepository->get((int) $orderId);
+        } catch (NoSuchEntityException) {
             return '';
         }
 
