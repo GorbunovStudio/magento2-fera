@@ -12,6 +12,7 @@ use Magento\Backend\Model\UrlInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Mail\Template\TransportBuilder;
 use Magento\Framework\Validator\EmailAddress;
@@ -36,6 +37,7 @@ class Handler
         private TransportBuilder $transportBuilder,
         private EmailAddress $emailAddressValidator,
         private ClientFactory $clientFactory,
+        private EncryptorInterface $encryptor,
         private StoreManagerInterface $storeManager,
         private Logger $logger
     ) {
@@ -107,8 +109,12 @@ class Handler
             'magento_order_url' => $orderUrl,
         ];
 
-        $slackWebhookUrl = $this->getConfigString(ConfigOptionInterface::REVIEW_NOTIFICATIONS_SLACK_WEBHOOK_URL, $storeId);
+        $slackWebhookUrl = $this->getDecryptedConfigString(
+            ConfigOptionInterface::REVIEW_NOTIFICATIONS_SLACK_WEBHOOK_URL,
+            $storeId
+        );
         if ($slackWebhookUrl !== '') {
+            $this->assertWebhookUrl($slackWebhookUrl);
             $this->sendSlack($slackWebhookUrl, $notificationData);
         }
 
@@ -312,6 +318,39 @@ class Handler
         }
 
         return trim($value);
+    }
+
+    private function getDecryptedConfigString(string $path, int $storeId): string
+    {
+        $value = $this->getConfigString($path, $storeId);
+        if ($value === '') {
+            return '';
+        }
+
+        try {
+            $decryptedValue = $this->encryptor->decrypt($value);
+            if (!is_string($decryptedValue) || trim($decryptedValue) === '') {
+                return $value;
+            }
+
+            return trim($decryptedValue);
+        } catch (Throwable) {
+            return $value;
+        }
+    }
+
+    private function assertWebhookUrl(string $webhookUrl): void
+    {
+        $parsedUrl = parse_url($webhookUrl);
+        if (!is_array($parsedUrl)) {
+            throw new RuntimeException('Invalid Slack webhook URL format');
+        }
+
+        $scheme = $parsedUrl['scheme'] ?? null;
+        $host = $parsedUrl['host'] ?? null;
+        if (!is_string($scheme) || !in_array(strtolower($scheme), ['http', 'https'], true) || !is_string($host) || $host === '') {
+            throw new RuntimeException('Slack webhook URL must be an absolute HTTP(S) URL');
+        }
     }
 
     private function fallback(string $value): string
