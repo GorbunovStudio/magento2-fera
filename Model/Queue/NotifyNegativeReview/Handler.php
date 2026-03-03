@@ -114,10 +114,11 @@ class Handler
             'magento_order_url' => $orderData['url'],
         ];
 
-        $slackWebhookUrl = $this->getDecryptedConfigString(
+        $slackWebhookUrl = $this->getConfigString(
             ConfigOptionInterface::REVIEW_NOTIFICATIONS_SLACK_WEBHOOK_URL,
             $storeId
         );
+
         if ($slackWebhookUrl !== '') {
             $this->assertWebhookUrl($slackWebhookUrl);
             $this->sendSlack($slackWebhookUrl, $notificationData);
@@ -384,25 +385,6 @@ class Handler
         }
 
         return trim($value);
-    }
-
-    private function getDecryptedConfigString(string $path, int $storeId): string
-    {
-        $value = $this->getConfigString($path, $storeId);
-        if ($value === '') {
-            return '';
-        }
-
-        try {
-            $decryptedValue = $this->encryptor->decrypt($value);
-            if (!is_string($decryptedValue) || trim($decryptedValue) === '') {
-                return $value;
-            }
-
-            return trim($decryptedValue);
-        } catch (Throwable) {
-            return $value;
-        }
     }
 
     private function assertWebhookUrl(string $webhookUrl): void
