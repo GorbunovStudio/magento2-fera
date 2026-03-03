@@ -4,8 +4,8 @@
 "var store_code":"Store code",
 "var rating":"Rating",
 "var customer_name":"Customer name",
-"var heading":"Review heading",
-"var body":"Review body",
+"var review_title":"Review title",
+"var review_body":"Review body",
 "var product_name":"Product name",
 "var external_order_id":"Order ID",
 "var fera_review_url":"Fera review URL",
@@ -15,10 +15,10 @@
 <p>{{trans "A negative review was received in Fera."}}</p>
 <p><strong>{{trans "Store:"}}</strong> {{var store_name}} ({{var store_code}})</p>
 <p><strong>{{trans "Rating:"}}</strong> {{var rating}}</p>
-<p><strong>{{trans "Customer:"}}</strong> {{var customer_name}}</p>
+<p><strong>{{trans "Customer:"}}</strong> {{var customer_name|escape}}</p>
 <p><strong>{{trans "Product:"}}</strong> {{var product_name}}</p>
-<p><strong>{{trans "Title:"}}</strong> {{var heading}}</p>
-<p><strong>{{trans "Review:"}}</strong><br />{{var body}}</p>
+<p><strong>{{trans "Title:"}}</strong> {{var review_title|escape}}</p>
+<p><strong>{{trans "Review:"}}</strong><br />{{var review_body|escape|nl2br}}</p>
 <p><strong>{{trans "Order ID:"}}</strong> {{var external_order_id}}</p>
 <p><a href="{{var fera_review_url}}">{{trans "View in Fera"}}</a></p>
 {{if magento_order_url}}
