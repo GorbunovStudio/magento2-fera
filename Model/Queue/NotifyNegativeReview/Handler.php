@@ -94,7 +94,12 @@ class Handler
         $storeCode = $store->getCode();
 
         $feraReviewUrl = $this->buildFeraReviewUrl($storeId, $message->getFeraStoreId(), $message->getReviewId());
-        $orderUrl = $this->resolveOrderUrl($message->getExternalOrderId());
+        $orderData = $this->resolveOrderData($message->getExternalOrderId());
+
+        $orderIncrementId = $orderData['increment_id'];
+        if ($orderIncrementId === '') {
+            $orderIncrementId = $message->getExternalOrderId();
+        }
 
         $notificationData = [
             'store_name' => $storeName,
@@ -106,7 +111,7 @@ class Handler
             'product_name' => $this->fallback($message->getProductName()),
             'external_order_id' => $this->fallback($message->getExternalOrderId()),
             'fera_review_url' => $feraReviewUrl,
-            'magento_order_url' => $orderUrl,
+            'magento_order_url' => $orderData['url'],
         ];
 
         $slackWebhookUrl = $this->getDecryptedConfigString(
@@ -155,21 +160,24 @@ class Handler
             . rawurlencode($targetUrl);
     }
 
-    private function resolveOrderUrl(string $externalOrderId): string
+    /**
+     * @return array{url: string, increment_id: string}
+     */
+    private function resolveOrderData(string $externalOrderId): array
     {
         $orderId = trim($externalOrderId);
         if ($orderId === '') {
-            return '';
+            return ['url' => '', 'increment_id' => ''];
         }
 
         if (!is_numeric($orderId)) {
-            return '';
+            return ['url' => '', 'increment_id' => ''];
         }
 
         try {
             $order = $this->orderRepository->get((int) $orderId);
         } catch (NoSuchEntityException) {
-            return '';
+            return ['url' => '', 'increment_id' => ''];
         }
 
         if (!$order instanceof OrderInterface) {
@@ -185,7 +193,17 @@ class Handler
             );
         }
 
-        return $this->backendUrl->getUrl('sales/order/view', ['order_id' => (int) $orderId]);
+        $incrementId = $order->getIncrementId();
+        if (!is_string($incrementId)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for order increment ID: expected string, got ' . get_debug_type($incrementId)
+            );
+        }
+
+        return [
+            'url' => $this->backendUrl->getUrl('sales/order/view', ['order_id' => (int) $orderId]),
+            'increment_id' => trim($incrementId),
+        ];
     }
 
     /**
@@ -198,6 +216,7 @@ class Handler
         $starsString = $this->formatStarsString($rating);
 
         $productName = is_string($notificationData['product_name']) ? $notificationData['product_name'] : '';
+        $externalOrderId = is_string($notificationData['external_order_id']) ? $notificationData['external_order_id'] : '-';
         $customerName = is_string($notificationData['customer_name']) ? $notificationData['customer_name'] : '-';
         $reviewHeading = is_string($notificationData['heading']) ? $notificationData['heading'] : '-';
         $reviewBody = is_string($notificationData['body']) ? $notificationData['body'] : '';
@@ -256,8 +275,12 @@ class Handler
                     'type' => 'section',
                     'fields' => [
                         [
-                            'type' => 'mrkdwn',
-                            'text' => "*Product:* " . $productName,
+                        'type' => 'mrkdwn',
+                        'text' => "*Product:* {$productName}",
+                        ],
+                        [
+                        'type' => 'mrkdwn',
+                        'text' => "*Order ID:* {$externalOrderId}",
                         ],
                     ],
                 ],
