@@ -3,6 +3,8 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface" type="Fera\Ai\Model\Queue\ExportProduct\Message" />
+    <preference for="Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterface" type="Fera\Ai\Model\Queue\NotifyNegativeReview\Message" />
+    <preference for="Fera\Ai\Api\ReviewCreatedWebhookInterface" type="Fera\Ai\Model\ReviewCreatedWebhook" />
 
     <preference for="Fera\Ai\Api\ApiClient\OrdersClientInterface" type="Fera\Ai\Services\ApiClient\OrdersClient" />
     <preference for="Fera\Ai\Api\ApiClient\CustomersClientInterface" type="Fera\Ai\Services\ApiClient\CustomersClient" />

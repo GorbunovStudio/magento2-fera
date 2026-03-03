@@ -33,13 +33,13 @@
                     <comment>You can find your API keys at https://app.fera.ai/store/settings?tab=api</comment>
                 </field>
                 <field id="app_url" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>App Url</label>
+                    <label>App URL</label>
                 </field>
                 <field id="api_url" translate="label" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Api Url</label>
+                    <label>Api URL</label>
                 </field>
                 <field id="js_url" translate="label" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Js Url</label>
+                    <label>Js URL</label>
                 </field>
             </group>
             <group id="sync_settings" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
@@ -64,6 +64,29 @@
                     <validate>validate-zero-or-greater validate-digits</validate>
                     <comment>Number of days to wait after an order becomes Complete before sending fulfillment notification to Fera.ai. This
                         ensures customers receive their orders before being asked for reviews. Set to 0 for no delay.</comment>
+                </field>
+            </group>
+            <group id="review_notifications" translate="label" type="text" sortOrder="40" showInDefault="1" showInWebsite="1"
+                showInStore="1">
+                <label>Review Notifications</label>
+                <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enabled</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="rating_threshold" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1"
+                    showInStore="1">
+                    <label>Rating Threshold</label>
+                    <source_model>Fera\Ai\Model\Config\Source\Rating</source_model>
+                </field>
+                <field id="slack_webhook_url" translate="label" type="obscure" sortOrder="30" showInDefault="1" showInWebsite="1"
+                    showInStore="1">
+                    <label>Slack Webhook URL</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                </field>
+                <field id="email_recipients" translate="label comment" type="textarea" sortOrder="40" showInDefault="1" showInWebsite="1"
+                    showInStore="1">
+                    <label>Email Recipients</label>
+                    <comment>Comma or newline separated email addresses.</comment>
                 </field>
             </group>
         </section>

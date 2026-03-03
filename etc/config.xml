@@ -19,6 +19,11 @@
                 <minimize_data_sharing>1</minimize_data_sharing>
                 <fulfillment_export_delay_days>12</fulfillment_export_delay_days>
             </sync_settings>
+            <review_notifications>
+                <enabled>0</enabled>
+                <rating_threshold>3</rating_threshold>
+                <slack_webhook_url backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
+            </review_notifications>
         </fera_ai>
     </default>
 </config>

@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Email:etc/email_templates.xsd">
+    <template id="fera_ai_review_notifications_email_template" label="Fera Negative Review Notification" file="negative_review_notification.html"
+        type="html" module="Fera_Ai" area="frontend" />
+</config>
