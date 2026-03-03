@@ -4,20 +4,23 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Model;
 
+use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterfaceFactory;
 use Fera\Ai\Api\ReviewCreatedWebhookInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
+use Magento\Framework\Phrase;
+use Magento\Framework\Webapi\Exception as WebapiException;
 use Magento\Framework\Webapi\Rest\Request;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use RuntimeException;
+use Throwable;
 
 class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
 {
-    private const TOPIC_NOTIFY_NEGATIVE_REVIEW = 'fera.review.notify_negative';
     private const REVIEW_BODY_MAX_LENGTH = 200;
 
     /**
@@ -52,15 +55,20 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
 
         $jwt = $this->request->getParam('jwt');
         if (!is_string($jwt) || $jwt === '') {
-            throw new RuntimeException('Forbidden');
+            throw new WebapiException(new Phrase('Unauthorized'), 0, WebapiException::HTTP_UNAUTHORIZED);
         }
 
-        $claims = $this->jwtValidator->validateToken($jwt, $storeId, 'review_create');
+        try {
+            $claims = $this->jwtValidator->validateToken($jwt, $storeId, 'review_create');
+        } catch (Throwable) {
+            throw new WebapiException(new Phrase('Unauthorized'), 0, WebapiException::HTTP_UNAUTHORIZED);
+        }
+
         $feraStoreId = $this->resolveFeraStoreId($claims);
 
         $payload = $this->request->getBodyParams();
         if (!is_array($payload)) {
-            throw new RuntimeException('Request body must be a JSON object');
+            throw new WebapiException(new Phrase('Request body must be a JSON object'), 0, WebapiException::HTTP_BAD_REQUEST);
         }
 
         $reviewId = $this->resolveReviewId($payload);
@@ -78,11 +86,11 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             ->setFeraStoreId($feraStoreId)
             ->setExternalOrderId($this->extractString($payload, 'external_order_id'))
             ->setCustomerName($this->extractNestedString($payload, ['customer', 'name']))
-            ->setHeading($this->extractString($payload, 'heading'))
-            ->setBody($this->normalizeReviewBody($this->extractString($payload, 'body')))
+            ->setReviewTitle($this->extractString($payload, 'heading'))
+            ->setReviewBody($this->normalizeReviewBody($this->extractString($payload, 'body')))
             ->setProductName($this->extractNestedString($payload, ['product', 'name']));
 
-        $this->publisher->publish(self::TOPIC_NOTIFY_NEGATIVE_REVIEW, $message);
+        $this->publisher->publish(TopicInterface::NOTIFY_NEGATIVE_REVIEW, $message);
     }
 
     /**
@@ -135,7 +143,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             return (string) $value;
         }
 
-        throw new RuntimeException('Forbidden');
+        throw new WebapiException(new Phrase('Unauthorized'), 0, WebapiException::HTTP_UNAUTHORIZED);
     }
 
     /**
@@ -145,7 +153,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
     {
         $reviewId = $payload['id'] ?? null;
         if (!is_string($reviewId) || trim($reviewId) === '') {
-            throw new RuntimeException('Field "id" must be a non-empty string');
+            throw new WebapiException(new Phrase('Field "id" must be a non-empty string'), 0, WebapiException::HTTP_BAD_REQUEST);
         }
 
         return trim($reviewId);
@@ -158,7 +166,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
     {
         $rating = $payload['rating'] ?? null;
         if (!is_numeric($rating)) {
-            throw new RuntimeException('Field "rating" must be numeric');
+            throw new WebapiException(new Phrase('Field "rating" must be numeric'), 0, WebapiException::HTTP_BAD_REQUEST);
         }
 
         return (float) $rating;
