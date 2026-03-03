@@ -23,6 +23,20 @@ use RuntimeException;
 use Throwable;
 use UnexpectedValueException;
 
+/**
+ * @phpstan-type NotificationData array{
+ *   store_name: string,
+ *   store_code: string,
+ *   rating: float,
+ *   customer_name: string,
+ *   review_title: string,
+ *   review_body: string,
+ *   product_name: string,
+ *   external_order_id: string,
+ *   fera_review_url: string,
+ *   magento_order_url: string
+ * }
+ */
 class Handler
 {
     private const SLACK_CONNECT_TIMEOUT_SECONDS = 2.0;
@@ -205,18 +219,7 @@ class Handler
     }
 
     /**
-     * @param array{
-     *   store_name: string,
-     *   store_code: string,
-     *   rating: float,
-     *   customer_name: string,
-     *   review_title: string,
-     *   review_body: string,
-     *   product_name: string,
-     *   external_order_id: string,
-     *   fera_review_url: string,
-     *   magento_order_url: string
-     * } $notificationData
+     * @param NotificationData $notificationData
      */
     private function sendSlack(string $webhookUrl, array $notificationData): void
     {
@@ -327,6 +330,9 @@ class Handler
             . ' (' . $ratingRounded . '/' . $maxStars . ')';
     }
 
+    /**
+     * @param NotificationData $notificationData
+     */
     private function sendEmail(string $recipientConfig, array $notificationData, int $storeId): void
     {
         $recipients = $this->parseRecipients($recipientConfig);
@@ -351,7 +357,7 @@ class Handler
     }
 
     /**
-     * @return list<string>
+     * @return list<non-empty-string>
      */
     private function parseRecipients(string $recipientConfig): array
     {
