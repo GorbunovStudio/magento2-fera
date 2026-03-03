@@ -9,12 +9,11 @@ use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Logger\Logger;
 use GuzzleHttp\ClientFactory;
 use Magento\Backend\Model\UrlInterface;
-use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Mail\Template\TransportBuilder;
+use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
 use Magento\Framework\Validator\EmailAddress;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
@@ -32,12 +31,10 @@ class Handler
     public function __construct(
         private ScopeConfigInterface $scopeConfig,
         private OrderRepositoryInterface $orderRepository,
-        private SearchCriteriaBuilder $searchCriteriaBuilder,
         private UrlInterface $backendUrl,
         private TransportBuilder $transportBuilder,
         private EmailAddress $emailAddressValidator,
         private ClientFactory $clientFactory,
-        private EncryptorInterface $encryptor,
         private StoreManagerInterface $storeManager,
         private Logger $logger
     ) {
@@ -63,7 +60,7 @@ class Handler
                 $exception
             );
         } finally {
-            if (method_exists($this->orderRepository, '_resetState')) {
+            if ($this->orderRepository instanceof ResetAfterRequestInterface) {
                 $this->orderRepository->_resetState();
             }
         }
@@ -106,10 +103,10 @@ class Handler
             'store_code' => $storeCode,
             'rating' => $message->getRating(),
             'customer_name' => $this->fallback($message->getCustomerName()),
-            'heading' => $this->fallback($message->getHeading()),
-            'body' => $this->fallback($message->getBody()),
+            'review_title' => $this->fallback($message->getReviewTitle()),
+            'review_body' => $this->fallback($message->getReviewBody()),
             'product_name' => $this->fallback($message->getProductName()),
-            'external_order_id' => $this->fallback($message->getExternalOrderId()),
+            'external_order_id' => $this->fallback($orderIncrementId),
             'fera_review_url' => $feraReviewUrl,
             'magento_order_url' => $orderData['url'],
         ];
@@ -208,7 +205,18 @@ class Handler
     }
 
     /**
-     * @param array<string, mixed> $notificationData
+     * @param array{
+     *   store_name: string,
+     *   store_code: string,
+     *   rating: float,
+     *   customer_name: string,
+     *   review_title: string,
+     *   review_body: string,
+     *   product_name: string,
+     *   external_order_id: string,
+     *   fera_review_url: string,
+     *   magento_order_url: string
+     * } $notificationData
      */
     private function sendSlack(string $webhookUrl, array $notificationData): void
     {
@@ -219,8 +227,8 @@ class Handler
         $productName = is_string($notificationData['product_name']) ? $notificationData['product_name'] : '';
         $externalOrderId = is_string($notificationData['external_order_id']) ? $notificationData['external_order_id'] : '-';
         $customerName = is_string($notificationData['customer_name']) ? $notificationData['customer_name'] : '-';
-        $reviewHeading = is_string($notificationData['heading']) ? $notificationData['heading'] : '-';
-        $reviewBody = is_string($notificationData['body']) ? $notificationData['body'] : '';
+        $reviewTitle = is_string($notificationData['review_title']) ? $notificationData['review_title'] : '-';
+        $reviewBody = is_string($notificationData['review_body']) ? $notificationData['review_body'] : '';
 
         $actions = [
             [
@@ -290,7 +298,7 @@ class Handler
                     'text' => [
                         'type' => 'mrkdwn',
                         'text' => "*Customer:* {$customerName}\n"
-                            . "*Title:* {$reviewHeading}\n"
+                            . "*Title:* {$reviewTitle}\n"
                             . "*Review:*\n" . $reviewBody,
                     ],
                 ],
@@ -327,7 +335,7 @@ class Handler
         }
 
         $transportBuilder = $this->transportBuilder
-            ->setTemplateIdentifier('fera_negative_review_notification')
+            ->setTemplateIdentifier('fera_ai_review_notifications_email_template')
             ->setTemplateOptions([
                 'area' => Area::AREA_FRONTEND,
                 'store' => $storeId,
