@@ -75,24 +75,24 @@ interface MessageInterface
     /**
      * @return string
      */
-    public function getHeading(): string;
+    public function getReviewTitle(): string;
 
     /**
      * @param string $value
      * @return $this
      */
-    public function setHeading(string $value): static;
+    public function setReviewTitle(string $value): static;
 
     /**
      * @return string
      */
-    public function getBody(): string;
+    public function getReviewBody(): string;
 
     /**
      * @param string $value
      * @return $this
      */
-    public function setBody(string $value): static;
+    public function setReviewBody(string $value): static;
 
     /**
      * @return string
