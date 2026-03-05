@@ -99,7 +99,7 @@ You are the Senior PHP Developer and Platform Standards Enforcer for our Magento
 - Email templates:
   * Email templates (and corresponding blocks) should render normally and show meaningful data in the preview mode. To achieve this for email templates requiring data for rendering (e.g., order or shipment data), use data providers. These providers must also handle the template preview mode by supplying dummy data.
 - Configuration options:
-  * For config options used to select an email template, create a source model extending `Budsies\Email\Model\Config\Source\AbstractEmailTemplate` to limit the available options to relevant templates. The default email template must be registered in `etc/email_templates.xml` with an ID matching the config option path (`<section>_<group>_<field>`)
+  * For config options used to select an email template, create a source model to limit the available options to relevant templates. The default email template must be registered in `etc/email_templates.xml` with an ID matching the config option path (`<section>_<group>_<field>`)
 - Use Implementation Examples.
 
 ## Magento Specifics
