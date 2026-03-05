@@ -28,8 +28,18 @@ All data synchronization with Fera.ai is handled in the background by Magento's 
 - **Product Exports**: Products are automatically queued for export when an order is placed. You can also export them manually via the console.
 - **Order Exports**: New orders, updates, and fulfillments are queued and sent to Fera.ai.
 - **Customer Updates**: Customer data changes are synced to keep Fera.ai up-to-date.
+- **Negative Review Notifications**: When Fera.ai sends a `review_create` webhook and the review rating is less than or equal to the configured threshold, the module queues a notification and delivers it via Slack and/or email.
 
 This ensures that data synchronization is reliable and does not slow down the customer experience or admin operations.
+
+### Webhooks
+
+This module exposes a webhook endpoint used by Fera.ai to notify Magento about new reviews:
+
+- **Review created webhook**: `POST /rest/V1/fera/webhook/review-created`
+    - The request must include a `jwt` parameter (used for authentication).
+    - The request body must be a JSON object matching Fera's `review_create` payload.
+    - If review notifications are enabled and the review rating is less than or equal to the configured threshold, the module publishes a message to the Magento queue for async delivery.
 
 ## Usage
 Go to https://app.fera.ai/widgets to customize your experience!
@@ -305,6 +315,29 @@ This section is for configuring your Fera.ai account credentials. You can find t
     -   **Use Cases:**
         -   **Enable** if you have strict data privacy requirements and want to limit the information shared with Fera.ai.
         -   **Disable** to send complete order and customer data for a richer integration.
+
+-   **Fulfillment export delay (days) (Default: 12)**
+    -   **Description:** Number of days to wait after an order becomes "Complete" before sending the fulfillment notification to Fera.ai. Set to `0` for no delay.
+    -   **Use Cases:**
+        -   **Increase** to reduce the chance of requesting reviews before delivery.
+
+### Review Notifications
+
+**Admin Path:** `... > Fera.ai > Review Notifications`
+
+-   **Enabled (Default: No)**
+    -   **Description:** Enables notifications for newly created reviews received via the Fera webhook.
+
+-   **Rating Threshold (Default: 3)**
+    -   **Description:** A review is considered "negative" if its rating is less than or equal to this value.
+
+-   **Slack Webhook Url (Default: empty)**
+    -   **Description:** Slack incoming webhook URL. Stored encrypted in Magento configuration.
+    -   **Notes:** If empty, Slack notifications are skipped.
+
+-   **Email Recipients (Default: empty)**
+    -   **Description:** Comma or newline separated list of email addresses.
+    -   **Notes:** If configured, the module sends an email using the template "Fera Negative Review Notification".
 
 ## Help
 If you're seeing this repo you're probably a trusted developer - so just feel free to email help a-t fera dot ai with any questions.
