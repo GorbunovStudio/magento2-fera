@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Setup\Patch\Data;
 
+use Fera\Ai\Api\Data\ProductAttributeCodeInterface;
 use Magento\Catalog\Model\Product;
 use Magento\Eav\Model\Entity\Attribute\ScopedAttributeInterface;
 use Magento\Eav\Setup\EavSetupFactory;
@@ -12,7 +13,6 @@ use Magento\Framework\Setup\Patch\DataPatchInterface;
 
 class AddFeraSkuOverrideProductAttribute implements DataPatchInterface
 {
-    private const ATTRIBUTE_CODE = 'fera_sku_override';
     private const ATTRIBUTE_LABEL = 'SKU Override';
 
     private const TARGET_ATTRIBUTE_SET_NAME = 'General';
@@ -47,11 +47,11 @@ class AddFeraSkuOverrideProductAttribute implements DataPatchInterface
 
         $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 
-        $existingAttributeId = (int)$eavSetup->getAttributeId(Product::ENTITY, self::ATTRIBUTE_CODE);
+        $existingAttributeId = (int) $eavSetup->getAttributeId(Product::ENTITY, ProductAttributeCodeInterface::FERA_SKU_OVERRIDE);
         if ($existingAttributeId === 0) {
             $eavSetup->addAttribute(
                 Product::ENTITY,
-                self::ATTRIBUTE_CODE,
+                ProductAttributeCodeInterface::FERA_SKU_OVERRIDE,
                 [
                     'type' => 'varchar',
                     'label' => self::ATTRIBUTE_LABEL,
@@ -95,12 +95,10 @@ class AddFeraSkuOverrideProductAttribute implements DataPatchInterface
             Product::ENTITY,
             $attributeSetId,
             self::TARGET_ATTRIBUTE_GROUP_NAME,
-            self::ATTRIBUTE_CODE,
+            ProductAttributeCodeInterface::FERA_SKU_OVERRIDE,
             999
         );
 
         $connection->endSetup();
-
-        return $this;
     }
 }
