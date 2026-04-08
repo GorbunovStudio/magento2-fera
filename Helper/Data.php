@@ -156,6 +156,22 @@ class Data extends AbstractHelper
         return max(0, (int) $value);
     }
 
+    public function getExportBrand(?int $storeId = null): ?string
+    {
+        $value = $this->scopeConfig->getValue(
+            ConfigOptionInterface::EXPORT_BRAND,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        return $value !== '' ? $value : null;
+    }
+
     /**
      * True if the current Fera Ai configuration is setup to work properly
      *

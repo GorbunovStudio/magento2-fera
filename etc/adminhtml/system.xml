@@ -65,6 +65,10 @@
                     <comment>Number of days to wait after an order becomes Complete before sending fulfillment notification to Fera.ai. This
                         ensures customers receive their orders before being asked for reviews. Set to 0 for no delay.</comment>
                 </field>
+                <field id="brand" translate="label comment" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Brand</label>
+                    <comment>Stable Google-facing brand value to include in product export for review matching.</comment>
+                </field>
             </group>
             <group id="review_notifications" translate="label" type="text" sortOrder="40" showInDefault="1" showInWebsite="1"
                 showInStore="1">

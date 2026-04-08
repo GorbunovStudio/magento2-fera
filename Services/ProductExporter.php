@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fera\Ai\Services;
 
 use Fera\Ai\Api\ApiClient\ProductsClientInterface;
+use Fera\Ai\Api\Data\ProductAttributeCodeInterface;
 use Fera\Ai\Exception\ProductNotFoundException;
 use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Model\ProductExportManager;
@@ -140,6 +141,7 @@ class ProductExporter implements ResetAfterRequestInterface
         $productData = [
             'id' => $product->getId(),
             'external_id' => $product->getId(),
+            'sku' => $this->resolveExportSku($product),
             'name' => $product->getName(),
             'created_at' => $this->helper->formatDate($product->getCreatedAt()),
             'modified_at' => $this->helper->formatDate($product->getUpdatedAt()),
@@ -159,6 +161,11 @@ class ProductExporter implements ResetAfterRequestInterface
                 'regular_price' => 0,
             ],
         ];
+
+        $brand = $this->helper->getExportBrand((int) $product->getStoreId());
+        if ($brand !== null) {
+            $productData['brand'] = $brand;
+        }
 
         if (!$minimizeDataSharing) {
             $productData['price'] = $product->getFinalPrice();
@@ -227,6 +234,20 @@ class ProductExporter implements ResetAfterRequestInterface
         $productData = $this->enrichProductData($product, $productData);
 
         return $productData;
+    }
+
+    private function resolveExportSku(Product $product): string
+    {
+        $override = $product->getData(ProductAttributeCodeInterface::FERA_SKU_OVERRIDE);
+
+        if (is_string($override)) {
+            $override = trim($override);
+            if ($override !== '') {
+                return $override;
+            }
+        }
+
+        return (string) $product->getSku();
     }
 
     /**

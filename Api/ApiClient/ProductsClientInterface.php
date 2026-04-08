@@ -21,6 +21,8 @@ namespace Fera\Ai\Api\ApiClient;
  * @phpstan-type ProductData array{
  *     id: int|string,
  *     external_id: int|string,
+ *     sku?: string,
+ *     brand?: string,
  *     name: string,
  *     price?: float,
  *     status?: string,
