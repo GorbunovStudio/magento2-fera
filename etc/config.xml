@@ -18,6 +18,7 @@
                 <orders_export_on_creation>1</orders_export_on_creation>
                 <minimize_data_sharing>1</minimize_data_sharing>
                 <fulfillment_export_delay_days>12</fulfillment_export_delay_days>
+                <brand></brand>
             </sync_settings>
             <review_notifications>
                 <enabled>0</enabled>

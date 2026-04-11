@@ -16,6 +16,7 @@ interface ConfigOptionInterface
     public const EXPORT_ORDER_ON_CREATION = 'fera_ai/sync_settings/orders_export_on_creation';
     public const MINIMIZE_DATA_SHARING = 'fera_ai/sync_settings/minimize_data_sharing';
     public const FULFILLMENT_EXPORT_DELAY_DAYS = 'fera_ai/sync_settings/fulfillment_export_delay_days';
+    public const EXPORT_BRAND = 'fera_ai/sync_settings/brand';
     public const REVIEW_NOTIFICATIONS_ENABLED = 'fera_ai/review_notifications/enabled';
     public const REVIEW_NOTIFICATIONS_RATING_THRESHOLD = 'fera_ai/review_notifications/rating_threshold';
     public const REVIEW_NOTIFICATIONS_SLACK_WEBHOOK_URL = 'fera_ai/review_notifications/slack_webhook_url';

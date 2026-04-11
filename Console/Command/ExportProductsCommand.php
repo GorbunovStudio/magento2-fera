@@ -20,6 +20,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Fera\Ai\Api\Data\ProductAttributeCodeInterface;
 
 class ExportProductsCommand extends Command
 {
@@ -199,7 +200,17 @@ class ExportProductsCommand extends Command
         }
 
         $collection->addAttributeToSelect([
-            'name', 'sku', 'price', 'special_price', 'status', 'visibility', 'type_id', 'created_at', 'updated_at', 'thumbnail'
+            'name',
+            'sku',
+            ProductAttributeCodeInterface::FERA_SKU_OVERRIDE,
+            'price',
+            'special_price',
+            'status',
+            'visibility',
+            'type_id',
+            'created_at',
+            'updated_at',
+            'thumbnail',
         ]);
 
         // @phpstan-ignore argument.type
