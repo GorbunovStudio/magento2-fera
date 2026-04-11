@@ -15,7 +15,7 @@ class AddFeraSkuOverrideProductAttribute implements DataPatchInterface
 {
     private const ATTRIBUTE_LABEL = 'SKU Override';
 
-    private const TARGET_ATTRIBUTE_SET_NAME = 'General';
+    private const TARGET_ATTRIBUTE_SET_NAME = 'Default';
     private const TARGET_ATTRIBUTE_GROUP_NAME = 'Fera';
 
     public function __construct(
