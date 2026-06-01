@@ -111,9 +111,9 @@ class Handler
         $orderData = $this->resolveOrderData($message->getExternalOrderId());
          $order = $orderData['order'];
 
-        $orderIncrementId = $orderData['increment_id'];
-        if ($orderIncrementId === '') {
-            $orderIncrementId = $message->getExternalOrderId();
+         $orderId = $order->getEntityId();
+        if ($orderId === '') {
+            $orderId = $message->getExternalOrderId();
         }
 
         $notificationData = [
@@ -124,7 +124,7 @@ class Handler
             'review_title' => $this->fallback($message->getReviewTitle()),
             'review_body' => $this->fallback($message->getReviewBody()),
             'product_name' => $this->fallback($message->getProductName()),
-            'external_order_id' => $this->fallback($orderIncrementId),
+            'external_order_id' => $this->fallback($orderId),
             'fera_review_url' => $feraReviewUrl,
             'magento_order_url' => $orderData['url'],
         ];
