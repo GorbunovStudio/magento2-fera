@@ -104,4 +104,26 @@ interface MessageInterface
      * @return $this
      */
     public function setProductName(string $value): static;
+
+    /**
+     * @return string
+     */
+    public function getCustomerEmail(): string;
+
+    /**
+     * @param string $value
+     * @return $this
+     */
+    public function setCustomerEmail(string $value): static;
+
+    /**
+     * @return string
+     */
+    public function getExternalProductId(): string;
+
+    /**
+     * @param string $value
+     * @return $this
+     */
+    public function setExternalProductId(string $value): static;
 }

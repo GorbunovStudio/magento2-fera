@@ -86,9 +86,11 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             ->setFeraStoreId($feraStoreId)
             ->setExternalOrderId($this->extractString($payload, 'external_order_id'))
             ->setCustomerName($this->extractNestedString($payload, ['customer', 'name']))
+            ->setCustomerEmail($this->extractNestedString($payload, ['customer', 'email']))
             ->setReviewTitle($this->extractString($payload, 'heading'))
             ->setReviewBody($this->normalizeReviewBody($this->extractString($payload, 'body')))
-            ->setProductName($this->extractNestedString($payload, ['product', 'name']));
+            ->setProductName($this->extractNestedString($payload, ['product', 'name']))
+            ->setExternalProductId($this->extractString($payload, 'external_product_id'));
 
         $this->publisher->publish(TopicInterface::NOTIFY_NEGATIVE_REVIEW, $message);
     }
