@@ -111,10 +111,7 @@ class Handler
         $orderData = $this->resolveOrderData($message->getExternalOrderId());
         $order = $orderData['order'];
 
-        $orderId = $order->getEntityId();
-        if ($orderId === '') {
-            $orderId = $message->getExternalOrderId();
-        }
+        $orderId = $order !== null ? (string) $order->getEntityId() : $message->getExternalOrderId();
 
         $notificationData = [
             'store_name' => $storeName,
