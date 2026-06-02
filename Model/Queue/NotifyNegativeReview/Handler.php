@@ -109,9 +109,9 @@ class Handler
 
         $feraReviewUrl = $this->buildFeraReviewUrl($storeId, $message->getFeraStoreId(), $message->getReviewId());
         $orderData = $this->resolveOrderData($message->getExternalOrderId());
-         $order = $orderData['order'];
+        $order = $orderData['order'];
 
-         $orderId = $order->getEntityId();
+        $orderId = $order->getEntityId();
         if ($orderId === '') {
             $orderId = $message->getExternalOrderId();
         }
