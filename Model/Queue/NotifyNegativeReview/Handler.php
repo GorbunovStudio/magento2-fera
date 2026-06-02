@@ -138,14 +138,35 @@ class Handler
             $this->assertWebhookUrl($slackWebhookUrl);
             $actions = $this->buildBaseSlackActions($notificationData);
             $actionsContainer = new DataObject(['actions' => $actions]);
-            $this->eventManager->dispatch('fera_negative_review_slack_actions_prepare', [
-                'message' => $message,
-                'order' => $order,
-                'store_id' => $storeId,
-                'actions_container' => $actionsContainer,
-            ]);
-            /** @var list<array<string, mixed>> $actions */
-            $actions = (array) $actionsContainer->getData('actions');
+            
+            try {
+                $this->eventManager->dispatch('fera_negative_review_slack_actions_prepare', [
+                    'message' => $message,
+                    'order' => $order,
+                    'store_id' => $storeId,
+                    'actions_container' => $actionsContainer,
+                ]);
+
+                $actionsData = $actionsContainer->getData('actions');
+                if (!is_array($actionsData)) {
+                    throw new UnexpectedValueException(
+                        'Incorrect type for actions: expected array, got ' . get_debug_type($actionsData)
+                    );
+                }
+
+                /** @var list<array<string, mixed>> $actions */
+                $actions = $actionsData;
+            } catch (Throwable $exception) {
+                $this->logger->error(
+                    'Negative review Slack action enrichment failed: ' . $exception->getMessage(),
+                    [
+                        'exception' => $exception,
+                        'store_id' => $storeId,
+                        'review_id' => $message->getReviewId(),
+                    ]
+                );
+            }
+
             $this->sendSlack($slackWebhookUrl, $notificationData, $actions);
         }
 
