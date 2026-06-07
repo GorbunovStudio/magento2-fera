@@ -256,6 +256,7 @@ class Handler
 
     /**
      * @param NotificationData $notificationData
+     * @return list<array<string, mixed>>
      */
     private function buildBaseSlackActions(array $notificationData): array
     {
@@ -469,5 +470,4 @@ class Handler
 
         return $trimmedValue;
     }
-
 }
