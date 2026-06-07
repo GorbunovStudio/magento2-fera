@@ -11,6 +11,8 @@ use GuzzleHttp\ClientFactory;
 use Magento\Backend\Model\UrlInterface;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\DataObject;
+use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Mail\Template\TransportBuilder;
 use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
@@ -50,7 +52,8 @@ class Handler
         private EmailAddress $emailAddressValidator,
         private ClientFactory $clientFactory,
         private StoreManagerInterface $storeManager,
-        private Logger $logger
+        private Logger $logger,
+        private EventManager $eventManager
     ) {
     }
 
@@ -106,6 +109,7 @@ class Handler
 
         $feraReviewUrl = $this->buildFeraReviewUrl($storeId, $message->getFeraStoreId(), $message->getReviewId());
         $orderData = $this->resolveOrderData($message->getExternalOrderId());
+        $order = $orderData['order'];
 
         $orderIncrementId = $orderData['increment_id'];
         if ($orderIncrementId === '') {
@@ -132,7 +136,38 @@ class Handler
 
         if ($slackWebhookUrl !== '') {
             $this->assertWebhookUrl($slackWebhookUrl);
-            $this->sendSlack($slackWebhookUrl, $notificationData);
+            $actions = $this->buildBaseSlackActions($notificationData);
+            $actionsContainer = new DataObject(['actions' => $actions]);
+            
+            try {
+                $this->eventManager->dispatch('fera_negative_review_slack_actions_prepare', [
+                    'message' => $message,
+                    'order' => $order,
+                    'store_id' => $storeId,
+                    'actions_container' => $actionsContainer,
+                ]);
+
+                $actionsData = $actionsContainer->getData('actions');
+                if (!is_array($actionsData)) {
+                    throw new UnexpectedValueException(
+                        'Incorrect type for actions: expected array, got ' . get_debug_type($actionsData)
+                    );
+                }
+
+                /** @var list<array<string, mixed>> $actions */
+                $actions = $actionsData;
+            } catch (Throwable $exception) {
+                $this->logger->error(
+                    'Negative review Slack action enrichment failed: ' . $exception->getMessage(),
+                    [
+                        'exception' => $exception,
+                        'store_id' => $storeId,
+                        'review_id' => $message->getReviewId(),
+                    ]
+                );
+            }
+
+            $this->sendSlack($slackWebhookUrl, $notificationData, $actions);
         }
 
         $recipientConfig = $this->getConfigString(ConfigOptionInterface::REVIEW_NOTIFICATIONS_EMAIL_RECIPIENTS, $storeId);
@@ -173,23 +208,23 @@ class Handler
     }
 
     /**
-     * @return array{url: string, increment_id: string}
+     * @return array{url: string, increment_id: string, order: OrderInterface|null}
      */
     private function resolveOrderData(string $externalOrderId): array
     {
         $orderId = trim($externalOrderId);
         if ($orderId === '') {
-            return ['url' => '', 'increment_id' => ''];
+            return ['url' => '', 'increment_id' => '', 'order' => null];
         }
 
         if (!is_numeric($orderId)) {
-            return ['url' => '', 'increment_id' => ''];
+            return ['url' => '', 'increment_id' => '', 'order' => null];
         }
 
         try {
             $order = $this->orderRepository->get((int) $orderId);
         } catch (NoSuchEntityException) {
-            return ['url' => '', 'increment_id' => ''];
+            return ['url' => '', 'increment_id' => '', 'order' => null];
         }
 
         if (!$order instanceof OrderInterface) {
@@ -215,24 +250,16 @@ class Handler
         return [
             'url' => $this->backendUrl->getUrl('sales/order/view', ['order_id' => (int) $orderId]),
             'increment_id' => trim($incrementId),
+            'order' => $order,
         ];
     }
 
     /**
      * @param NotificationData $notificationData
+     * @return list<array<string, mixed>>
      */
-    private function sendSlack(string $webhookUrl, array $notificationData): void
+    private function buildBaseSlackActions(array $notificationData): array
     {
-        $storeName = is_string($notificationData['store_name']) ? $notificationData['store_name'] : '';
-        $rating = is_numeric($notificationData['rating'] ?? null) ? (float) $notificationData['rating'] : 0.0;
-        $starsString = $this->formatStarsString($rating);
-
-        $productName = is_string($notificationData['product_name']) ? $notificationData['product_name'] : '';
-        $externalOrderId = is_string($notificationData['external_order_id']) ? $notificationData['external_order_id'] : '-';
-        $customerName = is_string($notificationData['customer_name']) ? $notificationData['customer_name'] : '-';
-        $reviewTitle = is_string($notificationData['review_title']) ? $notificationData['review_title'] : '-';
-        $reviewBody = is_string($notificationData['review_body']) ? $notificationData['review_body'] : '';
-
         $actions = [
             [
                 'type' => 'button',
@@ -255,6 +282,25 @@ class Handler
                 'url' => $notificationData['magento_order_url'],
             ];
         }
+        
+        return $actions;
+    }
+
+    /**
+     * @param NotificationData $notificationData
+     * @param list<array<string, mixed>> $actions
+     */
+    private function sendSlack(string $webhookUrl, array $notificationData, array $actions): void
+    {
+        $storeName = $notificationData['store_name'];
+        $rating = $notificationData['rating'];
+        $starsString = $this->formatStarsString($rating);
+
+        $productName = $notificationData['product_name'];
+        $externalOrderId = $notificationData['external_order_id'];
+        $customerName = $notificationData['customer_name'];
+        $reviewTitle = $notificationData['review_title'];
+        $reviewBody = $notificationData['review_body'];
 
         $payload = [
             'text' => '🚨 Negative Review Alert',
@@ -424,5 +470,4 @@ class Handler
 
         return $trimmedValue;
     }
-
 }

@@ -16,9 +16,11 @@ class Message extends DataObject implements MessageInterface
     private const FERA_STORE_ID = 'fera_store_id';
     private const EXTERNAL_ORDER_ID = 'external_order_id';
     private const CUSTOMER_NAME = 'customer_name';
+    private const CUSTOMER_EMAIL = 'customer_email';
     private const REVIEW_TITLE = 'review_title';
     private const REVIEW_BODY = 'review_body';
     private const PRODUCT_NAME = 'product_name';
+    private const EXTERNAL_PRODUCT_ID = 'external_product_id';
 
     public function getStoreId(): int
     {
@@ -179,6 +181,42 @@ class Message extends DataObject implements MessageInterface
     public function setProductName(string $value): static
     {
         $this->setData(self::PRODUCT_NAME, $value);
+        return $this;
+    }
+    
+    public function getCustomerEmail(): string
+    {
+        $value = parent::getData(self::CUSTOMER_EMAIL);
+        if (!is_string($value)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for ' . self::CUSTOMER_EMAIL . ': expected string, got ' . get_debug_type($value)
+            );
+        }
+
+        return $value;
+    }
+
+    public function setCustomerEmail(string $value): static
+    {
+        $this->setData(self::CUSTOMER_EMAIL, $value);
+        return $this;
+    }
+
+    public function getExternalProductId(): string
+    {
+        $value = parent::getData(self::EXTERNAL_PRODUCT_ID);
+        if (!is_string($value)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for ' . self::EXTERNAL_PRODUCT_ID . ': expected string, got ' . get_debug_type($value)
+            );
+        }
+
+        return $value;
+    }
+
+    public function setExternalProductId(string $value): static
+    {
+        $this->setData(self::EXTERNAL_PRODUCT_ID, $value);
         return $this;
     }
 }
