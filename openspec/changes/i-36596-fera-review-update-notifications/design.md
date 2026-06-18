@@ -1,0 +1,130 @@
+## Context
+
+The current shared Fera module processes the review-created webhook and sends Slack/email notifications for negative reviews through `Fera\Ai\Model\Queue\NotifyNegativeReview\Handler`. Budsies extends the shared negative-review Slack notification with MakerWare and Freshdesk buttons through `Budsies\Fera\Observer\AddNegativeReviewSlackActionsObserver`.
+
+Redmine 36596 adds a related but separate workflow: after an operator requests a review update in Fera.ai, the team needs a Slack notification when the customer changes the existing review. Fera's `review_updated` webhook fires for many review changes, so the implementation must identify meaningful customer update candidates by comparing selected review fields against the last known snapshot and checking `state = pending_update`.
+
+Implementation is intentionally split:
+
+- Part 1, Fera fork: shared review webhook handling, snapshot persistence, update detection, queue contract/topic, and base Slack notification.
+- Part 2, Budsies repo: Budsies-specific Slack action enrichment for MakerWare and Freshdesk buttons, reusing existing `Budsies_Fera` integration logic.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Persist the latest snapshot for every created and updated Fera review, even when review notifications are disabled.
+- Detect update notifications from direct comparison of `rating`, `heading`, `body`, and normalized `media`.
+- Require `state = pending_update` before publishing a review-update notification.
+- Send a review-update Slack notification with current review context and before/after values for changed fields.
+- Include the same action buttons as negative-review notifications: `View in Fera`, `View Magento Order`, `View in MakerWare`, and `View Freshdesk Tickets`.
+- Keep existing negative-review notification behavior unchanged.
+
+**Non-Goals:**
+
+- Building a full review field history or audit log.
+- Reliably distinguishing customer edits from rare operator edits to the same fields; the accepted compromise is to treat selected field changes during `pending_update` as update candidates.
+- Changing Fera's negative-review rating threshold behavior.
+- Adding new external dependencies.
+- Editing `vendor/` directly in this Magento repository.
+
+## Decisions
+
+### 1. Implement core update detection in the shared Fera fork
+
+**Decision:** Add the `review_updated` webhook endpoint, snapshot table, snapshot services, queue topic/message, and base Slack handler in the shared Fera fork.
+
+**Rationale:** Fera webhook authentication, payload parsing, review URL generation, notification config, and queue topology already belong to the shared Fera module. Keeping update detection there avoids duplicating Fera-specific logic in `Budsies_Fera`.
+
+**Alternatives considered:**
+
+- Implement the entire flow in `Budsies_Fera`: rejected because it would duplicate Fera webhook validation and payload parsing while the shared Fera module already owns that integration boundary.
+- Modify `vendor/feraai/fera` directly in this repo: rejected by repository standards. Changes must be made in the Fera fork workflow or through an approved Composer patch workflow.
+
+### 2. Save snapshots independently of notification delivery config
+
+**Decision:** Save snapshots on review creation and update even when review notifications are disabled for the store. The notification enable flag gates only queue publication and delivery, not snapshot persistence.
+
+**Rationale:** Future update notifications need historical baseline data. If snapshot collection stops while notifications are disabled, re-enabling notifications later would produce missing baselines and missed first updates.
+
+**Alternatives considered:**
+
+- Keep the existing early return when notifications are disabled: rejected because it makes update detection unreliable after notifications are re-enabled.
+- Persist snapshots only for negative reviews: rejected because updated reviews can start from any rating, and the update notification is independent of the negative-review threshold.
+
+### 3. Store only the latest selected review fields
+
+**Decision:** Store a single latest snapshot keyed by `review_id`, containing `heading`, `body`, `rating`, and normalized `media` with only `id` and `thumbnail_url`.
+
+**Rationale:** The current requirement needs only the previous state for one comparison. Storing full history would add schema and retention complexity without supporting a current workflow.
+
+**Alternatives considered:**
+
+- Store a hash only: rejected because Slack needs before/after values for changed fields.
+- Store complete raw webhook payloads: rejected because this would retain more customer-linked data than needed and would complicate schema/privacy handling.
+- Store media URLs beyond `thumbnail_url`: rejected because Slack preview can use `thumbnail_url`, and the accepted storage scope only needs `id` and `thumbnail_url`.
+
+### 4. Compare selected fields directly and require `pending_update`
+
+**Decision:** On `review_updated`, compare current snapshot values with the previous snapshot. Publish a notification only when a previous snapshot exists, at least one selected field changed, `state = pending_update`, and review notifications are enabled.
+
+**Rationale:** Fera's update webhook is broad. The selected fields map to the current customer-update process, and `pending_update` filters out changes when no operator-requested update is in progress.
+
+**Alternatives considered:**
+
+- Notify on every `review_updated` webhook: rejected because operator or system changes would generate noise.
+- Rely only on `state = pending_update`: rejected because the webhook can fire without a meaningful content change.
+- Attempt to identify the exact actor: rejected for this scope because available webhook data does not provide a reliable actor distinction, and the false-positive risk from rare operator edits is accepted.
+
+### 5. Send review-update Slack notifications through a separate queue topic
+
+**Decision:** Add a dedicated topic such as `fera.review.notify_updated` and handler for review-update Slack notifications.
+
+**Rationale:** Review updates are a different event from negative-review creation. They should not depend on the negative-review threshold or reuse copy that identifies the event as a new negative review.
+
+**Alternatives considered:**
+
+- Reuse `fera.review.notify_negative`: rejected because the payload, title, diff content, and threshold rules differ.
+- Send Slack synchronously from the webhook: rejected because webhook processing should persist state and enqueue work without blocking on external Slack HTTP calls.
+
+### 6. Reuse Budsies action logic through shared providers
+
+**Decision:** In the Budsies repo, extract MakerWare and Freshdesk button construction from `AddNegativeReviewSlackActionsObserver` into reusable provider services. Use those providers from both the existing negative-review observer and a new review-update action observer.
+
+**Rationale:** The review-update notification needs the same Budsies-specific buttons as negative-review notifications. Extracting providers avoids duplicating order/plushie and Freshdesk contact lookup logic while preserving existing negative-review behavior.
+
+**Alternatives considered:**
+
+- Copy the existing private observer methods into a new observer: rejected because it duplicates integration logic and increases drift risk.
+- Move MakerWare/Freshdesk buttons into the shared Fera module: rejected because those are Budsies-specific integrations and module dependencies.
+
+## Risks / Trade-offs
+
+- Rare operator edits can still trigger false notifications when `state = pending_update` and selected fields change -> Accepted compromise; document behavior and avoid overfitting to unreliable actor detection.
+- Existing reviews may have no snapshot at deployment time -> On first update without a previous snapshot, save the snapshot and do not notify; future updates can then be detected.
+- Snapshot persistence stores review text and media URLs -> Store only required fields, avoid logging field values, and do not store raw payloads.
+- Queue and schema changes affect deployment order -> Deploy the Fera fork changes first, run schema upgrade/whitelist generation, then deploy Budsies enrichment changes.
+- Refactoring Budsies action logic could regress negative-review buttons -> Keep provider extraction behavior-preserving and cover existing negative-review scenarios with focused tests.
+
+## Migration Plan
+
+1. Part 1, Fera fork:
+   - Add review snapshot schema and persistence services.
+   - Update review-created webhook processing to save snapshots before notification gating.
+   - Add review-updated webhook processing, comparison, and queue publication.
+   - Add review-update queue message/handler and base Slack payload/buttons.
+   - Add/update Fera fork unit tests.
+2. Release/update the shared Fera fork package in the Magento repo through the accepted package workflow.
+3. Run Magento schema upgrade and regenerate the Fera schema whitelist when applying the Fera package change.
+4. Part 2, Budsies repo:
+   - Extract MakerWare/Freshdesk Slack action providers from existing `Budsies_Fera` observer logic.
+   - Wire the existing negative-review observer to the providers.
+   - Add a review-update action observer for the new Fera action-preparation event.
+   - Add focused Budsies unit tests.
+5. Validate that existing negative-review Slack notifications still include the same actions.
+
+Rollback should roll back the Fera fork and Budsies repo changes together if the queue contract or event payload changes are incompatible. If only Budsies action enrichment fails, the Fera base review-update notification can still operate without MakerWare/Freshdesk buttons.
+
+## Open Questions
+
+- None for the accepted scope. The implementation should still verify the exact `review_updated` JWT action and payload shape against Fera test payloads during development.
