@@ -66,14 +66,13 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             ? []
             : $this->snapshotComparator->compare($previousSnapshot, $currentSnapshot);
 
-        $this->snapshotRepository->save($currentSnapshot);
-
         if (
             $previousSnapshot === null
             || $changedFields === []
             || !$this->isPendingUpdate($payload)
             || !$this->isEnabled($storeId)
         ) {
+            $this->snapshotRepository->save($currentSnapshot);
             return;
         }
 
@@ -92,6 +91,7 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             ->setChangedFields($changedFields);
 
         $this->publisher->publish(TopicInterface::NOTIFY_REVIEW_UPDATE, $message);
+        $this->snapshotRepository->save($currentSnapshot);
     }
 
     private function isEnabled(int $storeId): bool

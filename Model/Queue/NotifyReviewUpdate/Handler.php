@@ -41,7 +41,7 @@ class Handler
 {
     private const SLACK_CONNECT_TIMEOUT_SECONDS = 2.0;
     private const SLACK_TIMEOUT_SECONDS = 5.0;
-    private const MAX_FIELD_LENGTH = 1900;
+    private const MAX_SLACK_FIELD_TEXT_LENGTH = 1900;
 
     public function __construct(
         private ScopeConfigInterface $scopeConfig,
@@ -125,7 +125,7 @@ class Handler
             return;
         }
 
-        $this->assertWebhookUrl($slackWebhookUrl);
+        $this->assertSlackWebhookUrl($slackWebhookUrl);
         $actions = $this->buildBaseSlackActions($notificationData);
         $actionsContainer = new DataObject(['actions' => $actions]);
 
@@ -408,11 +408,11 @@ class Handler
         }
 
         if (is_scalar($value)) {
-            return $this->truncate($this->escapeSlack((string) $value));
+            return $this->truncateSlackFieldText($this->escapeSlack((string) $value));
         }
 
         $encoded = json_encode($value);
-        return $this->truncate($this->escapeSlack(is_string($encoded) ? $encoded : ''));
+        return $this->truncateSlackFieldText($this->escapeSlack(is_string($encoded) ? $encoded : ''));
     }
 
     private function formatMediaValue(mixed $value): string
@@ -437,7 +437,7 @@ class Handler
             return '-';
         }
 
-        return $this->truncate($this->escapeSlack(implode("\n", $thumbnailUrls)));
+        return $this->truncateSlackFieldText($this->escapeSlack(implode("\n", $thumbnailUrls)));
     }
 
     private function formatRating(float $rating): string
@@ -456,7 +456,7 @@ class Handler
         return trim($value);
     }
 
-    private function assertWebhookUrl(string $webhookUrl): void
+    private function assertSlackWebhookUrl(string $webhookUrl): void
     {
         $parsedUrl = parse_url($webhookUrl);
         if (!is_array($parsedUrl)) {
@@ -490,12 +490,12 @@ class Handler
         return str_replace(['&', '<', '>'], ['&amp;', '&lt;', '&gt;'], $value);
     }
 
-    private function truncate(string $value): string
+    private function truncateSlackFieldText(string $value): string
     {
-        if (mb_strlen($value) <= self::MAX_FIELD_LENGTH) {
+        if (mb_strlen($value) <= self::MAX_SLACK_FIELD_TEXT_LENGTH) {
             return $value;
         }
 
-        return rtrim(mb_substr($value, 0, self::MAX_FIELD_LENGTH - 3)) . '...';
+        return rtrim(mb_substr($value, 0, self::MAX_SLACK_FIELD_TEXT_LENGTH - 3)) . '...';
     }
 }
