@@ -51,5 +51,21 @@
             "FERA_ORDER_FULFILLMENT_STORE_ID_EXPORTED_AT_COMPLETED_AT_IDX": true,
             "FERA_ORDER_FULFILLMENT_ENQUEUED_AT_IDX": true
         }
+    },
+    "fera_review_snapshots": {
+        "column": {
+            "id": true,
+            "review_id": true,
+            "heading": true,
+            "body": true,
+            "rating": true,
+            "media": true,
+            "created_at": true,
+            "updated_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "FERA_REVIEW_SNAPSHOTS_REVIEW_ID_UNQ": true
+        }
     }
 }

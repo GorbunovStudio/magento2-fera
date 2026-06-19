@@ -48,7 +48,7 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
         }
 
         try {
-            $claims = $this->jwtValidator->validateToken($jwt, $storeId, 'review_updated');
+            $claims = $this->jwtValidator->validateToken($jwt, $storeId, 'review_update');
         } catch (Throwable) {
             throw new WebapiException(new Phrase('Unauthorized'), 0, WebapiException::HTTP_UNAUTHORIZED);
         }
