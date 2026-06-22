@@ -128,13 +128,13 @@ interface MessageInterface
     public function setExternalProductId(string $value): static;
 
     /**
-     * @return array<string, array{before: mixed, after: mixed}>
+     * @return string
      */
-    public function getChangedFields(): array;
+    public function getChangedFieldsJson(): string;
 
     /**
-     * @param array<string, array{before: mixed, after: mixed}> $value
+     * @param string $value
      * @return $this
      */
-    public function setChangedFields(array $value): static;
+    public function setChangedFieldsJson(string $value): static;
 }
