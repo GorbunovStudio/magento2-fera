@@ -19,6 +19,7 @@ use Magento\Framework\Webapi\Exception as WebapiException;
 use Magento\Framework\Webapi\Rest\Request;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use RuntimeException;
 use Throwable;
 
 class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
@@ -76,6 +77,11 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             return;
         }
 
+        $changedFieldsJson = json_encode($changedFields, JSON_INVALID_UTF8_SUBSTITUTE);
+        if (!is_string($changedFieldsJson)) {
+            throw new RuntimeException('Unable to encode changed review fields');
+        }
+
         $message = $this->messageFactory->create()
             ->setStoreId($storeId)
             ->setReviewId($currentSnapshot['review_id'])
@@ -88,7 +94,7 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             ->setReviewBody($this->normalizeReviewBody($currentSnapshot['body']))
             ->setProductName($this->extractNestedString($payload, ['product', 'name']))
             ->setExternalProductId($this->extractString($payload, 'external_product_id'))
-            ->setChangedFields($changedFields);
+            ->setChangedFieldsJson($changedFieldsJson);
 
         $this->publisher->publish(TopicInterface::NOTIFY_REVIEW_UPDATE, $message);
         $this->snapshotRepository->save($currentSnapshot);

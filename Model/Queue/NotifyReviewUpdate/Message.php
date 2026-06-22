@@ -21,7 +21,7 @@ class Message extends DataObject implements MessageInterface
     private const REVIEW_BODY = 'review_body';
     private const PRODUCT_NAME = 'product_name';
     private const EXTERNAL_PRODUCT_ID = 'external_product_id';
-    private const CHANGED_FIELDS = 'changed_fields';
+    private const CHANGED_FIELDS_JSON = 'changed_fields_json';
 
     public function getStoreId(): int
     {
@@ -151,21 +151,14 @@ class Message extends DataObject implements MessageInterface
         return $this;
     }
 
-    public function getChangedFields(): array
+    public function getChangedFieldsJson(): string
     {
-        $value = parent::getData(self::CHANGED_FIELDS);
-        if (!is_array($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::CHANGED_FIELDS . ': expected array, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::CHANGED_FIELDS_JSON);
     }
 
-    public function setChangedFields(array $value): static
+    public function setChangedFieldsJson(string $value): static
     {
-        $this->setData(self::CHANGED_FIELDS, $value);
+        $this->setData(self::CHANGED_FIELDS_JSON, $value);
         return $this;
     }
 

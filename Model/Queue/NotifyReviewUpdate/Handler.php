@@ -157,7 +157,8 @@ class Handler
             );
         }
 
-        $this->sendSlack($slackWebhookUrl, $notificationData, $message->getChangedFields(), $actions);
+        $changedFields = $this->decodeChangedFields($message->getChangedFieldsJson());
+        $this->sendSlack($slackWebhookUrl, $notificationData, $changedFields, $actions);
     }
 
     private function buildFeraReviewUrl(int $storeId, string $feraStoreId, string $reviewId): string
@@ -395,6 +396,38 @@ class Handler
         }
 
         return $fields;
+    }
+
+    /**
+     * @return ChangedFields
+     */
+    private function decodeChangedFields(string $changedFieldsJson): array
+    {
+        $decoded = json_decode($changedFieldsJson, true);
+        if (!is_array($decoded)) {
+            throw new UnexpectedValueException(
+                'Invalid changed fields JSON: ' . json_last_error_msg()
+            );
+        }
+
+        $changedFields = [];
+        foreach ($decoded as $field => $change) {
+            if (
+                !is_string($field)
+                || !is_array($change)
+                || !array_key_exists('before', $change)
+                || !array_key_exists('after', $change)
+            ) {
+                throw new UnexpectedValueException('Invalid changed fields structure in message');
+            }
+
+            $changedFields[$field] = [
+                'before' => $change['before'],
+                'after' => $change['after'],
+            ];
+        }
+
+        return $changedFields;
     }
 
     private function formatChangedValue(string $field, mixed $value): string
