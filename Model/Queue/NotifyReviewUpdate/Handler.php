@@ -342,9 +342,9 @@ class Handler
      */
     private function buildDiffBlocks(array $changedFields): array
     {
-        $beforeFields = $this->buildDiffFields($changedFields, 'before');
-        $afterFields = $this->buildDiffFields($changedFields, 'after');
-        if ($beforeFields === [] || $afterFields === []) {
+        $beforeBlocks = $this->buildDiffSideBlocks($changedFields, 'before');
+        $afterBlocks = $this->buildDiffSideBlocks($changedFields, 'after');
+        if ($beforeBlocks === [] || $afterBlocks === []) {
             return [];
         }
 
@@ -356,10 +356,7 @@ class Handler
                     'text' => '*Review before changes*',
                 ],
             ],
-            [
-                'type' => 'section',
-                'fields' => $beforeFields,
-            ],
+            ...$beforeBlocks,
             [
                 'type' => 'section',
                 'text' => [
@@ -367,20 +364,18 @@ class Handler
                     'text' => '*After changes*',
                 ],
             ],
-            [
-                'type' => 'section',
-                'fields' => $afterFields,
-            ],
+            ...$afterBlocks,
         ];
     }
 
     /**
      * @param ChangedFields $changedFields
-     * @return list<array{type: string, text: string}>
+     * @return list<array<string, mixed>>
      */
-    private function buildDiffFields(array $changedFields, string $side): array
+    private function buildDiffSideBlocks(array $changedFields, string $side): array
     {
-        $fields = [];
+        $blocks = [];
+        $compactFields = [];
         $labels = [
             'rating' => 'Rating',
             'heading' => 'Title',
@@ -393,14 +388,42 @@ class Handler
                 continue;
             }
 
-            $fields[] = [
+            $fieldText = '*' . $label . ":*\n"
+                . $this->formatChangedValue($field, $changedFields[$field][$side]);
+
+            if ($field === 'body' || $field === 'media') {
+                if ($compactFields !== []) {
+                    $blocks[] = [
+                        'type' => 'section',
+                        'fields' => $compactFields,
+                    ];
+                    $compactFields = [];
+                }
+
+                $blocks[] = [
+                    'type' => 'section',
+                    'text' => [
+                        'type' => 'mrkdwn',
+                        'text' => $fieldText,
+                    ],
+                ];
+                continue;
+            }
+
+            $compactFields[] = [
                 'type' => 'mrkdwn',
-                'text' => '*' . $label . ":*\n"
-                    . $this->formatChangedValue($field, $changedFields[$field][$side]),
+                'text' => $fieldText,
             ];
         }
 
-        return $fields;
+        if ($compactFields !== []) {
+            $blocks[] = [
+                'type' => 'section',
+                'fields' => $compactFields,
+            ];
+        }
+
+        return $blocks;
     }
 
     /**
