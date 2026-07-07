@@ -21,7 +21,8 @@
                 <brand></brand>
             </sync_settings>
             <review_notifications>
-                <enabled>0</enabled>
+                <negative_review_notifications_enabled>0</negative_review_notifications_enabled>
+                <review_update_notifications_enabled>0</review_update_notifications_enabled>
                 <rating_threshold>3</rating_threshold>
                 <slack_webhook_url backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
             </review_notifications>

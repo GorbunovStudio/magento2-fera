@@ -87,11 +87,7 @@ class Handler
             throw new RuntimeException('Invalid store ID in message');
         }
 
-        if (!$this->scopeConfig->isSetFlag(
-            ConfigOptionInterface::REVIEW_NOTIFICATIONS_ENABLED,
-            ScopeInterface::SCOPE_STORE,
-            $storeId
-        )) {
+        if (!$this->areReviewUpdateNotificationsEnabled($storeId)) {
             return;
         }
 
@@ -175,6 +171,15 @@ class Handler
             . rawurlencode($feraStoreId)
             . '/switch?referrer='
             . rawurlencode($targetUrl);
+    }
+
+    private function areReviewUpdateNotificationsEnabled(int $storeId): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            ConfigOptionInterface::REVIEW_UPDATE_NOTIFICATIONS_ENABLED,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
     }
 
     /**
@@ -454,23 +459,23 @@ class Handler
             return '-';
         }
 
-        $thumbnailUrls = [];
+        $urls = [];
         foreach ($value as $item) {
             if (!is_array($item)) {
                 continue;
             }
 
-            $thumbnailUrl = $item['thumbnail_url'] ?? null;
-            if (is_string($thumbnailUrl) && trim($thumbnailUrl) !== '') {
-                $thumbnailUrls[] = trim($thumbnailUrl);
+            $url = $item['url'] ?? null;
+            if (is_string($url) && trim($url) !== '') {
+                $urls[] = trim($url);
             }
         }
 
-        if ($thumbnailUrls === []) {
+        if ($urls === []) {
             return '-';
         }
 
-        return $this->truncateSlackFieldText($this->escapeSlack(implode("\n", $thumbnailUrls)));
+        return $this->truncateSlackFieldText($this->escapeSlack(implode("\n", $urls)));
     }
 
     private function formatRating(float $rating): string

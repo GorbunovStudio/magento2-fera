@@ -8,7 +8,7 @@ class MediaNormalizer
 {
     /**
      * @param mixed $media
-     * @return list<array{id: string, thumbnail_url: string}>
+     * @return list<array{id: string, url: string}>
      */
     public function normalize(mixed $media): array
     {
@@ -23,21 +23,21 @@ class MediaNormalizer
             }
 
             $id = $this->extractString($item, 'id');
-            $thumbnailUrl = $this->extractString($item, 'thumbnail_url');
-            if ($id === '' && $thumbnailUrl === '') {
+            $url = $this->extractString($item, 'url');
+            if ($id === '' && $url === '') {
                 continue;
             }
 
             $normalized[] = [
                 'id' => $id,
-                'thumbnail_url' => $thumbnailUrl,
+                'url' => $url,
             ];
         }
 
         usort(
             $normalized,
-            static fn (array $left, array $right): int => [$left['id'], $left['thumbnail_url']]
-                <=> [$right['id'], $right['thumbnail_url']]
+            static fn (array $left, array $right): int => [$left['id'], $left['url']]
+                <=> [$right['id'], $right['url']]
         );
 
         return $normalized;

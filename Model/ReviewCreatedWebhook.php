@@ -76,7 +76,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         $snapshot = $this->snapshotBuilder->build($payload);
         $this->snapshotRepository->save($snapshot);
 
-        if (!$this->isEnabled($storeId)) {
+        if (!$this->areNegativeReviewNotificationsEnabled($storeId)) {
             return;
         }
 
@@ -105,15 +105,15 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
     }
 
     /**
-     * Check whether review notifications are enabled for store.
+     * Check whether negative-review notifications are enabled for store.
      *
      * @param int $storeId
      * @return bool
      */
-    private function isEnabled(int $storeId): bool
+    private function areNegativeReviewNotificationsEnabled(int $storeId): bool
     {
         return $this->scopeConfig->isSetFlag(
-            ConfigOptionInterface::REVIEW_NOTIFICATIONS_ENABLED,
+            ConfigOptionInterface::NEGATIVE_REVIEW_NOTIFICATIONS_ENABLED,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );

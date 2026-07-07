@@ -8,7 +8,7 @@ use Magento\Framework\Phrase;
 use Magento\Framework\Webapi\Exception as WebapiException;
 
 /**
- * @phpstan-type ReviewMedia list<array{id: string, thumbnail_url: string}>
+ * @phpstan-type ReviewMedia list<array{id: string, url: string}>
  * @phpstan-type ReviewSnapshot array{review_id: string, heading: string, body: string, rating: float, media: ReviewMedia}
  */
 class SnapshotBuilder

@@ -71,7 +71,7 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             $previousSnapshot === null
             || $changedFields === []
             || !$this->isPendingUpdate($payload)
-            || !$this->isEnabled($storeId)
+            || !$this->areReviewUpdateNotificationsEnabled($storeId)
         ) {
             $this->snapshotRepository->save($currentSnapshot);
             return;
@@ -100,10 +100,10 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
         $this->snapshotRepository->save($currentSnapshot);
     }
 
-    private function isEnabled(int $storeId): bool
+    private function areReviewUpdateNotificationsEnabled(int $storeId): bool
     {
         return $this->scopeConfig->isSetFlag(
-            ConfigOptionInterface::REVIEW_NOTIFICATIONS_ENABLED,
+            ConfigOptionInterface::REVIEW_UPDATE_NOTIFICATIONS_ENABLED,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );

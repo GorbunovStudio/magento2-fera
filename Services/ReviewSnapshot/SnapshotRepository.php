@@ -69,7 +69,7 @@ class SnapshotRepository
     }
 
     /**
-     * @return list<array{id: string, thumbnail_url: string}>
+     * @return list<array{id: string, url: string}>
      */
     private function decodeMedia(string $media): array
     {
