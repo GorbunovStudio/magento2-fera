@@ -2,7 +2,7 @@
 
 ### Requirement: Review snapshots SHALL be persisted independently of notification delivery
 
-The system SHALL persist the latest known Fera review snapshot for every valid review-created and review-updated webhook so future update detection has historical data. Snapshot persistence SHALL NOT be disabled when review notifications are disabled.
+The system SHALL persist the latest known Fera review snapshot for every valid review-created and review-updated webhook so future update detection has historical data. Snapshot persistence SHALL NOT be disabled when the corresponding notification type is disabled.
 
 #### Scenario: Review-created webhook saves a snapshot when notifications are enabled
 
@@ -11,17 +11,17 @@ The system SHALL persist the latest known Fera review snapshot for every valid r
 - **THEN** the system saves a snapshot keyed by the Fera review ID
 - **AND** the snapshot stores `heading`, `body`, `rating`, and normalized `media`
 
-#### Scenario: Review-created webhook saves a snapshot when notifications are disabled
+#### Scenario: Review-created webhook saves a snapshot when negative-review notifications are disabled
 
 - **WHEN** Magento receives a valid Fera review-created webhook
-- **AND** review notifications are disabled for the store
+- **AND** negative-review notifications are disabled for the store
 - **THEN** the system saves the review snapshot
 - **AND** the system does not publish a negative-review notification
 
-#### Scenario: Review-updated webhook saves a snapshot when notifications are disabled
+#### Scenario: Review-updated webhook saves a snapshot when review-update notifications are disabled
 
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
-- **AND** review notifications are disabled for the store
+- **AND** review-update notifications are disabled for the store
 - **THEN** the system saves the current review snapshot as the latest known state
 - **AND** the system does not publish a review-update notification
 
@@ -31,9 +31,44 @@ The system SHALL persist the latest known Fera review snapshot for every valid r
 - **THEN** the review snapshot stores only `id` and full media `url` for each media item
 - **AND** the system normalizes media before comparison and persistence
 
+### Requirement: Review notification delivery SHALL use independent enabled settings and shared Slack configuration
+
+The system SHALL expose separate store-scoped enabled settings for negative-review notifications and review-update notifications in the existing review notifications configuration group. Both settings SHALL default to disabled. Both notification types SHALL use the existing shared Slack webhook URL setting when sending Slack messages.
+
+#### Scenario: Negative-review notifications use a renamed negative-review enabled flag
+
+- **WHEN** Magento evaluates whether to publish or send a negative-review notification
+- **THEN** the system checks the negative-review notifications enabled flag
+- **AND** the system does not check the review-update notifications enabled flag
+
+#### Scenario: Review-update notifications use only the review-update enabled flag
+
+- **WHEN** Magento evaluates whether to publish or send a review-update notification
+- **THEN** the system checks the review-update notifications enabled flag
+- **AND** the system does not check the negative-review notifications enabled flag
+
+#### Scenario: Both notification types share the Slack webhook URL
+
+- **WHEN** negative-review notifications or review-update notifications send Slack messages
+- **THEN** both notification types use the shared Slack webhook URL from the existing review notifications configuration group
+- **AND** each notification type remains independently enabled or disabled by its own enabled flag
+
+#### Scenario: New enabled flags default to disabled
+
+- **WHEN** the module is installed or upgraded without explicit store configuration for the new enabled flags
+- **THEN** negative-review notifications are disabled by default
+- **AND** review-update notifications are disabled by default
+
+#### Scenario: Existing negative-review enabled configuration is migrated
+
+- **WHEN** existing configuration contains the legacy review notifications enabled flag
+- **THEN** the system preserves that value for the renamed negative-review notifications enabled flag
+- **AND** the system does not copy the legacy value to the review-update notifications enabled flag
+- **AND** review-update notifications remain disabled unless explicitly enabled
+
 ### Requirement: Review updates SHALL be detected by comparing selected fields with the previous snapshot
 
-The system SHALL compare current review values with the previous snapshot for `rating`, `heading`, `body`, and normalized `media`. The system SHALL publish a review-update notification only when a previous snapshot exists, at least one selected field changed, review notifications are enabled, and the webhook payload has `state = pending_update`.
+The system SHALL compare current review values with the previous snapshot for `rating`, `heading`, `body`, and normalized `media`. The system SHALL publish a review-update notification only when a previous snapshot exists, at least one selected field changed, review-update notifications are enabled, and the webhook payload has `state = pending_update`.
 
 #### Scenario: Changed selected fields with pending update publish a notification
 
@@ -41,7 +76,7 @@ The system SHALL compare current review values with the previous snapshot for `r
 - **AND** a previous snapshot exists for the review
 - **AND** at least one of `rating`, `heading`, `body`, or normalized `media` differs from the previous snapshot
 - **AND** the payload has `state = pending_update`
-- **AND** review notifications are enabled for the store
+- **AND** review-update notifications are enabled for the store
 - **THEN** the system publishes a review-update notification message
 - **AND** the system saves the current snapshot as the latest known state
 
@@ -64,6 +99,16 @@ The system SHALL compare current review values with the previous snapshot for `r
 
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
 - **AND** `rating`, `heading`, `body`, and normalized `media` match the previous snapshot
+- **THEN** the system saves the current snapshot as the latest known state
+- **AND** the system does not publish a review-update notification
+
+#### Scenario: Review-update notifications disabled do not publish a notification
+
+- **WHEN** Magento receives a valid Fera `review_updated` webhook
+- **AND** a previous snapshot exists for the review
+- **AND** at least one selected field changed compared with the previous snapshot
+- **AND** the payload has `state = pending_update`
+- **AND** review-update notifications are disabled for the store
 - **THEN** the system saves the current snapshot as the latest known state
 - **AND** the system does not publish a review-update notification
 
@@ -136,8 +181,16 @@ The system SHALL preserve the existing negative-review notification behavior whi
 #### Scenario: Negative-review notification still follows the existing threshold flow
 
 - **WHEN** Magento receives a valid review-created webhook for a review at or below the negative-review threshold
+- **AND** negative-review notifications are enabled for the store
 - **THEN** the system publishes the existing negative-review notification
 - **AND** the review-update snapshot persistence does not change the negative-review notification content or threshold decision
+
+#### Scenario: Negative-review notification does not depend on review-update enabled flag
+
+- **WHEN** Magento receives a valid review-created webhook for a review at or below the negative-review threshold
+- **AND** negative-review notifications are enabled for the store
+- **AND** review-update notifications are disabled for the store
+- **THEN** the system publishes the existing negative-review notification
 
 #### Scenario: Negative-review action buttons still render after provider extraction
 

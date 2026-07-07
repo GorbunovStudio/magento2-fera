@@ -13,9 +13,11 @@ Implementation is intentionally split:
 
 **Goals:**
 
-- Persist the latest snapshot for every created and updated Fera review, even when review notifications are disabled.
+- Persist the latest snapshot for every created and updated Fera review, even when the corresponding notification type is disabled.
 - Detect update notifications from direct comparison of `rating`, `heading`, `body`, and normalized `media`.
 - Require `state = pending_update` before publishing a review-update notification.
+- Gate negative-review notifications and review-update notifications with separate enabled settings that both default to disabled.
+- Keep both notification types on the shared Slack webhook URL setting.
 - Send a review-update Slack notification with current review context and before/after values for changed fields.
 - Include the same action buttons as negative-review notifications: `View in Fera`, `View Magento Order`, `View in MakerWare`, and `View Freshdesk Tickets`.
 - Keep existing negative-review notification behavior unchanged.
@@ -43,7 +45,7 @@ Implementation is intentionally split:
 
 ### 2. Save snapshots independently of notification delivery config
 
-**Decision:** Save snapshots on review creation and update even when review notifications are disabled for the store. The notification enable flag gates only queue publication and delivery, not snapshot persistence.
+**Decision:** Save snapshots on review creation and update even when the corresponding notification type is disabled for the store. Negative-review and review-update notification enable flags gate only queue publication and delivery, not snapshot persistence.
 
 **Rationale:** Future update notifications need historical baseline data. If snapshot collection stops while notifications are disabled, re-enabling notifications later would produce missing baselines and missed first updates.
 
@@ -51,6 +53,18 @@ Implementation is intentionally split:
 
 - Keep the existing early return when notifications are disabled: rejected because it makes update detection unreliable after notifications are re-enabled.
 - Persist snapshots only for negative reviews: rejected because updated reviews can start from any rating, and the update notification is independent of the negative-review threshold.
+
+### 2a. Use separate enabled flags for negative-review and review-update notifications
+
+**Decision:** Rename the existing review notifications enabled setting to a negative-review-specific enabled setting and add a separate review-update notifications enabled setting. Both settings default to disabled. Existing legacy values for the old enabled setting should be migrated only to the renamed negative-review setting. Review-update notifications should depend only on the new review-update enabled setting while continuing to use the existing shared Slack webhook URL.
+
+**Rationale:** Operators need to enable or disable review-update notifications independently from negative-review notifications. The Slack webhook destination is shared operational infrastructure, so duplicating it would create unnecessary configuration drift.
+
+**Alternatives considered:**
+
+- Gate review-update notifications behind both the old review notifications enabled flag and a new update-specific flag: rejected because disabling negative-review notifications should not disable review-update notifications.
+- Copy the legacy enabled value to both new flags: rejected because review-update notifications are a new notification type and should remain opt-in by default.
+- Add a separate Slack webhook URL for review-update notifications: rejected because the accepted scope uses the existing shared Slack destination.
 
 ### 3. Store only the latest selected review fields
 
@@ -66,7 +80,7 @@ Implementation is intentionally split:
 
 ### 4. Compare selected fields directly and require `pending_update`
 
-**Decision:** On `review_updated`, compare current snapshot values with the previous snapshot. Publish a notification only when a previous snapshot exists, at least one selected field changed, `state = pending_update`, and review notifications are enabled.
+**Decision:** On `review_updated`, compare current snapshot values with the previous snapshot. Publish a notification only when a previous snapshot exists, at least one selected field changed, `state = pending_update`, and review-update notifications are enabled.
 
 **Rationale:** Fera's update webhook is broad. The selected fields map to the current customer-update process, and `pending_update` filters out changes when no operator-requested update is in progress.
 
@@ -103,7 +117,8 @@ Implementation is intentionally split:
 - Rare operator edits can still trigger false notifications when `state = pending_update` and selected fields change -> Accepted compromise; document behavior and avoid overfitting to unreliable actor detection.
 - Existing reviews may have no snapshot at deployment time -> On first update without a previous snapshot, save the snapshot and do not notify; future updates can then be detected.
 - Snapshot persistence stores review text and media URLs -> Store only required fields, avoid logging field values, and do not store raw payloads.
-- Queue and schema changes affect deployment order -> Deploy the Fera fork changes first, run schema upgrade/whitelist generation, then deploy Budsies enrichment changes.
+- Queue, schema, and config-path changes affect deployment order -> Deploy the Fera fork changes first, run schema upgrade/whitelist generation and config migration, then deploy Budsies enrichment changes.
+- Renaming the existing enabled setting can change behavior if existing configuration is not migrated -> Copy legacy enabled values only into the negative-review enabled setting; keep review-update notifications disabled by default.
 - Refactoring Budsies action logic could regress negative-review buttons -> Keep provider extraction behavior-preserving and cover existing negative-review scenarios with focused tests.
 
 ## Migration Plan
@@ -113,6 +128,7 @@ Implementation is intentionally split:
    - Update review-created webhook processing to save snapshots before notification gating.
    - Add review-updated webhook processing, comparison, and queue publication.
    - Add review-update queue message/handler and base Slack payload/buttons.
+   - Add separate enabled settings for negative-review and review-update notifications, default both to disabled, and migrate the legacy enabled value only to the negative-review setting.
    - Add/update Fera fork unit tests.
 2. Release/update the shared Fera fork package in the Magento repo through the accepted package workflow.
 3. Run Magento schema upgrade and regenerate the Fera schema whitelist when applying the Fera package change.

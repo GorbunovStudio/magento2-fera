@@ -3,21 +3,25 @@
 - [ ] 1.1 Add a review snapshot declarative schema table keyed by Fera `review_id`, storing `heading`, `body`, `rating`, normalized `media`, and timestamps.
 - [ ] 1.2 Add snapshot model/resource or equivalent persistence service for loading and upserting the latest snapshot by `review_id`.
 - [ ] 1.3 Add a snapshot builder that extracts `review_id`, `heading`, `body`, `rating`, and `media` from Fera review webhook payloads.
-- [ ] 1.4 Normalize `media` to a deterministic list of `id` and full media `url` values before comparison and persistence.
+- [x] 1.4 Normalize `media` to a deterministic list of `id` and full media `url` values before comparison and persistence.
 - [ ] 1.5 Add a snapshot comparator that returns changed fields with before/after values for `rating`, `heading`, `body`, and normalized `media`.
 
 ## 2. Part 1 - Fera Fork Webhooks and Notification Flow
 
 - [ ] 2.1 Update the review-created webhook flow to persist snapshots before rating threshold checks and before review notification delivery gating.
-- [ ] 2.2 Ensure review-created webhook processing saves snapshots even when review notifications are disabled, without publishing negative-review notifications in that case.
-- [ ] 2.3 Add a verified anonymous `review_updated` webhook route, service contract, and model using `FeraWebhookJwtValidator` with action `review_updated`.
-- [ ] 2.4 Implement review-updated processing to load the previous snapshot, compare selected fields, save the current snapshot, and publish a notification only when all required notification conditions pass.
-- [ ] 2.5 Ensure review-updated processing saves snapshots when no previous snapshot exists, when `state !== pending_update`, when no selected fields changed, and when review notifications are disabled.
-- [ ] 2.6 Add a dedicated review-update queue topic, publisher, topology binding, message contract, and handler.
-- [ ] 2.7 Build the base review-update Slack payload with title, review context, `Review before changes` and `After changes` groups, and changed fields ordered as `rating`, `heading`, `body`, `media`.
-- [ ] 2.8 Add base Slack actions for `View in Fera` and `View Magento Order` when their URLs can be resolved.
-- [ ] 2.9 Add a review-update Slack action preparation event carrying message, resolved order, store ID, and mutable actions container.
-- [ ] 2.10 Add or update Fera fork unit tests for review-created snapshot persistence, disabled notification behavior, review-updated comparison/gating, queue publication, Slack formatting, and base actions.
+- [ ] 2.2 Ensure review-created webhook processing saves snapshots even when negative-review notifications are disabled, without publishing negative-review notifications in that case.
+- [x] 2.3 Rename the existing review notifications enabled setting to a negative-review-specific enabled setting, default it to disabled, and migrate legacy enabled values only into the negative-review setting.
+- [x] 2.4 Add a separate review-update notifications enabled setting in the existing review notifications config group, defaulting to disabled and sharing the existing Slack webhook URL setting.
+- [x] 2.5 Update negative-review webhook and handler gating to use only the negative-review enabled setting.
+- [ ] 2.6 Add a verified anonymous `review_updated` webhook route, service contract, and model using `FeraWebhookJwtValidator` with action `review_updated`.
+- [ ] 2.7 Implement review-updated processing to load the previous snapshot, compare selected fields, save the current snapshot, and publish a notification only when all required notification conditions pass.
+- [ ] 2.8 Ensure review-updated processing saves snapshots when no previous snapshot exists, when `state !== pending_update`, when no selected fields changed, and when review-update notifications are disabled.
+- [x] 2.9 Gate review-update queue publication and queue handling only with the review-update enabled setting, not with the negative-review enabled setting.
+- [ ] 2.10 Add a dedicated review-update queue topic, publisher, topology binding, message contract, and handler.
+- [x] 2.11 Build the base review-update Slack payload with title, review context, `Review before changes` and `After changes` groups, and changed fields ordered as `rating`, `heading`, `body`, `media`.
+- [ ] 2.12 Add base Slack actions for `View in Fera` and `View Magento Order` when their URLs can be resolved.
+- [ ] 2.13 Add a review-update Slack action preparation event carrying message, resolved order, store ID, and mutable actions container.
+- [ ] 2.14 Add or update Fera fork unit tests for review-created snapshot persistence, disabled notification behavior, review-updated comparison/gating, queue publication, Slack formatting, base actions, independent enabled settings, and legacy negative-review flag migration.
 
 ## 3. Part 2 - Budsies Repo Action Enrichment
 

@@ -5,8 +5,9 @@ Operators can request that a customer update an existing Fera.ai review, but the
 ## What Changes
 
 - Add support for the Fera `review_updated` webhook in the shared Fera fork.
-- Persist the latest known review snapshot for every created and updated review, even when review notifications are disabled, so future update detection has a reliable baseline.
+- Persist the latest known review snapshot for every created and updated review, even when the corresponding notification type is disabled, so future update detection has a reliable baseline.
 - Detect review updates by comparing the current payload with the previous snapshot for `rating`, `heading`, `body`, and `media`, and require `state = pending_update` before sending an update notification.
+- Add independent enabled settings for negative-review notifications and review-update notifications in the existing review notifications configuration group; both default to disabled and both use the shared Slack webhook URL.
 - Send a new Slack notification for qualifying review updates with before/after values for changed fields.
 - Keep the existing negative-review notification behavior unchanged.
 - Split implementation into two coordinated parts:
@@ -25,7 +26,7 @@ Operators can request that a customer update an existing Fera.ai review, but the
 
 ## Impact
 
-- Shared `feraai/fera` fork: Fera webhook API surface, JWT validation flow, review snapshot persistence, declarative schema, queue topic/message/handler, Slack payload formatting, and unit tests.
+- Shared `feraai/fera` fork: Fera webhook API surface, JWT validation flow, review snapshot persistence, declarative schema, queue topic/message/handler, review notification configuration, Slack payload formatting, and unit tests.
 - Magento repo `Budsies_Fera`: action-enrichment event handling for review update notifications and extraction/reuse of MakerWare/Freshdesk Slack action providers.
 - Existing Fera negative-review notification flow must continue to work unchanged.
 - New database table or schema changes in the Fera module require `setup:upgrade` and schema whitelist updates when implemented.
