@@ -54,7 +54,7 @@ Implementation is intentionally split:
 
 ### 3. Store only the latest selected review fields
 
-**Decision:** Store a single latest snapshot keyed by `review_id`, containing `heading`, `body`, `rating`, and normalized `media` with only `id` and `thumbnail_url`.
+**Decision:** Store a single latest snapshot keyed by `review_id`, containing `heading`, `body`, `rating`, and normalized `media` with only `id` and full media `url`.
 
 **Rationale:** The current requirement needs only the previous state for one comparison. Storing full history would add schema and retention complexity without supporting a current workflow.
 
@@ -62,7 +62,7 @@ Implementation is intentionally split:
 
 - Store a hash only: rejected because Slack needs before/after values for changed fields.
 - Store complete raw webhook payloads: rejected because this would retain more customer-linked data than needed and would complicate schema/privacy handling.
-- Store media URLs beyond `thumbnail_url`: rejected because Slack preview can use `thumbnail_url`, and the accepted storage scope only needs `id` and `thumbnail_url`.
+- Store media metadata beyond `id` and `url`, such as `thumbnail_url`, `type`, or processing details: rejected because Slack notifications should link to the full media URL so operators can open full-size photos and playable videos, and metadata-only changes should not trigger review-update notifications.
 
 ### 4. Compare selected fields directly and require `pending_update`
 

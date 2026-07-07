@@ -27,8 +27,8 @@ The system SHALL persist the latest known Fera review snapshot for every valid r
 
 #### Scenario: Media snapshot stores only required media fields
 
-- **WHEN** webhook payload `media` contains media objects with `id`, `thumbnail_url`, and other fields
-- **THEN** the review snapshot stores only `id` and `thumbnail_url` for each media item
+- **WHEN** webhook payload `media` contains media objects with `id`, full media `url`, `thumbnail_url`, and other fields
+- **THEN** the review snapshot stores only `id` and full media `url` for each media item
 - **AND** the system normalizes media before comparison and persistence
 
 ### Requirement: Review updates SHALL be detected by comparing selected fields with the previous snapshot
@@ -85,11 +85,12 @@ The system SHALL send a Slack notification for qualifying review updates that cl
 - **AND** changed fields appear in the order `rating`, `heading`, `body`, `media`
 - **AND** unchanged fields are omitted from the diff groups
 
-#### Scenario: Media diff uses thumbnail URLs
+#### Scenario: Media diff uses full media URLs
 
 - **WHEN** normalized `media` changed between the previous and current snapshots
-- **THEN** the Slack diff displays media values using `thumbnail_url`
-- **AND** Slack can render image previews from the displayed URLs
+- **THEN** the Slack diff displays media values using the full media `url`
+- **AND** uploaded photos can be opened at full size from the displayed URLs
+- **AND** uploaded videos can be opened or played from the displayed URLs
 
 #### Scenario: Missing optional context does not block notification delivery
 
