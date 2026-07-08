@@ -31,6 +31,18 @@ The system SHALL persist the latest known Fera review snapshot for every valid r
 - **THEN** the review snapshot stores only `id` and full media `url` for each media item
 - **AND** the system normalizes media before comparison and persistence
 
+#### Scenario: Snapshot storage preserves four-byte Unicode text
+
+- **WHEN** webhook payload `heading` or `body` contains 4-byte Unicode characters such as emoji
+- **THEN** the review snapshot persists those characters without replacing them with fallback characters such as `?`
+- **AND** a repeated webhook with the same selected review fields does not publish a review-update notification because of database character loss
+
+#### Scenario: Snapshot table is converted to utf8mb4
+
+- **WHEN** Magento creates the review snapshot table with a database or framework default that does not preserve 4-byte Unicode
+- **THEN** the module setup converts `fera_review_snapshots` to `utf8mb4`
+- **AND** text columns used by snapshot comparison preserve review text and normalized media JSON without lossy charset conversion
+
 ### Requirement: Review notification delivery SHALL use independent enabled settings and shared Slack configuration
 
 The system SHALL expose separate store-scoped enabled settings for negative-review notifications and review-update notifications in the existing review notifications configuration group. Both settings SHALL default to disabled. Both notification types SHALL use the existing shared Slack webhook URL setting when sending Slack messages.

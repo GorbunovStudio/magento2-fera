@@ -78,6 +78,18 @@ Implementation is intentionally split:
 - Store complete raw webhook payloads: rejected because this would retain more customer-linked data than needed and would complicate schema/privacy handling.
 - Store media metadata beyond `id` and `url`, such as `thumbnail_url`, `type`, or processing details: rejected because Slack notifications should link to the full media URL so operators can open full-size photos and playable videos, and metadata-only changes should not trigger review-update notifications.
 
+### 3a. Force review snapshot storage to utf8mb4
+
+**Decision:** Add a schema patch that converts `fera_review_snapshots` to `utf8mb4` after the declarative table is created.
+
+**Rationale:** Review text can contain 4-byte Unicode characters such as emoji. Magento declarative schema can create module tables with an explicit `DEFAULT CHARSET=utf8mb3` even when the database default charset is `utf8mb4`; in that case characters such as `🖤` are stored as `?`. That lossy round-trip makes repeated identical Fera `review_updated` webhooks look like body changes because the current payload still contains the emoji while the previous snapshot contains `?`.
+
+**Alternatives considered:**
+
+- Rely on the database default charset: rejected because observed Magento-generated DDL can still create the table as `utf8mb3`.
+- Store snapshot strings in an ASCII-safe encoded format such as Base64: rejected because it makes the snapshot table harder to inspect, increases storage size, and adds encode/decode complexity around normal text fields.
+- Use `utf8mb4_0900_ai_ci`: rejected for the module patch because it is MySQL 8 specific; `utf8mb4_general_ci` is more compatible across Magento MySQL/MariaDB environments while still preserving 4-byte Unicode.
+
 ### 4. Compare selected fields directly and require `pending_update`
 
 **Decision:** On `review_updated`, compare current snapshot values with the previous snapshot. Publish a notification only when a previous snapshot exists, at least one selected field changed, `state = pending_update`, and review-update notifications are enabled.
@@ -117,6 +129,7 @@ Implementation is intentionally split:
 - Rare operator edits can still trigger false notifications when `state = pending_update` and selected fields change -> Accepted compromise; document behavior and avoid overfitting to unreliable actor detection.
 - Existing reviews may have no snapshot at deployment time -> On first update without a previous snapshot, save the snapshot and do not notify; future updates can then be detected.
 - Snapshot persistence stores review text and media URLs -> Store only required fields, avoid logging field values, and do not store raw payloads.
+- Snapshot text stored under `utf8mb3` can lose emoji and other 4-byte Unicode characters -> Convert the snapshot table to `utf8mb4` so comparison uses lossless database round-trips.
 - Queue, schema, and config-path changes affect deployment order -> Deploy the Fera fork changes first, run schema upgrade/whitelist generation and config migration, then deploy Budsies enrichment changes.
 - Renaming the existing enabled setting can change behavior if existing configuration is not migrated -> Copy legacy enabled values only into the negative-review enabled setting; keep review-update notifications disabled by default.
 - Refactoring Budsies action logic could regress negative-review buttons -> Keep provider extraction behavior-preserving and cover existing negative-review scenarios with focused tests.
@@ -125,6 +138,7 @@ Implementation is intentionally split:
 
 1. Part 1, Fera fork:
    - Add review snapshot schema and persistence services.
+   - Add a schema patch that converts review snapshot storage to `utf8mb4`.
    - Update review-created webhook processing to save snapshots before notification gating.
    - Add review-updated webhook processing, comparison, and queue publication.
    - Add review-update queue message/handler and base Slack payload/buttons.
