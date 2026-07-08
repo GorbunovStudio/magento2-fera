@@ -137,10 +137,11 @@ The system SHALL send a Slack notification for qualifying review updates that cl
 #### Scenario: Slack diff shows changed fields in the required order
 
 - **WHEN** changed fields are included in a review-update notification
-- **THEN** the Slack diff contains a `Review before changes` group
-- **AND** the Slack diff contains an `After changes` group
+- **THEN** the Slack payload starts the review content with a `Review before changes` group
+- **AND** the `Review before changes` group includes the full review context using before-change values for changed review fields
+- **AND** the Slack payload contains an `After changes` group after the before-change review context
+- **AND** the `After changes` group includes only fields that changed
 - **AND** changed fields appear in the order `rating`, `heading`, `body`, `media`
-- **AND** unchanged fields are omitted from the diff groups
 
 #### Scenario: Media diff uses full media URLs
 

@@ -19,7 +19,7 @@
 - [ ] 2.8 Ensure review-updated processing saves snapshots when no previous snapshot exists, when `state !== pending_update`, when no selected fields changed, and when review-update notifications are disabled.
 - [x] 2.9 Gate review-update queue publication and queue handling only with the review-update enabled setting, not with the negative-review enabled setting.
 - [ ] 2.10 Add a dedicated review-update queue topic, publisher, topology binding, message contract, and handler.
-- [x] 2.11 Build the base review-update Slack payload with title, review context, `Review before changes` and `After changes` groups, and changed fields ordered as `rating`, `heading`, `body`, `media`.
+- [x] 2.11 Build the base review-update Slack payload with `Review before changes` full review context, `After changes` changed-field values, and changed fields ordered as `rating`, `heading`, `body`, `media`.
 - [ ] 2.12 Add base Slack actions for `View in Fera` and `View Magento Order` when their URLs can be resolved.
 - [ ] 2.13 Add a review-update Slack action preparation event carrying message, resolved order, store ID, and mutable actions container.
 - [ ] 2.14 Add or update Fera fork unit tests for review-created snapshot persistence, disabled notification behavior, review-updated comparison/gating, queue publication, Slack formatting, base actions, independent enabled settings, and legacy negative-review flag migration.

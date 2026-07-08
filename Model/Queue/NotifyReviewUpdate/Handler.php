@@ -279,6 +279,48 @@ class Handler
                 ],
             ],
             ['type' => 'divider'],
+        ];
+
+        array_push($blocks, ...$this->buildReviewBeforeBlocks($notificationData, $changedFields));
+        array_push($blocks, ...$this->buildAfterChangesBlocks($changedFields));
+
+        if ($actions !== []) {
+            $blocks[] = [
+                'type' => 'actions',
+                'elements' => $actions,
+            ];
+        }
+
+        $client = $this->clientFactory->create();
+        $client->post($webhookUrl, [
+            'json' => [
+                'text' => 'Fera Review Update',
+                'blocks' => $blocks,
+            ],
+            'connect_timeout' => self::SLACK_CONNECT_TIMEOUT_SECONDS,
+            'timeout' => self::SLACK_TIMEOUT_SECONDS,
+        ]);
+    }
+
+    /**
+     * @param NotificationData $notificationData
+     * @param ChangedFields $changedFields
+     * @return list<array<string, mixed>>
+     */
+    private function buildReviewBeforeBlocks(array $notificationData, array $changedFields): array
+    {
+        $rating = $changedFields['rating']['before'] ?? $notificationData['rating'];
+        $title = $changedFields['heading']['before'] ?? $notificationData['review_title'];
+        $review = $changedFields['body']['before'] ?? $notificationData['review_body'];
+
+        $blocks = [
+            [
+                'type' => 'section',
+                'text' => [
+                    'type' => 'mrkdwn',
+                    'text' => '*Review before changes*',
+                ],
+            ],
             [
                 'type' => 'section',
                 'fields' => [
@@ -288,7 +330,7 @@ class Handler
                     ],
                     [
                         'type' => 'mrkdwn',
-                        'text' => "*Rating:*\n" . $this->formatRating($notificationData['rating']),
+                        'text' => "*Rating:*\n" . $this->formatChangedValue('rating', $rating),
                     ],
                 ],
             ],
@@ -310,53 +352,37 @@ class Handler
                 'text' => [
                     'type' => 'mrkdwn',
                     'text' => '*Customer:* ' . $this->escapeSlack($notificationData['customer_name']) . "\n"
-                        . '*Title:* ' . $this->escapeSlack($notificationData['review_title']) . "\n"
-                        . "*Review:*\n" . $this->escapeSlack($notificationData['review_body']),
+                        . '*Title:* ' . $this->formatChangedValue('heading', $title) . "\n"
+                        . "*Review:*\n" . $this->formatChangedValue('body', $review),
                 ],
             ],
         ];
 
-        array_push($blocks, ...$this->buildDiffBlocks($changedFields));
-
-        if ($actions !== []) {
+        if (isset($changedFields['media']) && array_key_exists('before', $changedFields['media'])) {
             $blocks[] = [
-                'type' => 'actions',
-                'elements' => $actions,
+                'type' => 'section',
+                'text' => [
+                    'type' => 'mrkdwn',
+                    'text' => "*Media:*\n" . $this->formatChangedValue('media', $changedFields['media']['before']),
+                ],
             ];
         }
 
-        $client = $this->clientFactory->create();
-        $client->post($webhookUrl, [
-            'json' => [
-                'text' => 'Fera Review Update',
-                'blocks' => $blocks,
-            ],
-            'connect_timeout' => self::SLACK_CONNECT_TIMEOUT_SECONDS,
-            'timeout' => self::SLACK_TIMEOUT_SECONDS,
-        ]);
+        return $blocks;
     }
 
     /**
      * @param ChangedFields $changedFields
      * @return list<array<string, mixed>>
      */
-    private function buildDiffBlocks(array $changedFields): array
+    private function buildAfterChangesBlocks(array $changedFields): array
     {
-        $beforeBlocks = $this->buildDiffSideBlocks($changedFields, 'before');
         $afterBlocks = $this->buildDiffSideBlocks($changedFields, 'after');
-        if ($beforeBlocks === [] || $afterBlocks === []) {
+        if ($afterBlocks === []) {
             return [];
         }
 
         return [
-            [
-                'type' => 'section',
-                'text' => [
-                    'type' => 'mrkdwn',
-                    'text' => '*Review before changes*',
-                ],
-            ],
-            ...$beforeBlocks,
             [
                 'type' => 'section',
                 'text' => [
