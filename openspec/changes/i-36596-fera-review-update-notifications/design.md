@@ -102,6 +102,28 @@ Implementation is intentionally split:
 - Rely only on `state = pending_update`: rejected because the webhook can fire without a meaningful content change.
 - Attempt to identify the exact actor: rejected for this scope because available webhook data does not provide a reliable actor distinction, and the false-positive risk from rare operator edits is accepted.
 
+### 4a. Serialize review-updated processing per review
+
+**Decision:** Use Magento's `LockManagerInterface` in the review-updated webhook flow to acquire a mutex keyed by store ID and Fera review ID before loading the previous snapshot, comparing fields, publishing the queue message, and saving the current snapshot.
+
+**Rationale:** Fera can send several identical `review_updated` webhooks almost simultaneously for a single customer edit. Without serialization, concurrent requests can all read the same previous snapshot before any request saves the new snapshot, causing duplicate review-update notification messages. The Magento installation uses the `db` lock provider, so `LockManagerInterface` gives a distributed mutex shared across web nodes without introducing custom locking infrastructure.
+
+**Implementation plan:**
+
+1. Inject `Magento\Framework\Lock\LockManagerInterface` into `Fera\Ai\Model\ReviewUpdatedWebhook`.
+2. Build the current snapshot before acquiring the lock so the lock key can include the normalized review ID.
+3. Use a lock name derived from store ID and review ID, for example `fera_review_updated_{storeId}_{sha256(reviewId)}`, to keep locks per review and avoid unsafe characters in lock names.
+4. Acquire the lock with a short timeout, such as 10 seconds.
+5. While holding the lock, execute the critical section: load previous snapshot, compare selected fields, evaluate notification gates, publish the review-update queue message when needed, and save the current snapshot.
+6. Release the lock in `finally` so exceptions do not leave stale application-level locks.
+7. If the lock cannot be acquired, return a retryable webhook error, such as HTTP 503, instead of silently returning success and losing a possible update.
+
+**Alternatives considered:**
+
+- Add locking in the review-update queue handler: rejected because duplicate queue messages are created before the handler runs.
+- Use `SELECT ... FOR UPDATE` around the snapshot row: considered a strong option, but it requires larger repository/transaction changes and extra care for reviews whose snapshot row does not exist yet. `LockManagerInterface` is smaller in scope and works before a snapshot row exists.
+- Silently skip webhook processing when a lock is already held: rejected because that could lose a real later update; a retryable error lets Fera resend after the active request has saved the snapshot.
+
 ### 5. Send review-update Slack notifications through a separate queue topic
 
 **Decision:** Add a dedicated topic such as `fera.review.notify_updated` and handler for review-update Slack notifications.
@@ -131,6 +153,7 @@ Implementation is intentionally split:
 - Snapshot persistence stores review text and media URLs -> Store only required fields, avoid logging field values, and do not store raw payloads.
 - Snapshot text stored under `utf8mb3` can lose emoji and other 4-byte Unicode characters -> Convert the snapshot table to `utf8mb4` so comparison uses lossless database round-trips.
 - Media changes may include removals or existing attachments as well as new uploads -> Render only newly attached media in Slack so operators see the customer-added files without repeating the full previous media list.
+- Concurrent identical `review_updated` webhook requests can read the same previous snapshot and enqueue duplicate notifications -> Serialize review-updated snapshot compare/save work with a per-review Magento lock and return a retryable response when the lock cannot be acquired.
 - Queue, schema, and config-path changes affect deployment order -> Deploy the Fera fork changes first, run schema upgrade/whitelist generation and config migration, then deploy Budsies enrichment changes.
 - Renaming the existing enabled setting can change behavior if existing configuration is not migrated -> Copy legacy enabled values only into the negative-review enabled setting; keep review-update notifications disabled by default.
 - Refactoring Budsies action logic could regress negative-review buttons -> Keep provider extraction behavior-preserving and cover existing negative-review scenarios with focused tests.
@@ -141,7 +164,7 @@ Implementation is intentionally split:
    - Add review snapshot schema and persistence services.
    - Add a schema patch that converts review snapshot storage to `utf8mb4`.
    - Update review-created webhook processing to save snapshots before notification gating.
-   - Add review-updated webhook processing, comparison, and queue publication.
+   - Add review-updated webhook processing, per-review mutex locking, comparison, and queue publication.
    - Add review-update queue message/handler and base Slack payload/buttons.
    - Add separate enabled settings for negative-review and review-update notifications, default both to disabled, and migrate the legacy enabled value only to the negative-review setting.
    - Add/update Fera fork unit tests.

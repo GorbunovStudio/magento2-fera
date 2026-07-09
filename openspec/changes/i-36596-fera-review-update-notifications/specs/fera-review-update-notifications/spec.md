@@ -124,6 +124,25 @@ The system SHALL compare current review values with the previous snapshot for `r
 - **THEN** the system saves the current snapshot as the latest known state
 - **AND** the system does not publish a review-update notification
 
+#### Scenario: Concurrent review-updated webhooks are serialized per review
+
+- **WHEN** Magento receives multiple valid Fera `review_updated` webhooks for the same store and review at the same time
+- **THEN** the system processes the snapshot load, comparison, queue publication decision, and snapshot save under a single per-review lock
+- **AND** later concurrent processing for that same review observes the snapshot saved by the earlier processing before deciding whether to publish
+- **AND** identical repeated payloads do not publish duplicate review-update notification messages
+
+#### Scenario: Different reviews can be processed independently
+
+- **WHEN** Magento receives valid Fera `review_updated` webhooks for different reviews
+- **THEN** the per-review lock for one review does not block processing of the other review
+
+#### Scenario: Lock acquisition failure returns a retryable webhook error
+
+- **WHEN** Magento receives a valid Fera `review_updated` webhook
+- **AND** the per-review processing lock cannot be acquired within the configured wait period
+- **THEN** the system does not publish a review-update notification for that attempt
+- **AND** the system returns a retryable webhook error so Fera can retry after the active processing completes
+
 ### Requirement: Review-update Slack notification SHALL show context and before-after changed fields
 
 The system SHALL send a Slack notification for qualifying review updates that clearly identifies the event as a review update, includes available review context, and shows before/after values for changed fields.
