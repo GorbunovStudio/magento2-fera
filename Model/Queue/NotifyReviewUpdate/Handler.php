@@ -351,7 +351,7 @@ class Handler
                 'type' => 'section',
                 'text' => [
                     'type' => 'mrkdwn',
-                    'text' => '*Customer:* ' . $this->escapeSlack($notificationData['customer_name']) . "\n"
+                    'text' => '*Customer:* ' . $this->escapeSlack($notificationData['customer_name']) . "\n\n"
                         . '*Title:* ' . $this->formatChangedValue('heading', $title) . "\n"
                         . '*Review:* ' . $this->formatChangedValue('body', $review),
                 ],
@@ -405,6 +405,10 @@ class Handler
                 continue;
             }
 
+            if ($field === 'heading' && isset($changedFields['body'])) {
+                continue;
+            }
+
             $value = $changedFields[$field][$side];
             if ($field === 'media' && $side === 'after') {
                 $value = $this->extractNewMediaAttachments(
@@ -418,6 +422,13 @@ class Handler
             }
 
             $fieldText = $this->formatChangedFieldText($field, $label, $value);
+            if ($field === 'body' && isset($changedFields['heading'][$side])) {
+                $fieldText = $this->formatChangedFieldText(
+                    'heading',
+                    $labels['heading'],
+                    $changedFields['heading'][$side]
+                ) . "\n" . $fieldText;
+            }
 
             if ($field === 'body' || $field === 'media') {
                 if ($compactFields !== []) {
