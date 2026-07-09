@@ -351,8 +351,14 @@ class Handler
                 'type' => 'section',
                 'text' => [
                     'type' => 'mrkdwn',
-                    'text' => '*Customer:* ' . $this->escapeSlack($notificationData['customer_name']) . "\n\n"
-                        . '*Title:* ' . $this->formatChangedValue('heading', $title) . "\n"
+                    'text' => '*Customer:* ' . $this->escapeSlack($notificationData['customer_name']),
+                ],
+            ],
+            [
+                'type' => 'section',
+                'text' => [
+                    'type' => 'mrkdwn',
+                    'text' => '*Title:* ' . $this->formatChangedValue('heading', $title) . "\n"
                         . '*Review:* ' . $this->formatChangedValue('body', $review),
                 ],
             ],
@@ -367,7 +373,52 @@ class Handler
      */
     private function buildAfterChangesBlocks(array $changedFields): array
     {
-        $afterBlocks = $this->buildDiffSideBlocks($changedFields, 'after');
+        $afterBlocks = [];
+        $compactFields = [];
+
+        if (isset($changedFields['rating']['after'])) {
+            $compactFields[] = [
+                'type' => 'mrkdwn',
+                'text' => $this->formatChangedFieldText('rating', 'Rating', $changedFields['rating']['after']),
+            ];
+        }
+
+        if ($compactFields !== []) {
+            $afterBlocks[] = [
+                'type' => 'section',
+                'fields' => $compactFields,
+            ];
+        }
+
+        $reviewText = $this->buildAfterReviewText($changedFields);
+        if ($reviewText !== '') {
+            $afterBlocks[] = [
+                'type' => 'section',
+                'text' => [
+                    'type' => 'mrkdwn',
+                    'text' => $reviewText,
+                ],
+            ];
+        }
+
+        $newMedia = [];
+        if (isset($changedFields['media']['after'])) {
+            $newMedia = $this->extractNewMediaAttachments(
+                $changedFields['media']['before'] ?? [],
+                $changedFields['media']['after']
+            );
+        }
+
+        if ($newMedia !== []) {
+            $afterBlocks[] = [
+                'type' => 'section',
+                'text' => [
+                    'type' => 'mrkdwn',
+                    'text' => $this->formatChangedFieldText('media', 'New media attached', $newMedia),
+                ],
+            ];
+        }
+
         if ($afterBlocks === []) {
             return [];
         }
@@ -387,82 +438,19 @@ class Handler
 
     /**
      * @param ChangedFields $changedFields
-     * @return list<array<string, mixed>>
      */
-    private function buildDiffSideBlocks(array $changedFields, string $side): array
+    private function buildAfterReviewText(array $changedFields): string
     {
-        $blocks = [];
-        $compactFields = [];
-        $labels = [
-            'rating' => 'Rating',
-            'heading' => 'Title',
-            'body' => 'Review',
-            'media' => 'New media attached',
-        ];
-
-        foreach ($labels as $field => $label) {
-            if (!isset($changedFields[$field]) || !array_key_exists($side, $changedFields[$field])) {
-                continue;
-            }
-
-            if ($field === 'heading' && isset($changedFields['body'])) {
-                continue;
-            }
-
-            $value = $changedFields[$field][$side];
-            if ($field === 'media' && $side === 'after') {
-                $value = $this->extractNewMediaAttachments(
-                    $changedFields[$field]['before'] ?? [],
-                    $changedFields[$field]['after']
-                );
-
-                if ($value === []) {
-                    continue;
-                }
-            }
-
-            $fieldText = $this->formatChangedFieldText($field, $label, $value);
-            if ($field === 'body' && isset($changedFields['heading'][$side])) {
-                $fieldText = $this->formatChangedFieldText(
-                    'heading',
-                    $labels['heading'],
-                    $changedFields['heading'][$side]
-                ) . "\n" . $fieldText;
-            }
-
-            if ($field === 'body' || $field === 'media') {
-                if ($compactFields !== []) {
-                    $blocks[] = [
-                        'type' => 'section',
-                        'fields' => $compactFields,
-                    ];
-                    $compactFields = [];
-                }
-
-                $blocks[] = [
-                    'type' => 'section',
-                    'text' => [
-                        'type' => 'mrkdwn',
-                        'text' => $fieldText,
-                    ],
-                ];
-                continue;
-            }
-
-            $compactFields[] = [
-                'type' => 'mrkdwn',
-                'text' => $fieldText,
-            ];
+        $fields = [];
+        if (isset($changedFields['heading']['after'])) {
+            $fields[] = $this->formatChangedFieldText('heading', 'Title', $changedFields['heading']['after']);
         }
 
-        if ($compactFields !== []) {
-            $blocks[] = [
-                'type' => 'section',
-                'fields' => $compactFields,
-            ];
+        if (isset($changedFields['body']['after'])) {
+            $fields[] = $this->formatChangedFieldText('body', 'Review', $changedFields['body']['after']);
         }
 
-        return $blocks;
+        return implode("\n", $fields);
     }
 
     private function formatChangedFieldText(string $field, string $label, mixed $value): string
