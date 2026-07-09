@@ -353,7 +353,7 @@ class Handler
                     'type' => 'mrkdwn',
                     'text' => '*Customer:* ' . $this->escapeSlack($notificationData['customer_name']) . "\n"
                         . '*Title:* ' . $this->formatChangedValue('heading', $title) . "\n"
-                        . "*Review:*\n" . $this->formatChangedValue('body', $review),
+                        . '*Review:* ' . $this->formatChangedValue('body', $review),
                 ],
             ],
         ];
@@ -373,6 +373,7 @@ class Handler
         }
 
         return [
+            ['type' => 'divider'],
             [
                 'type' => 'section',
                 'text' => [
@@ -416,8 +417,7 @@ class Handler
                 }
             }
 
-            $fieldText = '*' . $label . ":*\n"
-                . $this->formatChangedValue($field, $value);
+            $fieldText = $this->formatChangedFieldText($field, $label, $value);
 
             if ($field === 'body' || $field === 'media') {
                 if ($compactFields !== []) {
@@ -452,6 +452,12 @@ class Handler
         }
 
         return $blocks;
+    }
+
+    private function formatChangedFieldText(string $field, string $label, mixed $value): string
+    {
+        $separator = $field === 'media' ? "\n" : ' ';
+        return '*' . $label . ':*' . $separator . $this->formatChangedValue($field, $value);
     }
 
     /**
