@@ -18,7 +18,7 @@ Implementation is intentionally split:
 - Require `state = pending_update` before publishing a review-update notification.
 - Gate negative-review notifications and review-update notifications with separate enabled settings that both default to disabled.
 - Keep both notification types on the shared Slack webhook URL setting.
-- Send a review-update Slack notification with current review context and before/after values for changed fields.
+- Send a review-update Slack notification with before-change review context, after-change values for changed fields, and a dedicated list of newly attached media.
 - Include the same action buttons as negative-review notifications: `View in Fera`, `View Magento Order`, `View in MakerWare`, and `View Freshdesk Tickets`.
 - Keep existing negative-review notification behavior unchanged.
 
@@ -130,6 +130,7 @@ Implementation is intentionally split:
 - Existing reviews may have no snapshot at deployment time -> On first update without a previous snapshot, save the snapshot and do not notify; future updates can then be detected.
 - Snapshot persistence stores review text and media URLs -> Store only required fields, avoid logging field values, and do not store raw payloads.
 - Snapshot text stored under `utf8mb3` can lose emoji and other 4-byte Unicode characters -> Convert the snapshot table to `utf8mb4` so comparison uses lossless database round-trips.
+- Media changes may include removals or existing attachments as well as new uploads -> Render only newly attached media in Slack so operators see the customer-added files without repeating the full previous media list.
 - Queue, schema, and config-path changes affect deployment order -> Deploy the Fera fork changes first, run schema upgrade/whitelist generation and config migration, then deploy Budsies enrichment changes.
 - Renaming the existing enabled setting can change behavior if existing configuration is not migrated -> Copy legacy enabled values only into the negative-review enabled setting; keep review-update notifications disabled by default.
 - Refactoring Budsies action logic could regress negative-review buttons -> Keep provider extraction behavior-preserving and cover existing negative-review scenarios with focused tests.

@@ -139,16 +139,26 @@ The system SHALL send a Slack notification for qualifying review updates that cl
 - **WHEN** changed fields are included in a review-update notification
 - **THEN** the Slack payload starts the review content with a `Review before changes` group
 - **AND** the `Review before changes` group includes the full review context using before-change values for changed review fields
+- **AND** the `Review before changes` group does not include a media list
 - **AND** the Slack payload contains an `After changes` group after the before-change review context
 - **AND** the `After changes` group includes only fields that changed
-- **AND** changed fields appear in the order `rating`, `heading`, `body`, `media`
+- **AND** changed text fields and newly attached media appear in the order `rating`, `heading`, `body`, `media`
 
-#### Scenario: Media diff uses full media URLs
+#### Scenario: Media diff shows only newly attached full media URLs
 
 - **WHEN** normalized `media` changed between the previous and current snapshots
-- **THEN** the Slack diff displays media values using the full media `url`
+- **AND** the current snapshot contains media items that were not present in the previous snapshot
+- **THEN** the `After changes` group displays those media items under `New media attached`
+- **AND** the `After changes` group displays only newly attached media items, not the full current media list
+- **AND** the media values use the full media `url`
 - **AND** uploaded photos can be opened at full size from the displayed URLs
 - **AND** uploaded videos can be opened or played from the displayed URLs
+
+#### Scenario: Media changes without new attachments omit media from Slack
+
+- **WHEN** normalized `media` changed between the previous and current snapshots
+- **AND** the current snapshot contains no media items that were absent from the previous snapshot
+- **THEN** the Slack payload omits the `New media attached` field
 
 #### Scenario: Missing optional context does not block notification delivery
 

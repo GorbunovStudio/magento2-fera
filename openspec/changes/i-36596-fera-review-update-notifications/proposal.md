@@ -9,7 +9,7 @@ Operators can request that a customer update an existing Fera.ai review, but the
 - Ensure review snapshot text storage preserves 4-byte Unicode characters, such as emoji, so repeated identical webhooks do not create false body changes after database round-trips.
 - Detect review updates by comparing the current payload with the previous snapshot for `rating`, `heading`, `body`, and `media`, and require `state = pending_update` before sending an update notification.
 - Add independent enabled settings for negative-review notifications and review-update notifications in the existing review notifications configuration group; both default to disabled and both use the shared Slack webhook URL.
-- Send a new Slack notification for qualifying review updates with before/after values for changed fields.
+- Send a new Slack notification for qualifying review updates with before-change review context, after-change values for changed fields, and a dedicated list of newly attached media.
 - Keep the existing negative-review notification behavior unchanged.
 - Split implementation into two coordinated parts:
   - Part 1, Fera fork: webhook handling, snapshot storage, update detection, queue contract/topic, and base Slack notification.

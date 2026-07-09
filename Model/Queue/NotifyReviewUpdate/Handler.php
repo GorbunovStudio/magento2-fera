@@ -358,16 +358,6 @@ class Handler
             ],
         ];
 
-        if (isset($changedFields['media']) && array_key_exists('before', $changedFields['media'])) {
-            $blocks[] = [
-                'type' => 'section',
-                'text' => [
-                    'type' => 'mrkdwn',
-                    'text' => "*Media:*\n" . $this->formatChangedValue('media', $changedFields['media']['before']),
-                ],
-            ];
-        }
-
         return $blocks;
     }
 
@@ -406,7 +396,7 @@ class Handler
             'rating' => 'Rating',
             'heading' => 'Title',
             'body' => 'Review',
-            'media' => 'Media',
+            'media' => 'New media attached',
         ];
 
         foreach ($labels as $field => $label) {
@@ -414,8 +404,20 @@ class Handler
                 continue;
             }
 
+            $value = $changedFields[$field][$side];
+            if ($field === 'media' && $side === 'after') {
+                $value = $this->extractNewMediaAttachments(
+                    $changedFields[$field]['before'] ?? [],
+                    $changedFields[$field]['after']
+                );
+
+                if ($value === []) {
+                    continue;
+                }
+            }
+
             $fieldText = '*' . $label . ":*\n"
-                . $this->formatChangedValue($field, $changedFields[$field][$side]);
+                . $this->formatChangedValue($field, $value);
 
             if ($field === 'body' || $field === 'media') {
                 if ($compactFields !== []) {
@@ -450,6 +452,89 @@ class Handler
         }
 
         return $blocks;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function extractNewMediaAttachments(mixed $before, mixed $after): array
+    {
+        if (!is_array($after)) {
+            return [];
+        }
+
+        $beforeKeys = $this->buildMediaComparisonKeys($before);
+        $newMedia = [];
+        foreach ($after as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $itemKeys = $this->extractMediaComparisonKeys($item);
+            if ($itemKeys === [] || array_intersect($itemKeys, $beforeKeys) !== []) {
+                continue;
+            }
+
+            $newMedia[] = $item;
+        }
+
+        return $newMedia;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function buildMediaComparisonKeys(mixed $media): array
+    {
+        if (!is_array($media)) {
+            return [];
+        }
+
+        $keys = [];
+        foreach ($media as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            foreach ($this->extractMediaComparisonKeys($item) as $key) {
+                $keys[$key] = $key;
+            }
+        }
+
+        return array_values($keys);
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @return list<string>
+     */
+    private function extractMediaComparisonKeys(array $item): array
+    {
+        $keys = [];
+        $id = $this->stringifyMediaValue($item['id'] ?? null);
+        if ($id !== '') {
+            $keys[] = 'id:' . $id;
+        }
+
+        $url = $this->stringifyMediaValue($item['url'] ?? null);
+        if ($url !== '') {
+            $keys[] = 'url:' . $url;
+        }
+
+        return $keys;
+    }
+
+    private function stringifyMediaValue(mixed $value): string
+    {
+        if (is_string($value)) {
+            return trim($value);
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        return '';
     }
 
     /**
