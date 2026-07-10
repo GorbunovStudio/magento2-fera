@@ -4,6 +4,7 @@
     xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Fera\Ai\Api\Data\Queue\ExportProduct\MessageInterface" type="Fera\Ai\Model\Queue\ExportProduct\Message" />
     <preference for="Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterface" type="Fera\Ai\Model\Queue\NotifyNegativeReview\Message" />
+    <preference for="Fera\Ai\Api\Data\Queue\NotifyPositiveReview\MessageInterface" type="Fera\Ai\Model\Queue\NotifyPositiveReview\Message" />
     <preference for="Fera\Ai\Api\Data\Queue\NotifyReviewUpdate\MessageInterface" type="Fera\Ai\Model\Queue\NotifyReviewUpdate\Message" />
     <preference for="Fera\Ai\Api\ReviewCreatedWebhookInterface" type="Fera\Ai\Model\ReviewCreatedWebhook" />
     <preference for="Fera\Ai\Api\ReviewUpdatedWebhookInterface" type="Fera\Ai\Model\ReviewUpdatedWebhook" />

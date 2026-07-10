@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Fera\Ai\Model\Queue\NotifyNegativeReview;
+namespace Fera\Ai\Model\Queue\NotifyPositiveReview;
 
-use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterface;
+use Fera\Ai\Api\Data\Queue\NotifyPositiveReview\MessageInterface;
 use Magento\Framework\DataObject;
 use UnexpectedValueException;
 
@@ -25,14 +25,7 @@ class Message extends DataObject implements MessageInterface
 
     public function getStoreId(): int
     {
-        $value = parent::getData(self::STORE_ID);
-        if (!is_numeric($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::STORE_ID . ': expected int, got ' . get_debug_type($value)
-            );
-        }
-
-        return (int) $value;
+        return $this->getInt(self::STORE_ID);
     }
 
     public function setStoreId(int $value): static
@@ -43,14 +36,7 @@ class Message extends DataObject implements MessageInterface
 
     public function getReviewId(): string
     {
-        $value = parent::getData(self::REVIEW_ID);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::REVIEW_ID . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::REVIEW_ID);
     }
 
     public function setReviewId(string $value): static
@@ -79,14 +65,7 @@ class Message extends DataObject implements MessageInterface
 
     public function getFeraStoreId(): string
     {
-        $value = parent::getData(self::FERA_STORE_ID);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::FERA_STORE_ID . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::FERA_STORE_ID);
     }
 
     public function setFeraStoreId(string $value): static
@@ -97,14 +76,7 @@ class Message extends DataObject implements MessageInterface
 
     public function getExternalOrderId(): string
     {
-        $value = parent::getData(self::EXTERNAL_ORDER_ID);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::EXTERNAL_ORDER_ID . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::EXTERNAL_ORDER_ID);
     }
 
     public function setExternalOrderId(string $value): static
@@ -115,14 +87,7 @@ class Message extends DataObject implements MessageInterface
 
     public function getCustomerName(): string
     {
-        $value = parent::getData(self::CUSTOMER_NAME);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::CUSTOMER_NAME . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::CUSTOMER_NAME);
     }
 
     public function setCustomerName(string $value): static
@@ -131,16 +96,20 @@ class Message extends DataObject implements MessageInterface
         return $this;
     }
 
+    public function getCustomerEmail(): string
+    {
+        return $this->getString(self::CUSTOMER_EMAIL);
+    }
+
+    public function setCustomerEmail(string $value): static
+    {
+        $this->setData(self::CUSTOMER_EMAIL, $value);
+        return $this;
+    }
+
     public function getReviewTitle(): string
     {
-        $value = parent::getData(self::REVIEW_TITLE);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::REVIEW_TITLE . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::REVIEW_TITLE);
     }
 
     public function setReviewTitle(string $value): static
@@ -151,14 +120,7 @@ class Message extends DataObject implements MessageInterface
 
     public function getReviewBody(): string
     {
-        $value = parent::getData(self::REVIEW_BODY);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::REVIEW_BODY . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::REVIEW_BODY);
     }
 
     public function setReviewBody(string $value): static
@@ -169,14 +131,7 @@ class Message extends DataObject implements MessageInterface
 
     public function getProductName(): string
     {
-        $value = parent::getData(self::PRODUCT_NAME);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::PRODUCT_NAME . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::PRODUCT_NAME);
     }
 
     public function setProductName(string $value): static
@@ -184,35 +139,10 @@ class Message extends DataObject implements MessageInterface
         $this->setData(self::PRODUCT_NAME, $value);
         return $this;
     }
-    
-    public function getCustomerEmail(): string
-    {
-        $value = parent::getData(self::CUSTOMER_EMAIL);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::CUSTOMER_EMAIL . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
-    }
-
-    public function setCustomerEmail(string $value): static
-    {
-        $this->setData(self::CUSTOMER_EMAIL, $value);
-        return $this;
-    }
 
     public function getExternalProductId(): string
     {
-        $value = parent::getData(self::EXTERNAL_PRODUCT_ID);
-        if (!is_string($value)) {
-            throw new UnexpectedValueException(
-                'Incorrect type for ' . self::EXTERNAL_PRODUCT_ID . ': expected string, got ' . get_debug_type($value)
-            );
-        }
-
-        return $value;
+        return $this->getString(self::EXTERNAL_PRODUCT_ID);
     }
 
     public function setExternalProductId(string $value): static
@@ -263,5 +193,29 @@ class Message extends DataObject implements MessageInterface
     {
         $this->setData(self::MEDIA, $value);
         return $this;
+    }
+
+    private function getInt(string $key): int
+    {
+        $value = parent::getData($key);
+        if (!is_numeric($value)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for ' . $key . ': expected int, got ' . get_debug_type($value)
+            );
+        }
+
+        return (int) $value;
+    }
+
+    private function getString(string $key): string
+    {
+        $value = parent::getData($key);
+        if (!is_string($value)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for ' . $key . ': expected string, got ' . get_debug_type($value)
+            );
+        }
+
+        return $value;
     }
 }

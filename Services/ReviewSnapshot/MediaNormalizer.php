@@ -24,7 +24,7 @@ class MediaNormalizer
 
             $id = $this->extractString($item, 'id');
             $url = $this->extractString($item, 'url');
-            if ($id === '' && $url === '') {
+            if ($url === '') {
                 continue;
             }
 
