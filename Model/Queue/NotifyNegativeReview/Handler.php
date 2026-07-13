@@ -124,7 +124,7 @@ class Handler
             'external_order_id' => $this->fallback($orderIncrementId),
             'fera_review_url' => $feraReviewUrl,
             'magento_order_url' => $orderData['url'],
-            'media' => $message->getMedia(),
+            'media' => $this->decodeMediaJson($message->getMediaJson()),
         ];
 
         $slackWebhookUrl = $this->getConfigString(
@@ -401,6 +401,39 @@ class Handler
                 ],
             ],
         ];
+    }
+
+    /**
+     * @return list<array{id: string, url: string}>
+     */
+    private function decodeMediaJson(string $mediaJson): array
+    {
+        if (trim($mediaJson) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($mediaJson, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $media = [];
+        foreach ($decoded as $item) {
+            if (
+                !is_array($item)
+                || !is_string($item['id'] ?? null)
+                || !is_string($item['url'] ?? null)
+            ) {
+                continue;
+            }
+
+            $media[] = [
+                'id' => $item['id'],
+                'url' => $item['url'],
+            ];
+        }
+
+        return $media;
     }
 
     private function formatStarsString(float $rating): string

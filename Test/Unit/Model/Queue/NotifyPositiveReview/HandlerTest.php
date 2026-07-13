@@ -95,7 +95,8 @@ class HandlerTest extends TestCase
                     $encoded = json_encode($payload);
                     return is_string($encoded)
                         && str_contains($encoded, 'Positive Review Alert')
-                        && str_contains($encoded, 'View in Fera');
+                        && str_contains($encoded, 'View in Fera')
+                        && !str_contains($encoded, '*Media:*');
                 })
             );
 
@@ -105,7 +106,29 @@ class HandlerTest extends TestCase
             ->setReviewTitle('')
             ->setReviewBody('')
             ->setProductName('')
-            ->setMedia([]);
+            ->setMediaJson('[]');
+
+        $handler = $this->createHandler($client, $this->createMock(EventManager::class));
+        $handler->process($message);
+    }
+
+    public function testMalformedMediaJsonOmitsMediaSection(): void
+    {
+        $client = $this->createMock(Client::class);
+        $client->expects(self::once())
+            ->method('post')
+            ->with(
+                'https://hooks.example/positive',
+                self::callback(function (array $options): bool {
+                    $payload = $options['json'] ?? [];
+                    $encoded = json_encode($payload);
+                    return is_string($encoded)
+                        && str_contains($encoded, 'Positive Review Alert')
+                        && !str_contains($encoded, '*Media:*');
+                })
+            );
+
+        $message = $this->createMessage()->setMediaJson('{invalid');
 
         $handler = $this->createHandler($client, $this->createMock(EventManager::class));
         $handler->process($message);
@@ -168,9 +191,20 @@ class HandlerTest extends TestCase
             ->setReviewBody('Wonderful')
             ->setProductName('Plush')
             ->setExternalProductId('sku-1')
-            ->setMedia([
+            ->setMediaJson($this->encodeMedia([
                 ['id' => 'photo-1', 'url' => 'https://cdn.example/photo.jpg'],
                 ['id' => 'video-1', 'url' => 'https://cdn.example/video.mp4'],
-            ]);
+            ]));
+    }
+
+    /**
+     * @param list<array{id: string, url: string}> $media
+     */
+    private function encodeMedia(array $media): string
+    {
+        $mediaJson = json_encode($media, JSON_INVALID_UTF8_SUBSTITUTE);
+        self::assertIsString($mediaJson);
+
+        return $mediaJson;
     }
 }

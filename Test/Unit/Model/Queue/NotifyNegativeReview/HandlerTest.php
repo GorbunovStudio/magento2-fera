@@ -78,10 +78,10 @@ class HandlerTest extends TestCase
             ->setReviewBody('Not great')
             ->setProductName('Plush')
             ->setExternalProductId('sku-1')
-            ->setMedia([
+            ->setMediaJson($this->encodeMedia([
                 ['id' => 'photo-1', 'url' => 'https://cdn.example/photo.jpg'],
                 ['id' => 'video-1', 'url' => 'https://cdn.example/video.mp4'],
-            ]);
+            ]));
 
         $handler = new Handler(
             $scopeConfig,
@@ -96,5 +96,16 @@ class HandlerTest extends TestCase
         );
 
         $handler->process($message);
+    }
+
+    /**
+     * @param list<array{id: string, url: string}> $media
+     */
+    private function encodeMedia(array $media): string
+    {
+        $mediaJson = json_encode($media, JSON_INVALID_UTF8_SUBSTITUTE);
+        self::assertIsString($mediaJson);
+
+        return $mediaJson;
     }
 }

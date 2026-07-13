@@ -21,7 +21,7 @@ class Message extends DataObject implements MessageInterface
     private const REVIEW_BODY = 'review_body';
     private const PRODUCT_NAME = 'product_name';
     private const EXTERNAL_PRODUCT_ID = 'external_product_id';
-    private const MEDIA = 'media';
+    private const MEDIA_JSON = 'media_json';
 
     public function getStoreId(): int
     {
@@ -151,47 +151,25 @@ class Message extends DataObject implements MessageInterface
         return $this;
     }
 
-    /**
-     * @return list<array{id: string, url: string}>
-     */
-    public function getMedia(): array
+    public function getMediaJson(): string
     {
-        $value = parent::getData(self::MEDIA);
+        $value = parent::getData(self::MEDIA_JSON);
         if ($value === null) {
-            return [];
+            return '';
         }
 
-        if (!is_array($value)) {
+        if (!is_string($value)) {
             throw new UnexpectedValueException(
-                'Incorrect type for ' . self::MEDIA . ': expected array, got ' . get_debug_type($value)
+                'Incorrect type for ' . self::MEDIA_JSON . ': expected string, got ' . get_debug_type($value)
             );
         }
 
-        $media = [];
-        foreach ($value as $item) {
-            if (
-                !is_array($item)
-                || !is_string($item['id'] ?? null)
-                || !is_string($item['url'] ?? null)
-            ) {
-                throw new UnexpectedValueException('Incorrect structure for ' . self::MEDIA);
-            }
-
-            $media[] = [
-                'id' => $item['id'],
-                'url' => $item['url'],
-            ];
-        }
-
-        return $media;
+        return $value;
     }
 
-    /**
-     * @param list<array{id: string, url: string}> $value
-     */
-    public function setMedia(array $value): static
+    public function setMediaJson(string $value): static
     {
-        $this->setData(self::MEDIA, $value);
+        $this->setData(self::MEDIA_JSON, $value);
         return $this;
     }
 

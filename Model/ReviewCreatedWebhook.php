@@ -85,6 +85,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         $reviewId = $snapshot['review_id'];
         $rating = $snapshot['rating'];
         $media = $this->mediaNormalizer->normalize($payload['media'] ?? []);
+        $mediaJson = $this->encodeMedia($media);
 
         if ($this->areNegativeReviewNotificationsEnabled($storeId)) {
             $threshold = $this->getRatingThreshold($storeId);
@@ -101,7 +102,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
                     ->setReviewBody($this->normalizeReviewBody($snapshot['body']))
                     ->setProductName($this->extractNestedString($payload, ['product', 'name']))
                     ->setExternalProductId($this->extractString($payload, 'external_product_id'))
-                    ->setMedia($media);
+                    ->setMediaJson($mediaJson);
 
                 $this->publisher->publish(TopicInterface::NOTIFY_NEGATIVE_REVIEW, $message);
             }
@@ -128,7 +129,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             ->setReviewBody($this->normalizeReviewBody($snapshot['body']))
             ->setProductName($this->extractNestedString($payload, ['product', 'name']))
             ->setExternalProductId($this->extractString($payload, 'external_product_id'))
-            ->setMedia($media);
+            ->setMediaJson($mediaJson);
 
         $this->publisher->publish(TopicInterface::NOTIFY_POSITIVE_REVIEW, $message);
     }
@@ -253,5 +254,18 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         }
 
         return rtrim(mb_substr($value, 0, self::REVIEW_BODY_MAX_LENGTH));
+    }
+
+    /**
+     * @param list<array{id: string, url: string}> $media
+     */
+    private function encodeMedia(array $media): string
+    {
+        $mediaJson = json_encode($media, JSON_INVALID_UTF8_SUBSTITUTE);
+        if (!is_string($mediaJson)) {
+            throw new RuntimeException('Unable to encode review media');
+        }
+
+        return $mediaJson;
     }
 }

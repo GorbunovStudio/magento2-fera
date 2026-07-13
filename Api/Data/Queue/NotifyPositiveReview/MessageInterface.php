@@ -128,13 +128,13 @@ interface MessageInterface
     public function setExternalProductId(string $value): static;
 
     /**
-     * @return list<array{id: string, url: string}>
+     * @return string
      */
-    public function getMedia(): array;
+    public function getMediaJson(): string;
 
     /**
-     * @param list<array{id: string, url: string}> $value
+     * @param string $value
      * @return $this
      */
-    public function setMedia(array $value): static;
+    public function setMediaJson(string $value): static;
 }
