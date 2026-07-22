@@ -45,9 +45,15 @@ class ReviewsClient implements ReviewsClientInterface
             'subject' => 'both',
         ]);
 
+        if (!array_key_exists('data', $decoded) || !is_array($decoded['data'])) {
+            throw new FeraApiException(
+                'Invalid reviews list response from Fera API: field "data" must be an array'
+            );
+        }
+
         /** @var ReviewsListResponse $result */
         return [
-            'data' => isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : [],
+            'data' => $decoded['data'],
             'meta' => isset($decoded['meta']) && is_array($decoded['meta']) ? $decoded['meta'] : [],
         ];
     }
