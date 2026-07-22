@@ -160,6 +160,6 @@ SELECT
     all_time_reviews AS `All-time reviews`
 FROM metrics
 ORDER BY
-    store,
+    magento_store_id,
     CASE row_type WHEN 'store' THEN 0 ELSE 1 END,
     product;

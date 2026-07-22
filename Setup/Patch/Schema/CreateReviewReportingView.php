@@ -35,7 +35,9 @@ class CreateReviewReportingView implements SchemaPatchInterface
                 . 'snapshots.fera_created_at, snapshots.fera_updated_at '
                 . 'FROM %s AS snapshots '
                 . 'INNER JOIN %s AS stores ON stores.store_id = snapshots.magento_store_id '
-                . "WHERE snapshots.subject = 'product'",
+                . "WHERE snapshots.subject = 'product' "
+                . 'AND snapshots.fera_created_at IS NOT NULL '
+                . 'AND (snapshots.fera_product_id IS NOT NULL OR snapshots.external_product_id IS NOT NULL)',
                 $viewName,
                 $snapshotTable,
                 $storeTable

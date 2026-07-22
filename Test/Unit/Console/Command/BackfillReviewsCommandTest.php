@@ -12,6 +12,7 @@ use Fera\Ai\Services\StoreGroupService;
 use Magento\Framework\App\State as AppState;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class BackfillReviewsCommandTest extends TestCase
@@ -28,7 +29,7 @@ class BackfillReviewsCommandTest extends TestCase
                     return ['data' => [['id' => 'review-1']], 'meta' => ['page_count' => 1]];
                 }
 
-                throw new \RuntimeException('simulated account failure');
+                throw new RuntimeException('simulated account failure');
             });
 
         /** @var SnapshotBuilder&MockObject $snapshotBuilder */

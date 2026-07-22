@@ -18,6 +18,8 @@ use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Framework\Webapi\Rest\Request;
 use Magento\Store\Api\Data\StoreInterface;
+use Magento\Store\Model\ScopeInterface;
+use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -59,7 +61,7 @@ class ReviewUpdatedWebhookTest extends TestCase
         $request = $this->createMock(Request::class);
         $request->method('getParam')->with('jwt')->willReturn('jwt');
         $request->method('getBodyParams')->willReturn($payload);
-        $storeManager = $this->createMock(\Magento\Store\Model\StoreManagerInterface::class);
+        $storeManager = $this->createMock(StoreManagerInterface::class);
         $store = $this->createMock(StoreInterface::class);
         $store->method('getId')->willReturn(9);
         $storeManager->method('getStore')->willReturn($store);
@@ -79,11 +81,14 @@ class ReviewUpdatedWebhookTest extends TestCase
         $scopeConfig = $this->createMock(ScopeConfigInterface::class);
         $scopeConfig->expects(self::never())->method('isSetFlag')->with(
             ConfigOptionInterface::REVIEW_UPDATE_NOTIFICATIONS_ENABLED,
-            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            ScopeInterface::SCOPE_STORE,
             9
         );
         $publisher = $this->createMock(PublisherInterface::class);
-        $publisher->expects(self::never())->method('publish')->with(TopicInterface::NOTIFY_REVIEW_UPDATE, self::anything());
+        $publisher->expects(self::never())->method('publish')->with(
+            TopicInterface::NOTIFY_REVIEW_UPDATE,
+            self::anything()
+        );
         $lockManager = $this->createMock(LockManagerInterface::class);
         $lockManager->expects(self::once())->method('lock')->willReturn(true);
         $lockManager->expects(self::once())->method('unlock');
