@@ -12,8 +12,10 @@ use Fera\Ai\Services\FeraWebhookJwtValidator;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
+use InvalidArgumentException;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
+use Magento\Framework\Webapi\Exception as WebapiException;
 use Magento\Framework\Webapi\Rest\Request;
 use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Model\ScopeInterface;
@@ -23,6 +25,43 @@ use PHPUnit\Framework\TestCase;
 
 class ReviewCreatedWebhookTest extends TestCase
 {
+    public function testTranslatesInvalidSnapshotArgumentToBadRequest(): void
+    {
+        $payload = ['id' => ''];
+        $request = $this->createMock(Request::class);
+        $request->method('getParam')->with('jwt')->willReturn('jwt');
+        $request->method('getBodyParams')->willReturn($payload);
+        $store = $this->createMock(StoreInterface::class);
+        $store->method('getId')->willReturn(9);
+        $storeManager = $this->createMock(StoreManagerInterface::class);
+        $storeManager->method('getStore')->willReturn($store);
+        $jwtValidator = $this->createMock(FeraWebhookJwtValidator::class);
+        $jwtValidator->method('validateToken')->willReturn(['store_id' => 'fera-store']);
+        $snapshotBuilder = $this->createMock(SnapshotBuilder::class);
+        $snapshotBuilder->method('build')->willThrowException(
+            new InvalidArgumentException('Field "id" must be a non-empty string')
+        );
+        $storeGroupService = $this->createMock(StoreGroupService::class);
+        $storeGroupService->expects(self::once())->method('getCanonicalStoreId')->with(9)->willReturn(7);
+
+        $this->expectException(WebapiException::class);
+        $this->expectExceptionMessage('Field "id" must be a non-empty string');
+
+        $webhook = new ReviewCreatedWebhook(
+            $request,
+            $this->createMock(ScopeConfigInterface::class),
+            $storeManager,
+            $this->createMock(PublisherInterface::class),
+            $jwtValidator,
+            $this->createMock(MessageInterfaceFactory::class),
+            $snapshotBuilder,
+            $this->createMock(SnapshotRepository::class),
+            $storeGroupService
+        );
+
+        $webhook->execute();
+    }
+
     public function testPersistsCanonicalSnapshotWhenNotificationsAreDisabled(): void
     {
         $payload = ['id' => 'review-1'];

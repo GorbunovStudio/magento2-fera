@@ -6,7 +6,7 @@ namespace Fera\Ai\Test\Unit\Services\ReviewSnapshot;
 
 use Fera\Ai\Services\ReviewSnapshot\MediaNormalizer;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
-use Magento\Framework\Webapi\Exception as WebapiException;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 class SnapshotBuilderTest extends TestCase
@@ -48,7 +48,7 @@ class SnapshotBuilderTest extends TestCase
         $payload = $this->fixture('review_created_product.json');
         $payload['created_at'] = 'not-a-timestamp';
 
-        $this->expectException(WebapiException::class);
+        $this->expectException(InvalidArgumentException::class);
         $builder->build($payload);
     }
 

@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Services\ReviewSnapshot;
 
-use Magento\Framework\Phrase;
-use Magento\Framework\Webapi\Exception as WebapiException;
 use DateTimeImmutable;
 use DateTimeZone;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -74,7 +73,7 @@ class SnapshotBuilder
     {
         $reviewId = $payload['id'] ?? null;
         if (!is_string($reviewId) || trim($reviewId) === '') {
-            throw new WebapiException(new Phrase('Field "id" must be a non-empty string'), 0, WebapiException::HTTP_BAD_REQUEST);
+            throw new InvalidArgumentException('Field "id" must be a non-empty string');
         }
 
         return trim($reviewId);
@@ -87,7 +86,7 @@ class SnapshotBuilder
     {
         $rating = $payload['rating'] ?? null;
         if (!is_numeric($rating)) {
-            throw new WebapiException(new Phrase('Field "rating" must be numeric'), 0, WebapiException::HTTP_BAD_REQUEST);
+            throw new InvalidArgumentException('Field "rating" must be numeric');
         }
 
         return (float) $rating;
@@ -166,11 +165,7 @@ class SnapshotBuilder
         }
 
         if (!is_string($value)) {
-            throw new WebapiException(
-                new Phrase(sprintf('Field "%s" must be an ISO-8601 timestamp', $key)),
-                0,
-                WebapiException::HTTP_BAD_REQUEST
-            );
+            throw new InvalidArgumentException(sprintf('Field "%s" must be an ISO-8601 timestamp', $key));
         }
 
         try {
@@ -178,11 +173,7 @@ class SnapshotBuilder
                 ->setTimezone(new DateTimeZone('UTC'))
                 ->format('Y-m-d H:i:s');
         } catch (Throwable) {
-            throw new WebapiException(
-                new Phrase(sprintf('Field "%s" must be an ISO-8601 timestamp', $key)),
-                0,
-                WebapiException::HTTP_BAD_REQUEST
-            );
+            throw new InvalidArgumentException(sprintf('Field "%s" must be an ISO-8601 timestamp', $key));
         }
     }
 }
