@@ -144,4 +144,9 @@ class StoreGroupService
         }
         return $storesToMainStores;
     }
+
+    public function getCanonicalStoreId(int $storeId): int
+    {
+        return $this->getStoresToMainStoresMap()[$storeId] ?? $storeId;
+    }
 }

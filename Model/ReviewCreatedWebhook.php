@@ -11,6 +11,7 @@ use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
+use Fera\Ai\Services\StoreGroupService;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Framework\Phrase;
@@ -43,7 +44,8 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         private FeraWebhookJwtValidator $jwtValidator,
         private MessageInterfaceFactory $messageFactory,
         private SnapshotBuilder $snapshotBuilder,
-        private SnapshotRepository $snapshotRepository
+        private SnapshotRepository $snapshotRepository,
+        private StoreGroupService $storeGroupService
     ) {
     }
 
@@ -73,7 +75,10 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             throw new WebapiException(new Phrase('Request body must be a JSON object'), 0, WebapiException::HTTP_BAD_REQUEST);
         }
 
-        $snapshot = $this->snapshotBuilder->build($payload);
+        $snapshot = $this->snapshotBuilder->build(
+            $payload,
+            $this->storeGroupService->getCanonicalStoreId($storeId)
+        );
         $this->snapshotRepository->save($snapshot);
 
         if (!$this->areNegativeReviewNotificationsEnabled($storeId)) {

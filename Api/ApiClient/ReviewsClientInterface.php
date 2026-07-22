@@ -20,6 +20,11 @@ namespace Fera\Ai\Api\ApiClient;
  *     media?: array<int, string>,
  *     store_reply?: FeraStoreReply
  * }
+ *
+ * @phpstan-type ReviewsListResponse array{
+ *     data: array<int, array<string, mixed>>,
+ *     meta: array<string, mixed>
+ * }
  */
 interface ReviewsClientInterface
 {
@@ -34,4 +39,16 @@ interface ReviewsClientInterface
      * @throws \Fera\Ai\Exception\HttpRequestException
      */
     public function create(array $review, int $storeId): string;
+
+    /**
+     * List all store and product reviews from the Fera Private API.
+     *
+     * @param int $page
+     * @param int $pageSize
+     * @param int $storeId Canonical Magento store for the Fera account
+     * @return array
+     * @phpstan-return ReviewsListResponse
+     * @throws \Fera\Ai\Exception\FeraApiException
+     */
+    public function list(int $page, int $pageSize, int $storeId): array;
 }

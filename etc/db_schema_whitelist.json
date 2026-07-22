@@ -60,12 +60,26 @@
             "body": true,
             "rating": true,
             "media": true,
+            "magento_store_id": true,
+            "subject": true,
+            "external_product_id": true,
+            "fera_product_id": true,
+            "product_name": true,
+            "state": true,
+            "is_test": true,
+            "fera_created_at": true,
+            "fera_updated_at": true,
             "created_at": true,
             "updated_at": true
         },
         "constraint": {
             "PRIMARY": true,
             "FERA_REVIEW_SNAPSHOTS_REVIEW_ID_UNQ": true
+        },
+        "index": {
+            "FERA_REVIEW_SNAPSHOTS_STORE_SUBJECT_CREATED_AT_IDX": true,
+            "FERA_REVIEW_SNAPSHOTS_FERA_PRODUCT_ID_IDX": true,
+            "FERA_REVIEW_SNAPSHOTS_EXTERNAL_PRODUCT_ID_IDX": true
         }
     }
 }

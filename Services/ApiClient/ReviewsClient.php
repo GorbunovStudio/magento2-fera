@@ -10,6 +10,7 @@ use Fera\Ai\Services\ApiClient;
 
 /**
  * @phpstan-import-type FeraReviewData from ReviewsClientInterface
+ * @phpstan-import-type ReviewsListResponse from ReviewsClientInterface
  */
 class ReviewsClient implements ReviewsClientInterface
 {
@@ -34,5 +35,20 @@ class ReviewsClient implements ReviewsClientInterface
         }
 
         return $reviewId;
+    }
+
+    public function list(int $page, int $pageSize, int $storeId): array
+    {
+        $decoded = $this->apiClient->get(static::BASE_ENDPOINT, $storeId, [
+            'page' => $page,
+            'page_size' => $pageSize,
+            'subject' => 'both',
+        ]);
+
+        /** @var ReviewsListResponse $result */
+        return [
+            'data' => isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : [],
+            'meta' => isset($decoded['meta']) && is_array($decoded['meta']) ? $decoded['meta'] : [],
+        ];
     }
 }

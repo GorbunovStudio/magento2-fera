@@ -12,6 +12,7 @@ use Fera\Ai\Services\FeraWebhookJwtValidator;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotComparator;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
+use Fera\Ai\Services\StoreGroupService;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
@@ -40,7 +41,8 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
         private SnapshotBuilder $snapshotBuilder,
         private SnapshotRepository $snapshotRepository,
         private SnapshotComparator $snapshotComparator,
-        private LockManagerInterface $lockManager
+        private LockManagerInterface $lockManager,
+        private StoreGroupService $storeGroupService
     ) {
     }
 
@@ -65,7 +67,10 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             throw new WebapiException(new Phrase('Request body must be a JSON object'), 0, WebapiException::HTTP_BAD_REQUEST);
         }
 
-        $currentSnapshot = $this->snapshotBuilder->build($payload);
+        $currentSnapshot = $this->snapshotBuilder->build(
+            $payload,
+            $this->storeGroupService->getCanonicalStoreId($storeId)
+        );
         $lockName = $this->buildLockName($storeId, $currentSnapshot['review_id']);
         if (!$this->lockManager->lock($lockName, self::LOCK_WAIT_TIMEOUT_SECONDS)) {
             throw new WebapiException(
