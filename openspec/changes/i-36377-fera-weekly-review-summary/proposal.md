@@ -6,7 +6,7 @@ Individual Fera review notifications do not show the weekly change in product-re
 
 - Enrich the latest Fera review snapshots with the reporting dimensions and source timestamps needed to calculate store- and product-level review metrics in SQL.
 - Preserve snapshots for every valid `review_created` and `review_updated` webhook without filtering by Fera review state, and backfill snapshots for reviews that predate snapshot collection.
-- Expose a least-privilege reporting dataset for Metabase that excludes review text, media, customer data, and secrets.
+- Provide a versioned SQL query that selects only the reporting fields needed by Metabase and excludes review text and media from its result.
 - Add the versioned native SQL query needed by a future Metabase report to aggregate product-review metrics per store and then per product for the completed week, the previous completed week, and all time.
 
 ## Capabilities
@@ -22,7 +22,7 @@ Individual Fera review notifications do not show the weekly change in product-re
 
 ## Impact
 
-- Shared `feraai/fera` package/fork: declarative snapshot schema, snapshot mapping and persistence, authenticated Fera Private API read client, one-time backfill console command, reporting view, and focused tests. The Magento repository must consume the package through the approved package or Composer-patch workflow; `vendor/` is not edited directly.
-- Magento database: enriched `fera_review_snapshots` rows, reporting indexes, and a restricted SQL view for Metabase.
+- Shared `feraai/fera` package/fork: declarative snapshot schema, snapshot mapping and persistence, authenticated Fera Private API read client, one-time backfill console command, and focused tests. The Magento repository must consume the package through the approved package or Composer-patch workflow; `vendor/` is not edited directly.
+- Magento database: enriched `fera_review_snapshots` rows and reporting indexes; the versioned SQL query reads the snapshot and Magento store tables directly.
 - Versioned artifact: `sql-query-36377.sql`, parameterized for a future Metabase native SQL question.
 - A Metabase dashboard, Slack App integration, dashboard subscription, Slack channel configuration, and delivery monitoring are explicitly deferred to a separate task.

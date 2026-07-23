@@ -22,18 +22,20 @@ periods AS (
 ),
 base_reviews AS (
     SELECT
-        report.magento_store_id,
-        report.magento_store_name,
+        snapshots.magento_store_id,
+        stores.name AS magento_store_name,
         COALESCE(
-            NULLIF(report.fera_product_id, ''),
-            CONCAT('external:', report.external_product_id)
+            NULLIF(snapshots.fera_product_id, ''),
+            CONCAT('external:', snapshots.external_product_id)
         ) AS product_key,
-        report.product_name,
-        report.rating,
-        report.fera_created_at
-    FROM fera_product_review_reporting AS report
-    WHERE report.fera_created_at IS NOT NULL
-      AND (report.fera_product_id IS NOT NULL OR report.external_product_id IS NOT NULL)
+        snapshots.product_name,
+        snapshots.rating,
+        snapshots.fera_created_at
+    FROM fera_review_snapshots AS snapshots
+    INNER JOIN store AS stores ON stores.store_id = snapshots.magento_store_id
+    WHERE snapshots.subject = 'product'
+      AND snapshots.fera_created_at IS NOT NULL
+      AND (snapshots.fera_product_id IS NOT NULL OR snapshots.external_product_id IS NOT NULL)
 ),
 store_metrics AS (
     SELECT

@@ -74,7 +74,7 @@ For each account, the command SHALL page through `GET /v3/private/reviews` with 
 - **WHEN** an existing snapshot is not returned by a complete Fera backfill for its account
 - **THEN** the command does not invent reporting dimensions or substitute Magento receipt time for Fera creation time
 - **AND** the command reports the aggregate count of remaining incomplete snapshots
-- **AND** the snapshot is excluded from the product-review reporting dataset until a Fera source record can enrich it
+- **AND** the snapshot is excluded from the product-review report until a Fera source record can enrich it
 
 #### Scenario: A Fera account cannot be completely imported
 - **WHEN** a page request or a review mapping fails unexpectedly for one Fera account
@@ -82,10 +82,10 @@ For each account, the command SHALL page through `GET /v3/private/reviews` with 
 - **AND** the command continues with independent accounts where safe
 - **AND** the command returns a non-zero exit status after processing finishes
 
-### Requirement: Metabase SHALL receive a restricted product-review reporting dataset
-The system SHALL expose a read-only reporting dataset named `fera_product_review_reporting` containing only `subject = product` snapshots and the fields needed to aggregate them: canonical Magento store ID and display name, product identifiers and display name, rating, state, test flag, and Fera creation/update timestamps. The dataset SHALL exclude store-review snapshots, review heading, review body, media, customer data, Fera secrets, webhook URLs, and raw webhook payloads.
+### Requirement: The product-review report SHALL use only the required snapshot fields
+The reporting SQL query SHALL read only product-review snapshots and the Magento store name needed to aggregate them: canonical Magento store ID and display name, product identifiers and display name, rating, state, test flag, and Fera creation/update timestamps. The query SHALL not select review heading, review body, media, customer data, Fera secrets, webhook URLs, or raw webhook payloads.
 
-#### Scenario: Metabase aggregates review data without access to review content
-- **WHEN** Metabase queries the Fera review reporting dataset
+#### Scenario: Metabase aggregates review data without selecting review content
+- **WHEN** Metabase runs the weekly review SQL query
 - **THEN** it can group product reviews by store, product, rating, state, test flag, and Fera creation date
-- **AND** it cannot read store-review rows, review text, media, customer information, or integration credentials from that dataset
+- **AND** the query result does not contain store-review rows, review text, media, customer information, or integration credentials

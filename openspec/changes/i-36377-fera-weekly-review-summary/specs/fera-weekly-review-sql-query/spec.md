@@ -1,9 +1,9 @@
 ## ADDED Requirements
 
 ### Requirement: The SQL query SHALL aggregate product reviews by store and product
-The change SHALL provide `sql-query-36377.sql`, a native MySQL 8 query over `fera_product_review_reporting`. The query SHALL return a separate store aggregate for every canonical Magento store and a product breakdown within that store. Every result row SHALL use only product-review snapshots supplied by the reporting dataset.
+The change SHALL provide `sql-query-36377.sql`, a native MySQL 8 query over `fera_review_snapshots` joined to the Magento `store` table. The query SHALL return a separate store aggregate for every canonical Magento store and a product breakdown within that store. Every result row SHALL use only product-review snapshots and reporting columns selected by the query.
 
-The query SHALL NOT use Fera `subject = store` reviews, create a cross-store `Overall` aggregate, or require access to the underlying snapshot table.
+The query SHALL NOT use Fera `subject = store` reviews, create a cross-store `Overall` aggregate, or select review content, media, customer data, or integration credentials.
 
 #### Scenario: Store metrics aggregate all product reviews in the account
 - **WHEN** the SQL query returns a store aggregate row

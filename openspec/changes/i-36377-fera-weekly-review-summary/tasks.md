@@ -2,7 +2,7 @@
 
 - [x] 1.1 Confirm the sanctioned Fera webhook and List Reviews fixtures cover `created_at`, `updated_at`, `subject`, `is_test`, `product.id`, and nullable product fields without retaining raw payloads in logs.
 - [x] 1.2 Extend the shared Fera snapshot declarative schema with canonical Magento store, subject, product, state, test, and Fera timestamp fields while preserving the globally unique `review_id` identity and local lifecycle timestamps.
-- [x] 1.3 Add reporting indexes for canonical store, subject, product identity, and Fera creation date; add the restricted reporting SQL view containing only product-review rows and excluding review content and sensitive fields.
+- [x] 1.3 Add reporting indexes for canonical store, subject, product identity, and Fera creation date; keep report-only filtering in the versioned SQL query without creating a reporting view.
 - [x] 1.4 Regenerate the Fera declarative schema whitelist from the updated schema source.
 
 ## 2. Snapshot ingestion and source-version safety
@@ -23,12 +23,12 @@
 
 - [ ] 4.1 Release the shared `feraai/fera` fork change or add it through the approved Composer-patch workflow; do not modify installed `vendor/` files directly.
 - [ ] 4.2 Consume the approved package change in this Magento repository and run `XDEBUG_MODE=off bin/magento setup:upgrade --keep-generated --quiet`.
-- [x] 4.3 Add `sql-query-36377.sql`, parameterized with inclusive period start and exclusive period end, using only the product-review reporting view for per-store and per-product past-week rating and rating delta, past-week positive/negative counts, and all-time rating/count.
-- [ ] 4.4 Verify the reporting view and SQL query on a non-production database, including exclusion of store-review and content rows, period boundaries, all-time baselines, and multiple Fera accounts.
+- [x] 4.3 Add `sql-query-36377.sql`, parameterized with inclusive period start and exclusive period end, reading directly from snapshots and the Magento store table for per-store and per-product past-week rating and rating delta, past-week positive/negative counts, and all-time rating/count.
+- [ ] 4.4 Verify the direct SQL query on a non-production database, including exclusion of store-review and content columns, period boundaries, all-time baselines, and multiple Fera accounts.
 - [ ] 4.5 Run the backfill in production, record only per-account aggregate counters and remaining-incomplete snapshot count, and resolve any failed or intentionally incomplete account.
 
 ## 5. Validation and handoff
 
 - [ ] 5.1 Run the focused shared-Fera unit tests, affected Magento/Budsies unit tests, and PHPStan for changed PHP files; manually review changed code against the Magento standards guide.
 - [ ] 5.2 Verify that existing negative, positive, and review-update notifications retain their current behavior after the shared package update.
-- [x] 5.3 Document the backfill invocation, reporting-view contract, SQL query parameters and output fields, remaining-incomplete snapshot handling, and recovery steps for a failed import.
+- [x] 5.3 Document the backfill invocation, direct-query contract, SQL query parameters and output fields, remaining-incomplete snapshot handling, and recovery steps for a failed import.

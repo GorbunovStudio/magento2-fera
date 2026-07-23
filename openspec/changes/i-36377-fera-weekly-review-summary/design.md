@@ -42,13 +42,13 @@ Fera is configured as separate accounts. `StoreGroupService` already groups enab
 
 ### 2. Retain both review subjects but report only product reviews
 
-**Decision:** Webhooks and backfill retain all Fera review states and both subjects. The restricted Metabase reporting view contains only `subject = product` snapshots. Store cards aggregate all product-review rows for the account; product cards group those same rows by stable product ID. Product fields are nullable for retained store reviews.
+**Decision:** Webhooks and backfill retain all Fera review states and both subjects. The versioned SQL query contains only `subject = product` snapshots in its reporting input. Store cards aggregate all product-review rows for the account; product cards group those same rows by stable product ID. Product fields are nullable for retained store reviews.
 
-**Rationale:** The report is about product-review quality and volume. A store section is a grouping of all product reviews belonging to that Fera account, not a calculation over Fera business/store reviews. Retaining both subjects in snapshots preserves complete webhook history and future reporting flexibility, while the reporting view prevents accidental use of store reviews.
+**Rationale:** The report is about product-review quality and volume. A store section is a grouping of all product reviews belonging to that Fera account, not a calculation over Fera business/store reviews. Retaining both subjects in snapshots preserves complete webhook history and future reporting flexibility, while the SQL query prevents store reviews from contributing to the report.
 
 **Alternatives considered:**
 
-- Backfill only product reviews: rejected because the agreed snapshot backfill also completes historical snapshot coverage for existing store reviews; those rows remain excluded from this dashboard.
+- Backfill only product reviews: rejected because the agreed snapshot backfill also completes historical snapshot coverage for existing store reviews; those rows remain excluded from this report by the SQL query.
 - Filter by approval or another Fera state while saving: rejected because the source dataset must retain all states and no report state filter has been agreed.
 - Derive dashboard store metrics from Fera store reviews: rejected because the required store section is an aggregate of product reviews.
 
@@ -86,20 +86,20 @@ Fera is configured as separate accounts. `StoreGroupService` already groups enab
 - Reuse the existing CSV import command: rejected because that command sends reviews to Fera, rather than retrieving Fera reviews.
 - Trigger historical records through webhook handlers: rejected because it risks publishing Slack messages and couples import to HTTP delivery behavior.
 
-### 6. Give Metabase a restricted SQL view, not direct snapshot-table access
+### 6. Keep the reporting source in the versioned SQL query
 
-**Decision:** Create a reporting view named `fera_product_review_reporting` containing only `subject = product` rows and their aggregation fields, including the canonical Magento store display name. The view excludes heading, body, media, customer context, review IDs, store-review rows, and integration secrets. Add indexes aligned to filters by canonical store, subject, product, and Fera creation date. Granting a Metabase role access to the view is deferred to the reporting task.
+**Decision:** Do not create a reporting view. The versioned SQL query reads the required reporting columns directly from `fera_review_snapshots`, joins the Magento `store` table for the display name, and filters to product reviews with complete reporting dimensions. Add indexes aligned to filters by canonical store, subject, product, and Fera creation date.
 
-**Rationale:** The snapshot table contains review content required by the existing review-update workflow but unnecessary for BI. A view keeps the operational source and reporting exposure separate while retaining direct, indexed SQL aggregation.
+**Rationale:** The reporting task does not use a database view. The query explicitly selects only the fields required for aggregation and does not select review content, media, customer context, review IDs, or integration secrets.
 
 **Alternatives considered:**
 
-- Grant Metabase access to `fera_review_snapshots`: rejected because it unnecessarily exposes review content and media.
-- Build a second materialized reporting table and refresh cron: rejected for now because a current indexed view has the needed fields and avoids another persistence lifecycle. It can be reconsidered if query volume or latency proves insufficient.
+- Create a reporting view: rejected because the reporting task does not need an additional database object.
+- Build a second materialized reporting table and refresh cron: rejected because it adds another persistence lifecycle without being required by the report.
 
 ### 7. Provide a versioned SQL query for a future Metabase report
 
-**Decision:** Store the native MySQL 8 query in `sql-query-36377.sql`. It reads only `fera_product_review_reporting`, accepts period-start and exclusive period-end parameters, calculates the immediately preceding equal-length period, and returns store aggregates followed by product rows. Positive reviews have rating `>= 4`; negative reviews have rating `<= 3`.
+**Decision:** Store the native MySQL 8 query in `sql-query-36377.sql`. It reads `fera_review_snapshots` joined to `store`, selects only the required reporting columns, filters to product reviews with complete reporting dimensions, accepts period-start and exclusive period-end parameters, calculates the immediately preceding equal-length period, and returns store aggregates followed by product rows. Positive reviews have rating `>= 4`; negative reviews have rating `<= 3`.
 
 For each store, queries aggregate every product-review row in the account; for each product, they aggregate that product's rows. Both levels return past-week average rating and its delta against the comparator, past-week positive and negative counts, and all-time current average rating and count.
 
@@ -114,7 +114,7 @@ For each store, queries aggregate every product-review row in the account; for e
 ## Risks / Trade-offs
 
 - [Webhook and API payload mapping could drift] → Cover both mappings with sanitized fixtures and validate required source fields before rollout; reject invalid required identity/rating data without logging payload content.
-- [A future Metabase connection could expose review data] → The Magento change provides a narrow product-review view; the subsequent reporting task must grant its database role access only to that view and verify the view column list.
+- [A future Metabase connection could expose review data] → The query selects only the required reporting columns; the subsequent reporting task must grant its database role the minimum required access and verify the query column list.
 - [Backfill may be interrupted or race live webhooks] → Use source-version-aware idempotent upserts, per-record writes, counters, non-zero failure status, and safe reruns.
 - [A deleted Fera review remains in a latest-snapshot table] → This change does not model deletion. Reconciliation or deletion markers require a later explicit scope if Fera's current dataset must exactly match local all-time totals.
 - [A later rating edit changes current all-time values] → Accepted: all-time metrics reflect the latest snapshot; weekly inclusion remains based solely on original creation date.
@@ -123,11 +123,10 @@ For each store, queries aggregate every product-review row in the account; for e
 
 1. Implement and release the shared Fera package change through the approved package or Composer-patch workflow; do not edit installed `vendor/` files.
 2. Deploy the package update, apply the Fera schema upgrade, and regenerate the Fera declarative schema whitelist.
-3. Deploy the restricted reporting view and verify it exposes no review content or credentials.
-4. Add and review `sql-query-36377.sql` against the view on a non-production database.
-5. Run the backfill command once in production, verify its per-account counters and remaining-incomplete snapshot count, and rerun it if any account failed or was intentionally limited. Rows absent from Fera's complete response remain excluded from the product-review reporting view rather than receiving invented dates.
+3. Add and review `sql-query-36377.sql` against the snapshot and store tables on a non-production database.
+4. Run the backfill command once in production, verify its per-account counters and remaining-incomplete snapshot count, and rerun it if any account failed or was intentionally limited. Rows absent from Fera's complete response remain excluded from the report rather than receiving invented dates.
 
-Rollback removes use of the SQL artifact and reporting view. Schema and package rollback must preserve existing snapshot fields used by review-update notifications; new columns can remain unused rather than deleting reporting data during an incident.
+Rollback removes use of the SQL artifact. Schema and package rollback must preserve existing snapshot fields used by review-update notifications; new columns can remain unused rather than deleting reporting data during an incident.
 
 ## Open Questions
 
