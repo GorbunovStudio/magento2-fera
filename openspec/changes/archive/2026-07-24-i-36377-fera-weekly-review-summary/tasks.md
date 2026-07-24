@@ -21,14 +21,14 @@
 
 ## 4. Package rollout and query verification
 
-- [ ] 4.1 Release the shared `feraai/fera` fork change or add it through the approved Composer-patch workflow; do not modify installed `vendor/` files directly.
-- [ ] 4.2 Consume the approved package change in this Magento repository and run `XDEBUG_MODE=off bin/magento setup:upgrade --keep-generated --quiet`.
+- [x] 4.1 Release the shared `feraai/fera` fork change or add it through the approved Composer-patch workflow; do not modify installed `vendor/` files directly.
+- [x] 4.2 Consume the approved package change in this Magento repository and run `XDEBUG_MODE=off bin/magento setup:upgrade --keep-generated --quiet`.
 - [x] 4.3 Add `sql-query-36377.sql`, parameterized with inclusive period start and exclusive period end, reading directly from snapshots and the Magento store table for per-store and per-product past-week rating and rating delta, past-week positive/negative counts, and all-time rating/count.
-- [ ] 4.4 Verify the direct SQL query on a non-production database, including exclusion of store-review and content columns, period boundaries, all-time baselines, and multiple Fera accounts.
-- [ ] 4.5 Run the backfill in production, record only per-account aggregate counters and remaining-incomplete snapshot count, and resolve any failed or intentionally incomplete account.
+- [x] 4.4 Verify the direct SQL query on a non-production database, including exclusion of store-review and content columns, period boundaries, all-time baselines, and multiple Fera accounts.
+- [x] 4.5 Run the backfill in production, record only per-account aggregate counters and remaining-incomplete snapshot count, and resolve any failed or intentionally incomplete account.
 
 ## 5. Validation and handoff
 
-- [ ] 5.1 Run the focused shared-Fera unit tests, affected Magento/Budsies unit tests, and PHPStan for changed PHP files; manually review changed code against the Magento standards guide.
-- [ ] 5.2 Verify that existing negative, positive, and review-update notifications retain their current behavior after the shared package update.
+- [x] 5.1 Run the focused shared-Fera unit tests, affected Magento/Budsies unit tests, and PHPStan for changed PHP files; manually review changed code against the Magento standards guide.
+- [x] 5.2 Verify that existing negative, positive, and review-update notifications retain their current behavior after the shared package update.
 - [x] 5.3 Document the backfill invocation, direct-query contract, SQL query parameters and output fields, remaining-incomplete snapshot handling, and recovery steps for a failed import.
