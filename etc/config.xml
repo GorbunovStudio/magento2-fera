@@ -26,6 +26,11 @@
                 <rating_threshold>3</rating_threshold>
                 <slack_webhook_url backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
             </review_notifications>
+            <positive_review_notifications>
+                <enabled>0</enabled>
+                <rating_threshold>4</rating_threshold>
+                <slack_webhook_url backend_model="Magento\Config\Model\Config\Backend\Encrypted" />
+            </positive_review_notifications>
         </fera_ai>
     </default>
 </config>

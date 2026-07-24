@@ -12,5 +12,6 @@ interface TopicInterface
     public const EXPORT_PRODUCT = 'fera.export.product';
     public const PROCESS_CUSTOMER_UPDATE = 'fera.process.customer.update';
     public const NOTIFY_NEGATIVE_REVIEW = 'fera.review.notify_negative';
+    public const NOTIFY_POSITIVE_REVIEW = 'fera.review.notify_positive';
     public const NOTIFY_REVIEW_UPDATE = 'fera.review.notify_updated';
 }

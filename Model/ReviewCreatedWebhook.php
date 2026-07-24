@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Fera\Ai\Model;
 
 use Fera\Ai\Api\Data\Queue\TopicInterface;
-use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterfaceFactory;
+use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterfaceFactory as NegativeMessageInterfaceFactory;
+use Fera\Ai\Api\Data\Queue\NotifyPositiveReview\MessageInterfaceFactory as PositiveMessageInterfaceFactory;
 use Fera\Ai\Api\ReviewCreatedWebhookInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
+use Fera\Ai\Services\ReviewSnapshot\MediaNormalizer;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
@@ -31,7 +33,9 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
      * @param StoreManagerInterface $storeManager
      * @param PublisherInterface $publisher
      * @param FeraWebhookJwtValidator $jwtValidator
-     * @param MessageInterfaceFactory $messageFactory
+     * @param NegativeMessageInterfaceFactory $negativeMessageFactory
+     * @param PositiveMessageInterfaceFactory $positiveMessageFactory
+     * @param MediaNormalizer $mediaNormalizer
      * @param SnapshotBuilder $snapshotBuilder
      * @param SnapshotRepository $snapshotRepository
      */
@@ -41,7 +45,9 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         private StoreManagerInterface $storeManager,
         private PublisherInterface $publisher,
         private FeraWebhookJwtValidator $jwtValidator,
-        private MessageInterfaceFactory $messageFactory,
+        private NegativeMessageInterfaceFactory $negativeMessageFactory,
+        private PositiveMessageInterfaceFactory $positiveMessageFactory,
+        private MediaNormalizer $mediaNormalizer,
         private SnapshotBuilder $snapshotBuilder,
         private SnapshotRepository $snapshotRepository
     ) {
@@ -76,19 +82,42 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         $snapshot = $this->snapshotBuilder->build($payload);
         $this->snapshotRepository->save($snapshot);
 
-        if (!$this->areNegativeReviewNotificationsEnabled($storeId)) {
-            return;
-        }
-
         $reviewId = $snapshot['review_id'];
         $rating = $snapshot['rating'];
+        $media = $this->mediaNormalizer->normalize($payload['media'] ?? []);
+        $mediaJson = $this->encodeMedia($media);
 
-        $threshold = $this->getRatingThreshold($storeId);
-        if ($rating > $threshold) {
+        if ($this->areNegativeReviewNotificationsEnabled($storeId)) {
+            $threshold = $this->getRatingThreshold($storeId);
+            if ($rating <= $threshold) {
+                $message = $this->negativeMessageFactory->create()
+                    ->setStoreId($storeId)
+                    ->setReviewId($reviewId)
+                    ->setRating($rating)
+                    ->setFeraStoreId($feraStoreId)
+                    ->setExternalOrderId($this->extractString($payload, 'external_order_id'))
+                    ->setCustomerName($this->extractNestedString($payload, ['customer', 'name']))
+                    ->setCustomerEmail($this->extractNestedString($payload, ['customer', 'email']))
+                    ->setReviewTitle($snapshot['heading'])
+                    ->setReviewBody($this->normalizeReviewBody($snapshot['body']))
+                    ->setProductName($this->extractNestedString($payload, ['product', 'name']))
+                    ->setExternalProductId($this->extractString($payload, 'external_product_id'))
+                    ->setMediaJson($mediaJson);
+
+                $this->publisher->publish(TopicInterface::NOTIFY_NEGATIVE_REVIEW, $message);
+            }
+        }
+
+        if (!$this->arePositiveReviewNotificationsEnabled($storeId)) {
             return;
         }
 
-        $message = $this->messageFactory->create()
+        $positiveThreshold = $this->getPositiveRatingThreshold($storeId);
+        if ($rating < $positiveThreshold) {
+            return;
+        }
+
+        $message = $this->positiveMessageFactory->create()
             ->setStoreId($storeId)
             ->setReviewId($reviewId)
             ->setRating($rating)
@@ -99,9 +128,10 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             ->setReviewTitle($snapshot['heading'])
             ->setReviewBody($this->normalizeReviewBody($snapshot['body']))
             ->setProductName($this->extractNestedString($payload, ['product', 'name']))
-            ->setExternalProductId($this->extractString($payload, 'external_product_id'));
+            ->setExternalProductId($this->extractString($payload, 'external_product_id'))
+            ->setMediaJson($mediaJson);
 
-        $this->publisher->publish(TopicInterface::NOTIFY_NEGATIVE_REVIEW, $message);
+        $this->publisher->publish(TopicInterface::NOTIFY_POSITIVE_REVIEW, $message);
     }
 
     /**
@@ -114,6 +144,15 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
     {
         return $this->scopeConfig->isSetFlag(
             ConfigOptionInterface::NEGATIVE_REVIEW_NOTIFICATIONS_ENABLED,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    private function arePositiveReviewNotificationsEnabled(int $storeId): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            ConfigOptionInterface::POSITIVE_REVIEW_NOTIFICATIONS_ENABLED,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -135,6 +174,21 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
 
         if (!is_numeric($value)) {
             throw new RuntimeException('Rating threshold is not set for store ID ' . $storeId);
+        }
+
+        return (float) $value;
+    }
+
+    private function getPositiveRatingThreshold(int $storeId): float
+    {
+        $value = $this->scopeConfig->getValue(
+            ConfigOptionInterface::POSITIVE_REVIEW_NOTIFICATIONS_RATING_THRESHOLD,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+
+        if (!is_numeric($value)) {
+            throw new RuntimeException('Positive rating threshold is not set for store ID ' . $storeId);
         }
 
         return (float) $value;
@@ -200,5 +254,18 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         }
 
         return rtrim(mb_substr($value, 0, self::REVIEW_BODY_MAX_LENGTH));
+    }
+
+    /**
+     * @param list<array{id: string, url: string}> $media
+     */
+    private function encodeMedia(array $media): string
+    {
+        $mediaJson = json_encode($media, JSON_INVALID_UTF8_SUBSTITUTE);
+        if (!is_string($mediaJson)) {
+            throw new RuntimeException('Unable to encode review media');
+        }
+
+        return $mediaJson;
     }
 }
