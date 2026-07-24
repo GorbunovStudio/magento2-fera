@@ -23,9 +23,9 @@
 
 ## 4. Fera Fork Validation and Rollout
 
-- [ ] 4.1 Validate Fera queue XML files: `communication.xml`, `queue_publisher.xml`, `queue_topology.xml`, and `queue_consumer.xml`.
-- [ ] 4.2 Validate Fera admin config XML/default config for positive-review enable flag, positive-review threshold, and encrypted Slack webhook URL.
+- [x] 4.1 Validate Fera queue XML files: `communication.xml`, `queue_publisher.xml`, `queue_topology.xml`, and `queue_consumer.xml`.
+- [x] 4.2 Validate Fera admin config XML/default config for positive-review enable flag, positive-review threshold, and encrypted Slack webhook URL.
 - [x] 4.3 Validate the existing anonymous `review_create` webhook route still requires JWT validation and that no new anonymous unauthenticated surface is introduced.
-- [ ] 4.4 Run focused Fera fork unit tests for review-created routing, media rendering, positive handler behavior, and negative no-regression.
-- [ ] 4.5 Release or otherwise make the Fera fork changes available to the Magento repo through the accepted package workflow without editing `vendor/` directly.
+- [x] 4.4 Run focused Fera fork unit tests for review-created routing, media rendering, positive handler behavior, and negative no-regression.
+- [x] 4.5 Release or otherwise make the Fera fork changes available to the Magento repo through the accepted package workflow without editing `vendor/` directly.
 - [x] 4.6 Document rollout notes for configuring the positive Slack webhook per store/account, including use of the agreed test destination until the production positive-review Slack channel exists.
