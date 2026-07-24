@@ -127,6 +127,8 @@ class BackfillReviewsCommand extends Command
                         $page++;
                     }
                 } catch (Throwable) {
+                    $totalFetched += $counters['fetched'];
+                    $totalSaved += $counters['saved'];
                     $failedAccounts++;
                     $output->writeln(sprintf(
                         '<error>Fera account store %d failed after pages=%d, fetched=%d, saved=%d.</error>',
@@ -177,6 +179,10 @@ class BackfillReviewsCommand extends Command
         $groups = $this->storeGroupService->getByFeraAccount();
         $storeIdOption = $input->getOption('store-id');
         if ($storeIdOption === null || $storeIdOption === '') {
+            if ($groups === []) {
+                $output->writeln('<error>No enabled Fera accounts are configured.</error>');
+            }
+
             return $groups;
         }
 
