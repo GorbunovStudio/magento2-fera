@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Fera\Ai\Api\Data\Queue\NotifyNegativeReview;
+namespace Fera\Ai\Api\Data\Queue\NotifyPositiveReview;
 
 interface MessageInterface
 {
@@ -75,6 +75,17 @@ interface MessageInterface
     /**
      * @return string
      */
+    public function getCustomerEmail(): string;
+
+    /**
+     * @param string $value
+     * @return $this
+     */
+    public function setCustomerEmail(string $value): static;
+
+    /**
+     * @return string
+     */
     public function getReviewTitle(): string;
 
     /**
@@ -104,17 +115,6 @@ interface MessageInterface
      * @return $this
      */
     public function setProductName(string $value): static;
-
-    /**
-     * @return string
-     */
-    public function getCustomerEmail(): string;
-
-    /**
-     * @param string $value
-     * @return $this
-     */
-    public function setCustomerEmail(string $value): static;
 
     /**
      * @return string

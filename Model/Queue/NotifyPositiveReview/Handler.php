@@ -2,21 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Fera\Ai\Model\Queue\NotifyNegativeReview;
+namespace Fera\Ai\Model\Queue\NotifyPositiveReview;
 
-use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterface;
+use Fera\Ai\Api\Data\Queue\NotifyPositiveReview\MessageInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Logger\Logger;
 use GuzzleHttp\ClientFactory;
 use Magento\Backend\Model\UrlInterface;
-use Magento\Framework\App\Area;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface as EventManager;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Framework\Mail\Template\TransportBuilder;
 use Magento\Framework\ObjectManager\ResetAfterRequestInterface;
-use Magento\Framework\Validator\EmailAddress;
 use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Store\Model\ScopeInterface;
@@ -49,8 +46,6 @@ class Handler
         private ScopeConfigInterface $scopeConfig,
         private OrderRepositoryInterface $orderRepository,
         private UrlInterface $backendUrl,
-        private TransportBuilder $transportBuilder,
-        private EmailAddress $emailAddressValidator,
         private ClientFactory $clientFactory,
         private StoreManagerInterface $storeManager,
         private Logger $logger,
@@ -64,7 +59,7 @@ class Handler
             $this->processMessage($message);
         } catch (Throwable $exception) {
             $this->logger->error(
-                'Unable to process negative review notification: ' . $exception->getMessage(),
+                'Unable to process positive review notification: ' . $exception->getMessage(),
                 [
                     'exception' => $exception,
                     'store_id' => $message->getStoreId(),
@@ -73,7 +68,7 @@ class Handler
             );
 
             throw new RuntimeException(
-                'Unable to process negative review notification: ' . $exception->getMessage(),
+                'Unable to process positive review notification: ' . $exception->getMessage(),
                 (int) $exception->getCode(),
                 $exception
             );
@@ -91,14 +86,25 @@ class Handler
             throw new RuntimeException('Invalid store ID in message');
         }
 
-        if (!$this->areNegativeReviewNotificationsEnabled($storeId)) {
+        if (!$this->arePositiveReviewNotificationsEnabled($storeId)) {
             return;
         }
 
-        $threshold = $this->getRatingThreshold($storeId);
-        if ($message->getRating() > $threshold) {
+        $threshold = $this->getPositiveRatingThreshold($storeId);
+        if ($message->getRating() < $threshold) {
             return;
         }
+
+        $slackWebhookUrl = $this->getConfigString(
+            ConfigOptionInterface::POSITIVE_REVIEW_NOTIFICATIONS_SLACK_WEBHOOK_URL,
+            $storeId
+        );
+
+        if ($slackWebhookUrl === '') {
+            return;
+        }
+
+        $this->assertWebhookUrl($slackWebhookUrl);
 
         $store = $this->storeManager->getStore($storeId);
         $storeName = $store->getName();
@@ -127,72 +133,59 @@ class Handler
             'media' => $this->decodeMediaJson($message->getMediaJson()),
         ];
 
-        $slackWebhookUrl = $this->getConfigString(
-            ConfigOptionInterface::REVIEW_NOTIFICATIONS_SLACK_WEBHOOK_URL,
-            $storeId
-        );
+        $actions = $this->buildBaseSlackActions($notificationData);
+        $actionsContainer = new DataObject(['actions' => $actions]);
 
-        if ($slackWebhookUrl !== '') {
-            $this->assertWebhookUrl($slackWebhookUrl);
-            $actions = $this->buildBaseSlackActions($notificationData);
-            $actionsContainer = new DataObject(['actions' => $actions]);
+        try {
+            $this->eventManager->dispatch('fera_positive_review_slack_actions_prepare', [
+                'message' => $message,
+                'order' => $order,
+                'store_id' => $storeId,
+                'actions_container' => $actionsContainer,
+            ]);
 
-            try {
-                $this->eventManager->dispatch('fera_negative_review_slack_actions_prepare', [
-                    'message' => $message,
-                    'order' => $order,
-                    'store_id' => $storeId,
-                    'actions_container' => $actionsContainer,
-                ]);
-
-                $actionsData = $actionsContainer->getData('actions');
-                if (!is_array($actionsData)) {
-                    throw new UnexpectedValueException(
-                        'Incorrect type for actions: expected array, got ' . get_debug_type($actionsData)
-                    );
-                }
-
-                /** @var list<array<string, mixed>> $actions */
-                $actions = $actionsData;
-            } catch (Throwable $exception) {
-                $this->logger->error(
-                    'Negative review Slack action enrichment failed: ' . $exception->getMessage(),
-                    [
-                        'exception' => $exception,
-                        'store_id' => $storeId,
-                        'review_id' => $message->getReviewId(),
-                    ]
+            $actionsData = $actionsContainer->getData('actions');
+            if (!is_array($actionsData)) {
+                throw new UnexpectedValueException(
+                    'Incorrect type for actions: expected array, got ' . get_debug_type($actionsData)
                 );
             }
 
-            $this->sendSlack($slackWebhookUrl, $notificationData, $actions);
+            /** @var list<array<string, mixed>> $actions */
+            $actions = $actionsData;
+        } catch (Throwable $exception) {
+            $this->logger->error(
+                'Positive review Slack action enrichment failed: ' . $exception->getMessage(),
+                [
+                    'exception' => $exception,
+                    'store_id' => $storeId,
+                    'review_id' => $message->getReviewId(),
+                ]
+            );
         }
 
-        $recipientConfig = $this->getConfigString(ConfigOptionInterface::REVIEW_NOTIFICATIONS_EMAIL_RECIPIENTS, $storeId);
-        if ($recipientConfig !== '') {
-            $this->sendEmail($recipientConfig, $notificationData, $storeId);
-        }
+        $this->sendSlack($slackWebhookUrl, $notificationData, $actions);
     }
 
-    private function getRatingThreshold(int $storeId): float
+    private function getPositiveRatingThreshold(int $storeId): float
     {
         $value = $this->scopeConfig->getValue(
-            ConfigOptionInterface::REVIEW_NOTIFICATIONS_RATING_THRESHOLD,
+            ConfigOptionInterface::POSITIVE_REVIEW_NOTIFICATIONS_RATING_THRESHOLD,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
 
         if (!is_numeric($value)) {
-            throw new RuntimeException('Rating threshold is not configured for store ID ' . $storeId);
+            throw new RuntimeException('Positive rating threshold is not configured for store ID ' . $storeId);
         }
 
         return (float) $value;
     }
 
-    private function areNegativeReviewNotificationsEnabled(int $storeId): bool
+    private function arePositiveReviewNotificationsEnabled(int $storeId): bool
     {
         return $this->scopeConfig->isSetFlag(
-            ConfigOptionInterface::NEGATIVE_REVIEW_NOTIFICATIONS_ENABLED,
+            ConfigOptionInterface::POSITIVE_REVIEW_NOTIFICATIONS_ENABLED,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
@@ -220,11 +213,7 @@ class Handler
     private function resolveOrderData(string $externalOrderId): array
     {
         $orderId = trim($externalOrderId);
-        if ($orderId === '') {
-            return ['url' => '', 'increment_id' => '', 'order' => null];
-        }
-
-        if (!is_numeric($orderId)) {
+        if ($orderId === '' || !is_numeric($orderId)) {
             return ['url' => '', 'increment_id' => '', 'order' => null];
         }
 
@@ -240,10 +229,10 @@ class Handler
             );
         }
 
-        $orderId = $order->getEntityId();
-        if (!is_numeric($orderId)) {
+        $orderEntityId = $order->getEntityId();
+        if (!is_numeric($orderEntityId)) {
             throw new UnexpectedValueException(
-                'Incorrect type for order entity ID: expected int, got ' . get_debug_type($orderId)
+                'Incorrect type for order entity ID: expected int, got ' . get_debug_type($orderEntityId)
             );
         }
 
@@ -255,7 +244,7 @@ class Handler
         }
 
         return [
-            'url' => $this->backendUrl->getUrl('sales/order/view', ['order_id' => (int) $orderId]),
+            'url' => $this->backendUrl->getUrl('sales/order/view', ['order_id' => (int) $orderEntityId]),
             'increment_id' => trim($incrementId),
             'order' => $order,
         ];
@@ -279,7 +268,7 @@ class Handler
             ],
         ];
 
-        if (is_string($notificationData['magento_order_url']) && $notificationData['magento_order_url'] !== '') {
+        if ($notificationData['magento_order_url'] !== '') {
             $actions[] = [
                 'type' => 'button',
                 'text' => [
@@ -289,7 +278,7 @@ class Handler
                 'url' => $notificationData['magento_order_url'],
             ];
         }
-        
+
         return $actions;
     }
 
@@ -310,13 +299,13 @@ class Handler
         $reviewBody = $notificationData['review_body'];
 
         $payload = [
-            'text' => '🚨 Negative Review Alert',
+            'text' => 'Positive Review Alert',
             'blocks' => [
                 [
                     'type' => 'header',
                     'text' => [
                         'type' => 'plain_text',
-                        'text' => '🚨 Negative Review Alert',
+                        'text' => 'Positive Review Alert',
                         'emoji' => true,
                     ],
                 ],
@@ -340,12 +329,12 @@ class Handler
                     'type' => 'section',
                     'fields' => [
                         [
-                        'type' => 'mrkdwn',
-                        'text' => "*Product:* {$productName}",
+                            'type' => 'mrkdwn',
+                            'text' => "*Product:* {$productName}",
                         ],
                         [
-                        'type' => 'mrkdwn',
-                        'text' => "*Order ID:* {$externalOrderId}",
+                            'type' => 'mrkdwn',
+                            'text' => "*Order ID:* {$externalOrderId}",
                         ],
                     ],
                 ],
@@ -446,67 +435,6 @@ class Handler
             . ' (' . $ratingRounded . '/' . $maxStars . ')';
     }
 
-    /**
-     * @param NotificationData $notificationData
-     */
-    private function sendEmail(string $recipientConfig, array $notificationData, int $storeId): void
-    {
-        $recipients = $this->parseRecipients($recipientConfig);
-        if ($recipients === []) {
-            return;
-        }
-
-        $transportBuilder = $this->transportBuilder
-            ->setTemplateIdentifier('fera_ai_review_notifications_email_template')
-            ->setTemplateOptions([
-                'area' => Area::AREA_FRONTEND,
-                'store' => $storeId,
-            ])
-            ->setTemplateVars($notificationData)
-            ->setFromByScope('general', $storeId);
-
-        foreach ($recipients as $recipient) {
-            $transportBuilder->addTo($recipient);
-        }
-
-        $transportBuilder->getTransport()->sendMessage();
-    }
-
-    /**
-     * @return list<non-empty-string>
-     */
-    private function parseRecipients(string $recipientConfig): array
-    {
-        $parts = preg_split('/[\n,]+/', $recipientConfig);
-        if (!is_array($parts)) {
-            return [];
-        }
-
-        $recipients = [];
-        $invalidEmails = [];
-        foreach ($parts as $part) {
-            $email = trim($part);
-            if ($email === '') {
-                continue;
-            }
-
-            if (!$this->emailAddressValidator->isValid($email)) {
-                $invalidEmails[] = $email;
-                continue;
-            }
-
-            $recipients[] = $email;
-        }
-
-        if ($invalidEmails !== []) {
-            throw new RuntimeException(
-                'Invalid email recipients configuration: ' . implode(', ', $invalidEmails)
-            );
-        }
-
-        return $recipients;
-    }
-
     private function getConfigString(string $path, int $storeId): string
     {
         $value = $this->scopeConfig->getValue($path, ScopeInterface::SCOPE_STORE, $storeId);
@@ -526,7 +454,12 @@ class Handler
 
         $scheme = $parsedUrl['scheme'] ?? null;
         $host = $parsedUrl['host'] ?? null;
-        if (!is_string($scheme) || !in_array(strtolower($scheme), ['http', 'https'], true) || !is_string($host) || $host === '') {
+        if (
+            !is_string($scheme)
+            || !in_array(strtolower($scheme), ['http', 'https'], true)
+            || !is_string($host)
+            || $host === ''
+        ) {
             throw new RuntimeException('Slack webhook URL must be an absolute HTTP(S) URL');
         }
     }

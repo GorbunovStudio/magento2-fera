@@ -25,6 +25,9 @@ use Magento\Store\Model\StoreManagerInterface;
 use RuntimeException;
 use Throwable;
 
+/**
+ * @phpstan-import-type ReviewSnapshot from SnapshotBuilder
+ */
 class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
 {
     private const HTTP_SERVICE_UNAVAILABLE = 503;
@@ -98,8 +101,14 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
     }
 
     /**
-     * @param array<string, mixed> $payload
-     * @param array{review_id: string, heading: string, body: string, rating: float, media: mixed} $currentSnapshot
+     * @param int $storeId
+     * @param string $feraStoreId
+     * @param mixed[] $payload
+     * @phpstan-param array<string, mixed> $payload
+     * @param mixed[] $currentSnapshot
+     * @phpstan-param ReviewSnapshot $currentSnapshot
+     * @return void
+     * @throws \RuntimeException
      */
     private function processReviewUpdate(
         int $storeId,
@@ -112,13 +121,13 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             ? []
             : $this->snapshotComparator->compare($previousSnapshot, $currentSnapshot);
 
-        if (
-            $previousSnapshot === null
+        $this->snapshotRepository->save($currentSnapshot);
+
+        if ($previousSnapshot === null
             || $changedFields === []
             || !$this->isPendingUpdate($payload)
             || !$this->areReviewUpdateNotificationsEnabled($storeId)
         ) {
-            $this->snapshotRepository->save($currentSnapshot);
             return;
         }
 
@@ -142,7 +151,6 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             ->setChangedFieldsJson($changedFieldsJson);
 
         $this->publisher->publish(TopicInterface::NOTIFY_REVIEW_UPDATE, $message);
-        $this->snapshotRepository->save($currentSnapshot);
     }
 
     private function buildLockName(int $storeId, string $reviewId): string

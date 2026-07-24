@@ -23,4 +23,7 @@ interface ConfigOptionInterface
     public const REVIEW_NOTIFICATIONS_RATING_THRESHOLD = 'fera_ai/review_notifications/rating_threshold';
     public const REVIEW_NOTIFICATIONS_SLACK_WEBHOOK_URL = 'fera_ai/review_notifications/slack_webhook_url';
     public const REVIEW_NOTIFICATIONS_EMAIL_RECIPIENTS = 'fera_ai/review_notifications/email_recipients';
+    public const POSITIVE_REVIEW_NOTIFICATIONS_ENABLED = 'fera_ai/positive_review_notifications/enabled';
+    public const POSITIVE_REVIEW_NOTIFICATIONS_RATING_THRESHOLD = 'fera_ai/positive_review_notifications/rating_threshold';
+    public const POSITIVE_REVIEW_NOTIFICATIONS_SLACK_WEBHOOK_URL = 'fera_ai/positive_review_notifications/slack_webhook_url';
 }

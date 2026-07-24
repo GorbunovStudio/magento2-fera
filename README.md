@@ -29,6 +29,7 @@ All data synchronization with Fera.ai is handled in the background by Magento's 
 - **Order Exports**: New orders, updates, and fulfillments are queued and sent to Fera.ai.
 - **Customer Updates**: Customer data changes are synced to keep Fera.ai up-to-date.
 - **Negative Review Notifications**: When Fera.ai sends a `review_create` webhook and the review rating is less than or equal to the configured threshold, the module queues a notification and delivers it via Slack and/or email.
+- **Positive Review Notifications**: When enabled, newly created reviews at or above the configured positive threshold are queued separately and delivered to a dedicated positive-review Slack webhook.
 
 This ensures that data synchronization is reliable and does not slow down the customer experience or admin operations.
 
@@ -39,7 +40,20 @@ This module exposes a webhook endpoint used by Fera.ai to notify Magento about n
 - **Review created webhook**: `POST /rest/V1/fera/webhook/review-created`
     - The request must include a `jwt` parameter (used for authentication).
     - The request body must be a JSON object matching Fera's `review_create` payload.
-    - If review notifications are enabled and the review rating is less than or equal to the configured threshold, the module publishes a message to the Magento queue for async delivery.
+    - If negative review notifications are enabled and the review rating is less than or equal to the configured negative threshold, the module publishes a negative-review message to the Magento queue for async delivery.
+    - If positive review notifications are enabled and the review rating is greater than or equal to the configured positive threshold, the module publishes a positive-review message to the Magento queue for async Slack delivery.
+
+### Positive Review Notification Rollout
+
+Positive review Slack notifications use separate store-scoped configuration from negative review notifications:
+
+- `fera_ai/positive_review_notifications/enabled`
+- `fera_ai/positive_review_notifications/rating_threshold` (default: `4`)
+- `fera_ai/positive_review_notifications/slack_webhook_url`
+
+Configure the positive Slack webhook per store or website. During rollout, point `slack_webhook_url` at the agreed test destination first, verify that four- and five-star `review_create` webhooks appear in the positive-review channel with media links, then switch the webhook to the production positive-review Slack channel when approved.
+
+Negative review Slack/email configuration remains under `fera_ai/review_notifications/*`; do not reuse the negative Slack webhook for positive-review routing unless the store intentionally wants both alert types in the same Slack destination.
 
 ## Usage
 Go to https://app.fera.ai/widgets to customize your experience!

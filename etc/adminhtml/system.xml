@@ -101,6 +101,26 @@
                     <comment>Comma or newline separated email addresses for negative-review notifications.</comment>
                 </field>
             </group>
+            <group id="positive_review_notifications" translate="label" type="text" sortOrder="45" showInDefault="1" showInWebsite="1"
+                showInStore="1">
+                <label>Positive Review Notifications</label>
+                <field id="enabled" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1"
+                    showInStore="1">
+                    <label>Enable Positive Review Notifications</label>
+                    <comment>When enabled, reviews at or above the configured rating threshold can send positive-review Slack notifications.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="rating_threshold" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1"
+                    showInStore="1">
+                    <label>Positive Review Rating Threshold</label>
+                    <source_model>Fera\Ai\Model\Config\Source\Rating</source_model>
+                </field>
+                <field id="slack_webhook_url" translate="label" type="obscure" sortOrder="30" showInDefault="1" showInWebsite="1"
+                    showInStore="1">
+                    <label>Positive Review Slack Webhook URL</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                </field>
+            </group>
         </section>
     </system>
 </config>
