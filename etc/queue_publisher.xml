@@ -19,4 +19,7 @@
     <publisher topic="fera.review.notify_negative">
         <connection exchange="fera" />
     </publisher>
+    <publisher topic="fera.review.notify_updated">
+        <connection exchange="fera" />
+    </publisher>
 </config>

@@ -19,4 +19,7 @@
     <topic name="fera.review.notify_negative" request="Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterface">
         <handler name="notifyNegativeReviewHandler" type="Fera\Ai\Model\Queue\NotifyNegativeReview\Handler" method="process" />
     </topic>
+    <topic name="fera.review.notify_updated" request="Fera\Ai\Api\Data\Queue\NotifyReviewUpdate\MessageInterface">
+        <handler name="notifyReviewUpdateHandler" type="Fera\Ai\Model\Queue\NotifyReviewUpdate\Handler" method="process" />
+    </topic>
 </config>

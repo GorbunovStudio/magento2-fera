@@ -8,5 +8,6 @@
         <binding id="fera.export.product" topic="fera.export.product" destination="fera.queue" />
         <binding id="fera.process.customer.update" topic="fera.process.customer.update" destination="fera.queue" />
         <binding id="fera.review.notify_negative" topic="fera.review.notify_negative" destination="fera.queue" />
+        <binding id="fera.review.notify_updated" topic="fera.review.notify_updated" destination="fera.queue" />
     </exchange>
 </config>

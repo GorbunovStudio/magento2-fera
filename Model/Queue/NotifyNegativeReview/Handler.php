@@ -90,11 +90,7 @@ class Handler
             throw new RuntimeException('Invalid store ID in message');
         }
 
-        if (!$this->scopeConfig->isSetFlag(
-            ConfigOptionInterface::REVIEW_NOTIFICATIONS_ENABLED,
-            ScopeInterface::SCOPE_STORE,
-            $storeId
-        )) {
+        if (!$this->areNegativeReviewNotificationsEnabled($storeId)) {
             return;
         }
 
@@ -138,7 +134,7 @@ class Handler
             $this->assertWebhookUrl($slackWebhookUrl);
             $actions = $this->buildBaseSlackActions($notificationData);
             $actionsContainer = new DataObject(['actions' => $actions]);
-            
+
             try {
                 $this->eventManager->dispatch('fera_negative_review_slack_actions_prepare', [
                     'message' => $message,
@@ -189,6 +185,15 @@ class Handler
         }
 
         return (float) $value;
+    }
+
+    private function areNegativeReviewNotificationsEnabled(int $storeId): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            ConfigOptionInterface::NEGATIVE_REVIEW_NOTIFICATIONS_ENABLED,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
     }
 
     private function buildFeraReviewUrl(int $storeId, string $feraStoreId, string $reviewId): string

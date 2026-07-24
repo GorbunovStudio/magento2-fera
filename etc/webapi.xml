@@ -7,4 +7,10 @@
             <resource ref="anonymous" />
         </resources>
     </route>
+    <route url="/V1/fera/webhook/review-updated" method="POST">
+        <service class="Fera\Ai\Api\ReviewUpdatedWebhookInterface" method="execute" />
+        <resources>
+            <resource ref="anonymous" />
+        </resources>
+    </route>
 </routes>

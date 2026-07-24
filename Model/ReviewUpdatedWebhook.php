@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Model;
 
+use Fera\Ai\Api\Data\Queue\NotifyReviewUpdate\MessageInterfaceFactory;
 use Fera\Ai\Api\Data\Queue\TopicInterface;
-use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterfaceFactory;
-use Fera\Ai\Api\ReviewCreatedWebhookInterface;
+use Fera\Ai\Api\ReviewUpdatedWebhookInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
-use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
-use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
+use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
+use Fera\Ai\Services\ReviewSnapshot\SnapshotComparator;
+use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Framework\Phrase;
 use Magento\Framework\Webapi\Exception as WebapiException;
@@ -21,20 +23,16 @@ use Magento\Store\Model\StoreManagerInterface;
 use RuntimeException;
 use Throwable;
 
-class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
+/**
+ * @phpstan-import-type ReviewSnapshot from SnapshotBuilder
+ */
+class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
 {
+    private const HTTP_SERVICE_UNAVAILABLE = 503;
+    private const LOCK_WAIT_TIMEOUT_SECONDS = 10;
     private const REVIEW_BODY_MAX_LENGTH = 200;
+    private const PENDING_UPDATE_STATE = 'pending_update';
 
-    /**
-     * @param Request $request
-     * @param ScopeConfigInterface $scopeConfig
-     * @param StoreManagerInterface $storeManager
-     * @param PublisherInterface $publisher
-     * @param FeraWebhookJwtValidator $jwtValidator
-     * @param MessageInterfaceFactory $messageFactory
-     * @param SnapshotBuilder $snapshotBuilder
-     * @param SnapshotRepository $snapshotRepository
-     */
     public function __construct(
         private Request $request,
         private ScopeConfigInterface $scopeConfig,
@@ -43,15 +41,12 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         private FeraWebhookJwtValidator $jwtValidator,
         private MessageInterfaceFactory $messageFactory,
         private SnapshotBuilder $snapshotBuilder,
-        private SnapshotRepository $snapshotRepository
+        private SnapshotRepository $snapshotRepository,
+        private SnapshotComparator $snapshotComparator,
+        private LockManagerInterface $lockManager
     ) {
     }
 
-    /**
-     * Process incoming review-created webhook request.
-     *
-     * @return void
-     */
     public function execute(): void
     {
         $storeId = (int) $this->storeManager->getStore()->getId();
@@ -61,7 +56,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         }
 
         try {
-            $claims = $this->jwtValidator->validateToken($jwt, $storeId, 'review_create');
+            $claims = $this->jwtValidator->validateToken($jwt, $storeId, 'review_update');
         } catch (Throwable) {
             throw new WebapiException(new Phrase('Unauthorized'), 0, WebapiException::HTTP_UNAUTHORIZED);
         }
@@ -73,71 +68,96 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             throw new WebapiException(new Phrase('Request body must be a JSON object'), 0, WebapiException::HTTP_BAD_REQUEST);
         }
 
-        $snapshot = $this->snapshotBuilder->build($payload);
-        $this->snapshotRepository->save($snapshot);
+        $currentSnapshot = $this->snapshotBuilder->build($payload);
+        $lockName = $this->buildLockName($storeId, $currentSnapshot['review_id']);
+        if (!$this->lockManager->lock($lockName, self::LOCK_WAIT_TIMEOUT_SECONDS)) {
+            throw new WebapiException(
+                new Phrase('Review update processing is busy'),
+                0,
+                self::HTTP_SERVICE_UNAVAILABLE
+            );
+        }
 
-        if (!$this->areNegativeReviewNotificationsEnabled($storeId)) {
+        try {
+            $this->processReviewUpdate($storeId, $feraStoreId, $payload, $currentSnapshot);
+        } finally {
+            $this->lockManager->unlock($lockName);
+        }
+    }
+
+    /**
+     * @param int $storeId
+     * @param string $feraStoreId
+     * @param mixed[] $payload
+     * @phpstan-param array<string, mixed> $payload
+     * @param mixed[] $currentSnapshot
+     * @phpstan-param ReviewSnapshot $currentSnapshot
+     * @return void
+     * @throws \RuntimeException
+     */
+    private function processReviewUpdate(
+        int $storeId,
+        string $feraStoreId,
+        array $payload,
+        array $currentSnapshot
+    ): void {
+        $previousSnapshot = $this->snapshotRepository->getByReviewId($currentSnapshot['review_id']);
+        $changedFields = $previousSnapshot === null
+            ? []
+            : $this->snapshotComparator->compare($previousSnapshot, $currentSnapshot);
+
+        $this->snapshotRepository->save($currentSnapshot);
+
+        if ($previousSnapshot === null
+            || $changedFields === []
+            || !$this->isPendingUpdate($payload)
+            || !$this->areReviewUpdateNotificationsEnabled($storeId)
+        ) {
             return;
         }
 
-        $reviewId = $snapshot['review_id'];
-        $rating = $snapshot['rating'];
-
-        $threshold = $this->getRatingThreshold($storeId);
-        if ($rating > $threshold) {
-            return;
+        $changedFieldsJson = json_encode($changedFields, JSON_INVALID_UTF8_SUBSTITUTE);
+        if (!is_string($changedFieldsJson)) {
+            throw new RuntimeException('Unable to encode changed review fields');
         }
 
         $message = $this->messageFactory->create()
             ->setStoreId($storeId)
-            ->setReviewId($reviewId)
-            ->setRating($rating)
+            ->setReviewId($currentSnapshot['review_id'])
+            ->setRating($currentSnapshot['rating'])
             ->setFeraStoreId($feraStoreId)
             ->setExternalOrderId($this->extractString($payload, 'external_order_id'))
             ->setCustomerName($this->extractNestedString($payload, ['customer', 'name']))
             ->setCustomerEmail($this->extractNestedString($payload, ['customer', 'email']))
-            ->setReviewTitle($snapshot['heading'])
-            ->setReviewBody($this->normalizeReviewBody($snapshot['body']))
+            ->setReviewTitle($currentSnapshot['heading'])
+            ->setReviewBody($this->normalizeReviewBody($currentSnapshot['body']))
             ->setProductName($this->extractNestedString($payload, ['product', 'name']))
-            ->setExternalProductId($this->extractString($payload, 'external_product_id'));
+            ->setExternalProductId($this->extractString($payload, 'external_product_id'))
+            ->setChangedFieldsJson($changedFieldsJson);
 
-        $this->publisher->publish(TopicInterface::NOTIFY_NEGATIVE_REVIEW, $message);
+        $this->publisher->publish(TopicInterface::NOTIFY_REVIEW_UPDATE, $message);
     }
 
-    /**
-     * Check whether negative-review notifications are enabled for store.
-     *
-     * @param int $storeId
-     * @return bool
-     */
-    private function areNegativeReviewNotificationsEnabled(int $storeId): bool
+    private function buildLockName(int $storeId, string $reviewId): string
+    {
+        return 'fera_review_updated_' . $storeId . '_' . hash('sha256', $reviewId);
+    }
+
+    private function areReviewUpdateNotificationsEnabled(int $storeId): bool
     {
         return $this->scopeConfig->isSetFlag(
-            ConfigOptionInterface::NEGATIVE_REVIEW_NOTIFICATIONS_ENABLED,
+            ConfigOptionInterface::REVIEW_UPDATE_NOTIFICATIONS_ENABLED,
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
     }
 
     /**
-     * Resolve configured rating threshold for store.
-     *
-     * @param int $storeId
-     * @return float
+     * @param array<string, mixed> $payload
      */
-    private function getRatingThreshold(int $storeId): float
+    private function isPendingUpdate(array $payload): bool
     {
-        $value = $this->scopeConfig->getValue(
-            ConfigOptionInterface::REVIEW_NOTIFICATIONS_RATING_THRESHOLD,
-            ScopeInterface::SCOPE_STORE,
-            $storeId
-        );
-
-        if (!is_numeric($value)) {
-            throw new RuntimeException('Rating threshold is not set for store ID ' . $storeId);
-        }
-
-        return (float) $value;
+        return ($payload['state'] ?? null) === self::PENDING_UPDATE_STATE;
     }
 
     /**
