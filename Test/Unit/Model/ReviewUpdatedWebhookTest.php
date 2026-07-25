@@ -67,9 +67,9 @@ class ReviewUpdatedWebhookTest extends TestCase
         $webhook->execute();
     }
 
-    public function testNonPendingChangedUpdateIsPublished(): void
+    public function testChangedUpdatePublishesTheCompleteReviewBody(): void
     {
-        $this->runUpdate('approved', ['rating']);
+        $this->runUpdate('approved', ['rating'], str_repeat('a', 201));
     }
 
     public function testDuplicateDeliveryIsPersistedWithoutPublishing(): void
@@ -80,13 +80,13 @@ class ReviewUpdatedWebhookTest extends TestCase
     /**
      * @param list<string> $changedFields
      */
-    private function runUpdate(string $state, array $changedFields): void
+    private function runUpdate(string $state, array $changedFields, string $reviewBody = ''): void
     {
         $payload = ['id' => 'review-1', 'state' => $state];
         $snapshot = [
             'review_id' => 'review-1',
             'heading' => '',
-            'body' => '',
+            'body' => $reviewBody,
             'rating' => 5.0,
             'media' => [],
             'magento_store_id' => 7,
@@ -143,7 +143,10 @@ class ReviewUpdatedWebhookTest extends TestCase
         $message->method('setCustomerName')->willReturnSelf();
         $message->method('setCustomerEmail')->willReturnSelf();
         $message->method('setReviewTitle')->willReturnSelf();
-        $message->method('setReviewBody')->willReturnSelf();
+        $message->expects($changedFields === [] ? self::never() : self::once())
+            ->method('setReviewBody')
+            ->with($reviewBody)
+            ->willReturnSelf();
         $message->method('setProductName')->willReturnSelf();
         $message->method('setExternalProductId')->willReturnSelf();
         $message->method('setChangedFieldsJson')->willReturnSelf();

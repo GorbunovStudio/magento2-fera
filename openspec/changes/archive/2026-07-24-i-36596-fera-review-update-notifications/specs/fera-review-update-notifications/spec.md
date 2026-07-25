@@ -30,6 +30,13 @@ The system SHALL persist the latest known Fera review snapshot for every valid r
 - **WHEN** webhook payload `media` contains media objects with `id`, full media `url`, `thumbnail_url`, and other fields
 - **THEN** the review snapshot stores only `id` and full media `url` for each media item
 - **AND** the system normalizes media before comparison and persistence
+- **AND** the system uses a non-empty media `id` as the comparison identity, falling back to the full media `url` only when an ID is unavailable
+
+#### Scenario: URL-only media changes do not publish a notification
+
+- **WHEN** a review's media item retains the same non-empty `id` but has a different full media `url`
+- **THEN** the system treats that media item as unchanged for review-update detection
+- **AND** the system does not publish a review-update notification when no other selected review field changed
 
 #### Scenario: Snapshot storage preserves four-byte Unicode text
 

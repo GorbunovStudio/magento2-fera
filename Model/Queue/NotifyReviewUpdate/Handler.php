@@ -41,7 +41,7 @@ class Handler
 {
     private const SLACK_CONNECT_TIMEOUT_SECONDS = 2.0;
     private const SLACK_TIMEOUT_SECONDS = 5.0;
-    private const MAX_SLACK_FIELD_TEXT_LENGTH = 1900;
+    private const MAX_SLACK_FIELD_TEXT_LENGTH = 3000;
 
     public function __construct(
         private ScopeConfigInterface $scopeConfig,
@@ -515,18 +515,17 @@ class Handler
      */
     private function extractMediaComparisonKeys(array $item): array
     {
-        $keys = [];
         $id = $this->stringifyMediaValue($item['id'] ?? null);
         if ($id !== '') {
-            $keys[] = 'id:' . $id;
+            return ['id:' . $id];
         }
 
         $url = $this->stringifyMediaValue($item['url'] ?? null);
         if ($url !== '') {
-            $keys[] = 'url:' . $url;
+            return ['url:' . $url];
         }
 
-        return $keys;
+        return [];
     }
 
     private function stringifyMediaValue(mixed $value): string

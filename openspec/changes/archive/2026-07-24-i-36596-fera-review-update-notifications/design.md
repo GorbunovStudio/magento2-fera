@@ -67,9 +67,9 @@ Implementation is intentionally split:
 
 ### 3. Store only the latest selected review fields
 
-**Decision:** Store a single latest snapshot keyed by `review_id`, containing `heading`, `body`, `rating`, and normalized `media` with only `id` and full media `url`.
+**Decision:** Store a single latest snapshot keyed by `review_id`, containing `heading`, `body`, `rating`, and normalized `media` with only `id` and full media `url`. Compare media items by non-empty `id`, falling back to `url` only when an ID is unavailable; retain the full URL for Slack display.
 
-**Rationale:** The current requirement needs only the previous state for one comparison. Storing full history would add schema and retention complexity without supporting a current workflow.
+**Rationale:** The current requirement needs only the previous state for one comparison. A media URL can change without representing a new attachment, so a stable media ID avoids false update notifications while the full URL remains available for Slack. Storing full history would add schema and retention complexity without supporting a current workflow.
 
 **Alternatives considered:**
 

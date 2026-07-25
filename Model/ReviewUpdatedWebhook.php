@@ -32,7 +32,6 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
 {
     private const HTTP_SERVICE_UNAVAILABLE = 503;
     private const LOCK_WAIT_TIMEOUT_SECONDS = 10;
-    private const REVIEW_BODY_MAX_LENGTH = 200;
 
     public function __construct(
         private Request $request,
@@ -143,7 +142,7 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             ->setCustomerName($this->extractNestedString($payload, ['customer', 'name']))
             ->setCustomerEmail($this->extractNestedString($payload, ['customer', 'email']))
             ->setReviewTitle($currentSnapshot['heading'])
-            ->setReviewBody($this->normalizeReviewBody($currentSnapshot['body']))
+            ->setReviewBody($currentSnapshot['body'])
             ->setProductName($this->extractNestedString($payload, ['product', 'name']))
             ->setExternalProductId($this->extractString($payload, 'external_product_id'))
             ->setChangedFieldsJson($changedFieldsJson);
@@ -211,19 +210,5 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
         }
 
         return is_string($current) ? $current : '';
-    }
-
-    private function normalizeReviewBody(string $value): string
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-
-        if (mb_strlen($value) <= self::REVIEW_BODY_MAX_LENGTH) {
-            return $value;
-        }
-
-        return rtrim(mb_substr($value, 0, self::REVIEW_BODY_MAX_LENGTH));
     }
 }

@@ -3,7 +3,7 @@
 - [x] 1.1 Add a review snapshot declarative schema table keyed by Fera `review_id`, storing `heading`, `body`, `rating`, normalized `media`, and timestamps.
 - [x] 1.2 Add snapshot model/resource or equivalent persistence service for loading and upserting the latest snapshot by `review_id`.
 - [x] 1.3 Add a snapshot builder that extracts `review_id`, `heading`, `body`, `rating`, and `media` from Fera review webhook payloads.
-- [x] 1.4 Normalize `media` to a deterministic list of `id` and full media `url` values before comparison and persistence.
+- [x] 1.4 Normalize `media` to a deterministic list of `id` and full media `url` values before comparison and persistence; compare by non-empty media ID, falling back to URL only when an ID is unavailable.
 - [x] 1.5 Add a snapshot comparator that returns changed fields with before/after values for `rating`, `heading`, `body`, and normalized `media`.
 - [x] 1.6 Add a schema patch that converts `fera_review_snapshots` to `utf8mb4` so snapshot text preserves 4-byte Unicode characters.
 
