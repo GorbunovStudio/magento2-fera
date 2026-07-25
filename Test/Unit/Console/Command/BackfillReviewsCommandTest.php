@@ -6,6 +6,7 @@ namespace Fera\Ai\Test\Unit\Console\Command;
 
 use Fera\Ai\Api\ApiClient\ReviewsClientInterface;
 use Fera\Ai\Console\Command\BackfillReviewsCommand;
+use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
@@ -56,7 +57,8 @@ class BackfillReviewsCommandTest extends TestCase
             $snapshotBuilder,
             $snapshotRepository,
             $storeGroupService,
-            $this->createMock(AppState::class)
+            $this->createMock(AppState::class),
+            $this->createMock(FeraHelper::class)
         );
         $tester = new CommandTester($command);
 
@@ -64,6 +66,7 @@ class BackfillReviewsCommandTest extends TestCase
         self::assertStringContainsString('accounts_failed=1', $tester->getDisplay());
         self::assertStringContainsString('fetched=2, saved=2', $tester->getDisplay());
         self::assertStringContainsString('incomplete_snapshots=0', $tester->getDisplay());
+        self::assertStringContainsString('simulated account failure', $tester->getDisplay());
     }
 
     public function testReportsWhenNoFeraAccountsAreConfigured(): void
@@ -88,7 +91,8 @@ class BackfillReviewsCommandTest extends TestCase
             $snapshotBuilder,
             $snapshotRepository,
             $storeGroupService,
-            $this->createMock(AppState::class)
+            $this->createMock(AppState::class),
+            $this->createMock(FeraHelper::class)
         );
         $tester = new CommandTester($command);
 
@@ -123,7 +127,8 @@ class BackfillReviewsCommandTest extends TestCase
             $snapshotBuilder,
             $snapshotRepository,
             $storeGroupService,
-            $this->createMock(AppState::class)
+            $this->createMock(AppState::class),
+            $this->createMock(FeraHelper::class)
         );
         $tester = new CommandTester($command);
 

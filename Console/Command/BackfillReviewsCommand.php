@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fera\Ai\Console\Command;
 
 use Fera\Ai\Api\ApiClient\ReviewsClientInterface;
+use Fera\Ai\Helper\Data as FeraHelper;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
@@ -29,7 +30,8 @@ class BackfillReviewsCommand extends Command
         private SnapshotBuilder $snapshotBuilder,
         private SnapshotRepository $snapshotRepository,
         private StoreGroupService $storeGroupService,
-        private AppState $appState
+        private AppState $appState,
+        private FeraHelper $feraHelper
     ) {
         parent::__construct();
     }
@@ -126,17 +128,23 @@ class BackfillReviewsCommand extends Command
 
                         $page++;
                     }
-                } catch (Throwable) {
+                } catch (Throwable $exception) {
                     $totalFetched += $counters['fetched'];
                     $totalSaved += $counters['saved'];
                     $failedAccounts++;
-                    $output->writeln(sprintf(
-                        '<error>Fera account store %d failed after pages=%d, fetched=%d, saved=%d.</error>',
+                    $message = sprintf(
+                        'Fera account store %d failed after pages=%d, fetched=%d, saved=%d: %s',
                         (int) $canonicalStoreId,
                         $counters['pages'],
                         $counters['fetched'],
-                        $counters['saved']
-                    ));
+                        $counters['saved'],
+                        $exception->getMessage()
+                    );
+                    $output->writeln('<error>' . $message . '</error>');
+                    $this->feraHelper->log($message);
+                    if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+                        $output->writeln($exception->getTraceAsString());
+                    }
                     continue;
                 }
 
@@ -165,8 +173,13 @@ class BackfillReviewsCommand extends Command
         } catch (InvalidArgumentException $exception) {
             $output->writeln('<error>' . $exception->getMessage() . '</error>');
             return Cli::RETURN_FAILURE;
-        } catch (Throwable) {
-            $output->writeln('<error>Fera review backfill could not be completed.</error>');
+        } catch (Throwable $exception) {
+            $message = 'Fera review backfill could not be completed: ' . $exception->getMessage();
+            $output->writeln('<error>' . $message . '</error>');
+            $this->feraHelper->log($message);
+            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+                $output->writeln($exception->getTraceAsString());
+            }
             return Cli::RETURN_FAILURE;
         }
     }
