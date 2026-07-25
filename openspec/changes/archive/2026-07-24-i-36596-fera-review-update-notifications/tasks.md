@@ -16,7 +16,7 @@
 - [x] 2.5 Update negative-review webhook and handler gating to use only the negative-review enabled setting.
 - [x] 2.6 Add a verified anonymous `review_updated` webhook route, service contract, and model using `FeraWebhookJwtValidator` with action `review_updated`.
 - [x] 2.7 Implement review-updated processing to load the previous snapshot, compare selected fields, save the current snapshot, and publish a notification only when all required notification conditions pass.
-- [x] 2.8 Ensure review-updated processing saves snapshots when no previous snapshot exists, when `state !== pending_update`, when no selected fields changed, and when review-update notifications are disabled.
+- [x] 2.8 Ensure review-updated processing saves snapshots when no previous snapshot exists, when no selected fields changed, and when review-update notifications are disabled.
 - [x] 2.9 Gate review-update queue publication and queue handling only with the review-update enabled setting, not with the negative-review enabled setting.
 - [x] 2.10 Add a per-store/per-review mutex around review-updated snapshot comparison, queue publication decision, and snapshot save, returning a retryable error if the lock cannot be acquired.
 - [x] 2.11 Add a dedicated review-update queue topic, publisher, topology binding, message contract, and handler.

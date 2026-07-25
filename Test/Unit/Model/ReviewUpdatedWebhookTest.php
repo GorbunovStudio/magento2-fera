@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fera\Ai\Test\Unit\Model;
 
 use Fera\Ai\Api\Data\Queue\NotifyReviewUpdate\MessageInterfaceFactory;
+use Fera\Ai\Api\Data\Queue\NotifyReviewUpdate\MessageInterface;
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Model\ReviewUpdatedWebhook;
@@ -66,7 +67,7 @@ class ReviewUpdatedWebhookTest extends TestCase
         $webhook->execute();
     }
 
-    public function testNonPendingUpdateIsPersistedWithoutNotificationEligibilityCheck(): void
+    public function testNonPendingChangedUpdateIsPublished(): void
     {
         $this->runUpdate('approved', ['rating']);
     }
@@ -120,16 +121,36 @@ class ReviewUpdatedWebhookTest extends TestCase
         $storeGroupService = $this->createMock(StoreGroupService::class);
         $storeGroupService->expects(self::once())->method('getCanonicalStoreId')->with(9)->willReturn(7);
         $scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $scopeConfig->expects(self::never())->method('isSetFlag')->with(
-            ConfigOptionInterface::REVIEW_UPDATE_NOTIFICATIONS_ENABLED,
-            ScopeInterface::SCOPE_STORE,
-            9
-        );
+        $scopeConfig->expects($changedFields === [] ? self::never() : self::once())
+            ->method('isSetFlag')
+            ->with(
+                ConfigOptionInterface::REVIEW_UPDATE_NOTIFICATIONS_ENABLED,
+                ScopeInterface::SCOPE_STORE,
+                9
+            )
+            ->willReturn(true);
         $publisher = $this->createMock(PublisherInterface::class);
-        $publisher->expects(self::never())->method('publish')->with(
+        $publisher->expects($changedFields === [] ? self::never() : self::once())->method('publish')->with(
             TopicInterface::NOTIFY_REVIEW_UPDATE,
             self::anything()
         );
+        $message = $this->createMock(MessageInterface::class);
+        $message->method('setStoreId')->willReturnSelf();
+        $message->method('setReviewId')->willReturnSelf();
+        $message->method('setRating')->willReturnSelf();
+        $message->method('setFeraStoreId')->willReturnSelf();
+        $message->method('setExternalOrderId')->willReturnSelf();
+        $message->method('setCustomerName')->willReturnSelf();
+        $message->method('setCustomerEmail')->willReturnSelf();
+        $message->method('setReviewTitle')->willReturnSelf();
+        $message->method('setReviewBody')->willReturnSelf();
+        $message->method('setProductName')->willReturnSelf();
+        $message->method('setExternalProductId')->willReturnSelf();
+        $message->method('setChangedFieldsJson')->willReturnSelf();
+        $messageFactory = $this->createMock(MessageInterfaceFactory::class);
+        $messageFactory->expects($changedFields === [] ? self::never() : self::once())
+            ->method('create')
+            ->willReturn($message);
         $lockManager = $this->createMock(LockManagerInterface::class);
         $lockManager->expects(self::once())->method('lock')->willReturn(true);
         $lockManager->expects(self::once())->method('unlock');
@@ -140,7 +161,7 @@ class ReviewUpdatedWebhookTest extends TestCase
             $storeManager,
             $publisher,
             $jwtValidator,
-            $this->createMock(MessageInterfaceFactory::class),
+            $messageFactory,
             $snapshotBuilder,
             $snapshotRepository,
             $snapshotComparator,

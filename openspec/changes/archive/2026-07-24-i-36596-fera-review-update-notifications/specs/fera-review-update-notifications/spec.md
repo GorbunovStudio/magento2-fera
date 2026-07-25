@@ -80,14 +80,13 @@ The system SHALL expose separate store-scoped enabled settings for negative-revi
 
 ### Requirement: Review updates SHALL be detected by comparing selected fields with the previous snapshot
 
-The system SHALL compare current review values with the previous snapshot for `rating`, `heading`, `body`, and normalized `media`. The system SHALL publish a review-update notification only when a previous snapshot exists, at least one selected field changed, review-update notifications are enabled, and the webhook payload has `state = pending_update`.
+The system SHALL compare current review values with the previous snapshot for `rating`, `heading`, `body`, and normalized `media`. The system SHALL publish a review-update notification only when a previous snapshot exists, at least one selected field changed, and review-update notifications are enabled.
 
-#### Scenario: Changed selected fields with pending update publish a notification
+#### Scenario: Changed selected fields publish a notification
 
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
 - **AND** a previous snapshot exists for the review
 - **AND** at least one of `rating`, `heading`, `body`, or normalized `media` differs from the previous snapshot
-- **AND** the payload has `state = pending_update`
 - **AND** review-update notifications are enabled for the store
 - **THEN** the system publishes a review-update notification message
 - **AND** the system saves the current snapshot as the latest known state
@@ -99,13 +98,13 @@ The system SHALL compare current review values with the previous snapshot for `r
 - **THEN** the system saves the current snapshot as the latest known state
 - **AND** the system does not publish a review-update notification
 
-#### Scenario: Non-pending update state does not publish a notification
+#### Scenario: Webhook state does not prevent notification publication
 
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
 - **AND** selected fields changed compared with the previous snapshot
-- **AND** the payload state is not `pending_update`
-- **THEN** the system saves the current snapshot as the latest known state
-- **AND** the system does not publish a review-update notification
+- **AND** review-update notifications are enabled for the store
+- **THEN** the system publishes a review-update notification message
+- **AND** the system saves the current snapshot as the latest known state
 
 #### Scenario: No selected field changes do not publish a notification
 
@@ -119,7 +118,6 @@ The system SHALL compare current review values with the previous snapshot for `r
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
 - **AND** a previous snapshot exists for the review
 - **AND** at least one selected field changed compared with the previous snapshot
-- **AND** the payload has `state = pending_update`
 - **AND** review-update notifications are disabled for the store
 - **THEN** the system saves the current snapshot as the latest known state
 - **AND** the system does not publish a review-update notification

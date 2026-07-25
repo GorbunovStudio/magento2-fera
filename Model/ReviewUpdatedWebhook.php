@@ -33,7 +33,6 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
     private const HTTP_SERVICE_UNAVAILABLE = 503;
     private const LOCK_WAIT_TIMEOUT_SECONDS = 10;
     private const REVIEW_BODY_MAX_LENGTH = 200;
-    private const PENDING_UPDATE_STATE = 'pending_update';
 
     public function __construct(
         private Request $request,
@@ -125,7 +124,6 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
 
         if ($previousSnapshot === null
             || $changedFields === []
-            || !$this->isPendingUpdate($payload)
             || !$this->areReviewUpdateNotificationsEnabled($storeId)
         ) {
             return;
@@ -165,14 +163,6 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function isPendingUpdate(array $payload): bool
-    {
-        return ($payload['state'] ?? null) === self::PENDING_UPDATE_STATE;
     }
 
     /**

@@ -2,7 +2,7 @@
 
 The current shared Fera module processes the review-created webhook and sends Slack/email notifications for negative reviews through `Fera\Ai\Model\Queue\NotifyNegativeReview\Handler`. Budsies extends the shared negative-review Slack notification with MakerWare and Freshdesk buttons through `Budsies\Fera\Observer\AddNegativeReviewSlackActionsObserver`.
 
-Redmine 36596 adds a related but separate workflow: after an operator requests a review update in Fera.ai, the team needs a Slack notification when the customer changes the existing review. Fera's `review_updated` webhook fires for many review changes, so the implementation must identify meaningful customer update candidates by comparing selected review fields against the last known snapshot and checking `state = pending_update`.
+Redmine 36596 adds a related but separate workflow: after an operator requests a review update in Fera.ai, the team needs a Slack notification when the customer changes the existing review. Fera's `review_updated` webhook fires for many review changes, so the implementation identifies meaningful review changes by comparing selected review fields against the last known snapshot.
 
 Implementation is intentionally split:
 
@@ -15,7 +15,6 @@ Implementation is intentionally split:
 
 - Persist the latest snapshot for every created and updated Fera review, even when the corresponding notification type is disabled.
 - Detect update notifications from direct comparison of `rating`, `heading`, `body`, and normalized `media`.
-- Require `state = pending_update` before publishing a review-update notification.
 - Gate negative-review notifications and review-update notifications with separate enabled settings that both default to disabled.
 - Keep both notification types on the shared Slack webhook URL setting.
 - Send a review-update Slack notification with before-change review context, after-change values for changed fields, and a dedicated list of newly attached media.
@@ -25,7 +24,7 @@ Implementation is intentionally split:
 **Non-Goals:**
 
 - Building a full review field history or audit log.
-- Reliably distinguishing customer edits from rare operator edits to the same fields; the accepted compromise is to treat selected field changes during `pending_update` as update candidates.
+- Reliably distinguishing customer edits from rare operator edits to the same fields; all selected-field changes are reported.
 - Changing Fera's negative-review rating threshold behavior.
 - Adding new external dependencies.
 - Editing `vendor/` directly in this Magento repository.
@@ -90,16 +89,16 @@ Implementation is intentionally split:
 - Store snapshot strings in an ASCII-safe encoded format such as Base64: rejected because it makes the snapshot table harder to inspect, increases storage size, and adds encode/decode complexity around normal text fields.
 - Use `utf8mb4_0900_ai_ci`: rejected for the module patch because it is MySQL 8 specific; `utf8mb4_general_ci` is more compatible across Magento MySQL/MariaDB environments while still preserving 4-byte Unicode.
 
-### 4. Compare selected fields directly and require `pending_update`
+### 4. Compare selected fields directly
 
-**Decision:** On `review_updated`, compare current snapshot values with the previous snapshot. Publish a notification only when a previous snapshot exists, at least one selected field changed, `state = pending_update`, and review-update notifications are enabled.
+**Decision:** On `review_updated`, compare current snapshot values with the previous snapshot. Publish a notification only when a previous snapshot exists, at least one selected field changed, and review-update notifications are enabled.
 
-**Rationale:** Fera's update webhook is broad. The selected fields map to the current customer-update process, and `pending_update` filters out changes when no operator-requested update is in progress.
+**Rationale:** Fera's update webhook is broad. Comparing the selected fields avoids notifications for metadata-only deliveries while reporting every meaningful review change.
 
 **Alternatives considered:**
 
 - Notify on every `review_updated` webhook: rejected because operator or system changes would generate noise.
-- Rely only on `state = pending_update`: rejected because the webhook can fire without a meaningful content change.
+- Rely only on a webhook state value: rejected because the webhook can fire without a meaningful content change.
 - Attempt to identify the exact actor: rejected for this scope because available webhook data does not provide a reliable actor distinction, and the false-positive risk from rare operator edits is accepted.
 
 ### 4a. Serialize review-updated processing per review
@@ -148,7 +147,7 @@ Implementation is intentionally split:
 
 ## Risks / Trade-offs
 
-- Rare operator edits can still trigger false notifications when `state = pending_update` and selected fields change -> Accepted compromise; document behavior and avoid overfitting to unreliable actor detection.
+- Operator or system edits to selected fields can trigger notifications -> Accepted compromise; the workflow reports every meaningful review change without attempting unreliable actor detection.
 - Existing reviews may have no snapshot at deployment time -> On first update without a previous snapshot, save the snapshot and do not notify; future updates can then be detected.
 - Snapshot persistence stores review text and media URLs -> Store only required fields, avoid logging field values, and do not store raw payloads.
 - Snapshot text stored under `utf8mb3` can lose emoji and other 4-byte Unicode characters -> Convert the snapshot table to `utf8mb4` so comparison uses lossless database round-trips.
