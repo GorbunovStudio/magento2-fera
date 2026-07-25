@@ -353,5 +353,17 @@ This section is for configuring your Fera.ai account credentials. You can find t
     -   **Description:** Comma or newline separated list of email addresses.
     -   **Notes:** If configured, the module sends an email using the template "Fera Negative Review Notification".
 
+### Weekly Review Reporting
+
+Run the historical snapshot import once per deployment environment after the package schema has been upgraded:
+
+```bash
+php bin/magento fera:reviews:backfill --page-size 100
+```
+
+Use `--store-id` to select one store's Fera account, `--max-pages` for a diagnostic-limited run, or `--dry-run` to fetch and validate records without writing snapshots. The command groups store views sharing one secret and writes each account under its canonical Magento store. It reports only aggregate account counters and the number of incomplete snapshots; rerun it after a failed or intentionally limited account.
+
+The versioned native query is [sql-query-36377.sql](docs/tasks/36377-fera-weekly-review-summary/sql-query-36377.sql). It reads only the required reporting columns from the snapshot table and the Magento store table, without selecting review content or media. Bind `period_start` inclusively and `period_end` exclusively. Weekly metrics use `fera_created_at`; the immediately preceding period has the same duration, while all-time metrics use the latest snapshot. Reviews absent from a complete Fera response remain incomplete and are excluded from the report until a later backfill can enrich them.
+
 ## Help
 If you're seeing this repo you're probably a trusted developer - so just feel free to email help a-t fera dot ai with any questions.

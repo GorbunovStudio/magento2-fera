@@ -13,6 +13,8 @@ use Fera\Ai\Services\ReviewSnapshot\MediaNormalizer;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
+use Fera\Ai\Services\StoreGroupService;
+use InvalidArgumentException;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Framework\Phrase;
@@ -49,7 +51,8 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         private PositiveMessageInterfaceFactory $positiveMessageFactory,
         private MediaNormalizer $mediaNormalizer,
         private SnapshotBuilder $snapshotBuilder,
-        private SnapshotRepository $snapshotRepository
+        private SnapshotRepository $snapshotRepository,
+        private StoreGroupService $storeGroupService
     ) {
     }
 
@@ -79,7 +82,19 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
             throw new WebapiException(new Phrase('Request body must be a JSON object'), 0, WebapiException::HTTP_BAD_REQUEST);
         }
 
-        $snapshot = $this->snapshotBuilder->build($payload);
+        $canonicalStoreId = $this->storeGroupService->getCanonicalStoreId($storeId);
+        try {
+            $snapshot = $this->snapshotBuilder->build(
+                $payload,
+                $canonicalStoreId
+            );
+        } catch (InvalidArgumentException $exception) {
+            throw new WebapiException(
+                new Phrase($exception->getMessage()),
+                0,
+                WebapiException::HTTP_BAD_REQUEST
+            );
+        }
         $this->snapshotRepository->save($snapshot);
 
         $reviewId = $snapshot['review_id'];

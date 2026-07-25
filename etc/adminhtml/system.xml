@@ -72,7 +72,7 @@
             </group>
             <group id="review_notifications" translate="label" type="text" sortOrder="40" showInDefault="1" showInWebsite="1"
                 showInStore="1">
-                <label>Review Notifications</label>
+                <label>Negative Review Notifications</label>
                 <field id="negative_review_notifications_enabled" translate="label comment" type="select" sortOrder="10"
                     showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Enable Negative Review Notifications</label>
@@ -82,7 +82,8 @@
                 <field id="review_update_notifications_enabled" translate="label comment" type="select" sortOrder="20"
                     showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Enable Review Update Notifications</label>
-                    <comment>When enabled, qualifying Fera review updates can send Slack notifications using the shared Slack Webhook URL below.</comment>
+                    <comment>When enabled, qualifying Fera review updates can send Slack notifications using the shared Slack Webhook URL
+                        below.</comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
                 <field id="rating_threshold" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="1"

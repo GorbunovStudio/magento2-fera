@@ -76,6 +76,15 @@
         <column xsi:type="text" name="body" nullable="false" comment="Review Body" />
         <column xsi:type="decimal" name="rating" scale="2" precision="4" unsigned="false" nullable="false" comment="Review Rating" />
         <column xsi:type="text" name="media" nullable="false" comment="Normalized Review Media" />
+        <column xsi:type="smallint" name="magento_store_id" unsigned="true" nullable="true" comment="Canonical Magento Store ID" />
+        <column xsi:type="varchar" name="subject" nullable="true" length="16" comment="Fera Review Subject" />
+        <column xsi:type="varchar" name="external_product_id" nullable="true" length="255" comment="External Product ID" />
+        <column xsi:type="varchar" name="fera_product_id" nullable="true" length="64" comment="Fera Product ID" />
+        <column xsi:type="varchar" name="product_name" nullable="true" length="255" comment="Fera Product Name" />
+        <column xsi:type="varchar" name="state" nullable="true" length="32" comment="Fera Review State" />
+        <column xsi:type="boolean" name="is_test" nullable="true" comment="Fera Test Review Flag" />
+        <column xsi:type="timestamp" name="fera_created_at" nullable="true" on_update="false" comment="Fera Review Created At" />
+        <column xsi:type="timestamp" name="fera_updated_at" nullable="true" on_update="false" comment="Fera Review Updated At" />
         <column xsi:type="timestamp" name="created_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="false" comment="Created At" />
         <column xsi:type="timestamp" name="updated_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="true" comment="Updated At" />
 
@@ -85,5 +94,16 @@
         <constraint xsi:type="unique" referenceId="FERA_REVIEW_SNAPSHOTS_REVIEW_ID_UNQ">
             <column name="review_id" />
         </constraint>
+        <index referenceId="FERA_REVIEW_SNAPSHOTS_STORE_SUBJECT_CREATED_AT_IDX">
+            <column name="magento_store_id" />
+            <column name="subject" />
+            <column name="fera_created_at" />
+        </index>
+        <index referenceId="FERA_REVIEW_SNAPSHOTS_FERA_PRODUCT_ID_IDX">
+            <column name="fera_product_id" />
+        </index>
+        <index referenceId="FERA_REVIEW_SNAPSHOTS_EXTERNAL_PRODUCT_ID_IDX">
+            <column name="external_product_id" />
+        </index>
     </table>
 </schema>
