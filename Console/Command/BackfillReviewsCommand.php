@@ -6,6 +6,7 @@ namespace Fera\Ai\Console\Command;
 
 use Fera\Ai\Api\ApiClient\ReviewsClientInterface;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Services\ReviewSnapshot\ReviewSnapshotLock;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
@@ -29,6 +30,7 @@ class BackfillReviewsCommand extends Command
         private ReviewsClientInterface $reviewsClient,
         private SnapshotBuilder $snapshotBuilder,
         private SnapshotRepository $snapshotRepository,
+        private ReviewSnapshotLock $snapshotLock,
         private StoreGroupService $storeGroupService,
         private AppState $appState,
         private FeraHelper $feraHelper
@@ -112,7 +114,12 @@ class BackfillReviewsCommand extends Command
                             $snapshot = $this->snapshotBuilder->build($review, (int) $canonicalStoreId);
                             $counters['fetched']++;
                             if (!$dryRun) {
-                                $this->snapshotRepository->save($snapshot);
+                                $this->snapshotLock->execute(
+                                    $snapshot['review_id'],
+                                    function () use ($snapshot): void {
+                                        $this->snapshotRepository->save($snapshot);
+                                    }
+                                );
                                 $counters['saved']++;
                             }
                         }

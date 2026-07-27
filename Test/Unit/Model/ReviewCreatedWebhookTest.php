@@ -9,6 +9,7 @@ use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Model\ReviewCreatedWebhook;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
+use Fera\Ai\Services\ReviewSnapshot\ReviewSnapshotLock;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
@@ -56,6 +57,7 @@ class ReviewCreatedWebhookTest extends TestCase
             $this->createMock(MessageInterfaceFactory::class),
             $snapshotBuilder,
             $this->createMock(SnapshotRepository::class),
+            $this->createMock(ReviewSnapshotLock::class),
             $storeGroupService
         );
 
@@ -100,6 +102,14 @@ class ReviewCreatedWebhookTest extends TestCase
         /** @var SnapshotRepository&MockObject $snapshotRepository */
         $snapshotRepository = $this->createMock(SnapshotRepository::class);
         $snapshotRepository->expects(self::once())->method('save')->with($snapshot);
+        /** @var ReviewSnapshotLock&MockObject $snapshotLock */
+        $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
+        $snapshotLock->expects(self::once())
+            ->method('execute')
+            ->with('review-1', self::isType('callable'))
+            ->willReturnCallback(static function (string $reviewId, callable $operation): mixed {
+                return $operation();
+            });
         /** @var StoreGroupService&MockObject $storeGroupService */
         $storeGroupService = $this->createMock(StoreGroupService::class);
         $storeGroupService->expects(self::once())->method('getCanonicalStoreId')->with(9)->willReturn(7);
@@ -122,6 +132,7 @@ class ReviewCreatedWebhookTest extends TestCase
             $this->createMock(MessageInterfaceFactory::class),
             $snapshotBuilder,
             $snapshotRepository,
+            $snapshotLock,
             $storeGroupService
         );
 

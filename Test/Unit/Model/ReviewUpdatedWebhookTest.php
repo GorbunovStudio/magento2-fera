@@ -10,13 +10,13 @@ use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Model\ReviewUpdatedWebhook;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
+use Fera\Ai\Services\ReviewSnapshot\ReviewSnapshotLock;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotComparator;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
 use InvalidArgumentException;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Framework\Webapi\Exception as WebapiException;
 use Magento\Framework\Webapi\Rest\Request;
@@ -60,7 +60,7 @@ class ReviewUpdatedWebhookTest extends TestCase
             $snapshotBuilder,
             $this->createMock(SnapshotRepository::class),
             $this->createMock(SnapshotComparator::class),
-            $this->createMock(LockManagerInterface::class),
+            $this->createMock(ReviewSnapshotLock::class),
             $storeGroupService
         );
 
@@ -154,9 +154,13 @@ class ReviewUpdatedWebhookTest extends TestCase
         $messageFactory->expects($changedFields === [] ? self::never() : self::once())
             ->method('create')
             ->willReturn($message);
-        $lockManager = $this->createMock(LockManagerInterface::class);
-        $lockManager->expects(self::once())->method('lock')->willReturn(true);
-        $lockManager->expects(self::once())->method('unlock');
+        $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
+        $snapshotLock->expects(self::once())
+            ->method('execute')
+            ->with('review-1', self::isType('callable'))
+            ->willReturnCallback(static function (string $reviewId, callable $operation): mixed {
+                return $operation();
+            });
 
         $webhook = new ReviewUpdatedWebhook(
             $request,
@@ -168,7 +172,7 @@ class ReviewUpdatedWebhookTest extends TestCase
             $snapshotBuilder,
             $snapshotRepository,
             $snapshotComparator,
-            $lockManager,
+            $snapshotLock,
             $storeGroupService
         );
 

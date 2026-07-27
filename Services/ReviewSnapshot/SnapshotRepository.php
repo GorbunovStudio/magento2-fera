@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 namespace Fera\Ai\Services\ReviewSnapshot;
 
-use Magento\Framework\App\ResourceConnection;
+use Fera\Ai\Api\Data\ReviewSnapshotInterface;
+use Fera\Ai\Model\ReviewSnapshot as ReviewSnapshotModel;
+use Fera\Ai\Model\ReviewSnapshotFactory;
+use Fera\Ai\Model\ResourceModel\ReviewSnapshot as ReviewSnapshotResource;
+use Fera\Ai\Model\ResourceModel\ReviewSnapshot\CollectionFactory as ReviewSnapshotCollectionFactory;
 use Magento\Framework\Serialize\Serializer\Json;
-use Zend_Db_Expr;
 
 /**
  * @phpstan-import-type ReviewSnapshot from SnapshotBuilder
  */
 class SnapshotRepository
 {
-    private const TABLE_NAME = 'fera_review_snapshots';
-
     public function __construct(
-        private ResourceConnection $resourceConnection,
+        private ReviewSnapshotResource $resource,
+        private ReviewSnapshotFactory $snapshotFactory,
+        private ReviewSnapshotCollectionFactory $collectionFactory,
         private Json $json,
         private MediaNormalizer $mediaNormalizer
     ) {
@@ -27,130 +30,189 @@ class SnapshotRepository
      */
     public function getByReviewId(string $reviewId): ?array
     {
-        $connection = $this->resourceConnection->getConnection();
-        $tableName = $this->resourceConnection->getTableName(self::TABLE_NAME);
-        $row = $connection->fetchRow(
-            $connection->select()
-                ->from($tableName, [
-                    'review_id',
-                    'heading',
-                    'body',
-                    'rating',
-                    'media',
-                    'magento_store_id',
-                    'subject',
-                    'external_product_id',
-                    'fera_product_id',
-                    'product_name',
-                    'state',
-                    'is_test',
-                    'fera_created_at',
-                    'fera_updated_at',
-                ])
-                ->where('review_id = ?', $reviewId)
-                ->limit(1)
-        );
-
-        if (!is_array($row)) {
+        $model = $this->findByReviewId($reviewId);
+        if (!$model->getId()) {
             return null;
         }
 
-        return [
-            'review_id' => (string) ($row['review_id'] ?? ''),
-            'heading' => (string) ($row['heading'] ?? ''),
-            'body' => (string) ($row['body'] ?? ''),
-            'rating' => (float) ($row['rating'] ?? 0),
-            'media' => $this->decodeMedia((string) ($row['media'] ?? '[]')),
-            'magento_store_id' => $this->nullableInt($row['magento_store_id'] ?? null),
-            'subject' => $this->nullableString($row['subject'] ?? null),
-            'external_product_id' => $this->nullableString($row['external_product_id'] ?? null),
-            'fera_product_id' => $this->nullableString($row['fera_product_id'] ?? null),
-            'product_name' => $this->nullableString($row['product_name'] ?? null),
-            'state' => $this->nullableString($row['state'] ?? null),
-            'is_test' => $this->nullableBool($row['is_test'] ?? null),
-            'fera_created_at' => $this->nullableString($row['fera_created_at'] ?? null),
-            'fera_updated_at' => $this->nullableString($row['fera_updated_at'] ?? null),
-        ];
+        return $this->toSnapshot($model);
     }
 
     /**
      * @param ReviewSnapshot $snapshot
      */
-    public function save(array $snapshot): int
+    public function save(array $snapshot): void
     {
-        $connection = $this->resourceConnection->getConnection();
-        $tableName = $this->resourceConnection->getTableName(self::TABLE_NAME);
-        $data = [
-            'review_id' => $snapshot['review_id'],
-            'heading' => $snapshot['heading'],
-            'body' => $snapshot['body'],
-            'rating' => $snapshot['rating'],
-            'media' => $this->json->serialize($this->mediaNormalizer->normalize($snapshot['media'])),
-            'magento_store_id' => $snapshot['magento_store_id'],
-            'subject' => $snapshot['subject'],
-            'external_product_id' => $snapshot['external_product_id'],
-            'fera_product_id' => $snapshot['fera_product_id'],
-            'product_name' => $snapshot['product_name'],
-            'state' => $snapshot['state'],
-            'is_test' => $snapshot['is_test'],
-            'fera_created_at' => $snapshot['fera_created_at'],
-            'fera_updated_at' => $snapshot['fera_updated_at'],
-        ];
-
-        $sourceVersionCondition = '(fera_updated_at IS NULL OR '
-            . '(VALUES(fera_updated_at) IS NOT NULL AND VALUES(fera_updated_at) >= fera_updated_at))';
-        $mutableFields = [
-            'heading',
-            'body',
-            'rating',
-            'media',
-            'magento_store_id',
-            'subject',
-            'external_product_id',
-            'fera_product_id',
-            'product_name',
-            'state',
-            'is_test',
-        ];
-        $updates = [];
-        foreach ($mutableFields as $field) {
-            $updates[$field] = new Zend_Db_Expr(sprintf(
-                'IF(%s, VALUES(%s), %s)',
-                $sourceVersionCondition,
-                $field,
-                $field
-            ));
+        $model = $this->findByReviewId($snapshot['review_id']);
+        if (!$model->getId()) {
+            $model = $this->snapshotFactory->create();
+            $this->applyNewSnapshot($model, $snapshot);
+            $this->resource->save($model);
+            return;
         }
 
-        $updates['fera_created_at'] = new Zend_Db_Expr(
-            'IF(fera_created_at IS NULL AND VALUES(fera_created_at) IS NOT NULL, '
-            . 'VALUES(fera_created_at), fera_created_at)'
-        );
-        $updates['fera_updated_at'] = new Zend_Db_Expr(
-            'IF(fera_updated_at IS NULL OR '
-            . '(VALUES(fera_updated_at) IS NOT NULL AND VALUES(fera_updated_at) >= fera_updated_at), '
-            . 'VALUES(fera_updated_at), fera_updated_at)'
-        );
-
-        return $connection->insertOnDuplicate(
-            $tableName,
-            $data,
-            $updates
-        );
+        if ($this->applyExistingSnapshot($model, $snapshot)) {
+            $this->resource->save($model);
+        }
     }
 
     public function countIncomplete(): int
     {
-        $connection = $this->resourceConnection->getConnection();
-        $tableName = $this->resourceConnection->getTableName(self::TABLE_NAME);
-        $select = $connection->select()
-            ->from($tableName, ['count' => new Zend_Db_Expr('COUNT(*)')])
-            ->where(
-                'fera_created_at IS NULL OR magento_store_id IS NULL OR subject IS NULL '
-                . "OR (subject = 'product' AND fera_product_id IS NULL AND external_product_id IS NULL)"
-            );
+        $collection = $this->collectionFactory->create();
+        $collection->addIncompleteReportingDataFilter();
 
-        return (int) $connection->fetchOne($select);
+        return (int) $collection->getSize();
+    }
+
+    /**
+     * @return ReviewSnapshotModel
+     */
+    private function findByReviewId(string $reviewId): ReviewSnapshotModel
+    {
+        $collection = $this->collectionFactory->create();
+        $collection->addFieldToFilter(ReviewSnapshotInterface::REVIEW_ID, $reviewId);
+        $collection->setPageSize(1);
+
+        return $collection->getFirstItem();
+    }
+
+    /**
+     * @param ReviewSnapshot $snapshot
+     */
+    private function applyNewSnapshot(ReviewSnapshotModel $model, array $snapshot): void
+    {
+        $model->setReviewId($snapshot['review_id']);
+        $model->setHeading($snapshot['heading']);
+        $model->setBody($snapshot['body']);
+        $model->setRating($snapshot['rating']);
+        $model->setMedia($this->encodeMedia($snapshot['media']));
+        $model->setMagentoStoreId($snapshot['magento_store_id']);
+        $model->setSubject($snapshot['subject']);
+        $model->setExternalProductId($snapshot['external_product_id']);
+        $model->setFeraProductId($snapshot['fera_product_id']);
+        $model->setProductName($snapshot['product_name']);
+        $model->setState($snapshot['state']);
+        $model->setIsTest($snapshot['is_test']);
+        $model->setFeraCreatedAt($snapshot['fera_created_at']);
+        $model->setFeraUpdatedAt($snapshot['fera_updated_at']);
+    }
+
+    /**
+     * @param ReviewSnapshot $snapshot
+     */
+    private function applyExistingSnapshot(ReviewSnapshotModel $model, array $snapshot): bool
+    {
+        $changed = false;
+        if ($this->shouldApplyMutableFields($model->getFeraUpdatedAt(), $snapshot['fera_updated_at'])) {
+            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::HEADING, $snapshot['heading']) || $changed;
+            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::BODY, $snapshot['body']) || $changed;
+            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::RATING, $snapshot['rating']) || $changed;
+            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::MEDIA, $this->encodeMedia($snapshot['media'])) || $changed;
+            $changed = $this->setIfChanged(
+                $model,
+                ReviewSnapshotInterface::MAGENTO_STORE_ID,
+                $snapshot['magento_store_id']
+            ) || $changed;
+            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::SUBJECT, $snapshot['subject']) || $changed;
+            $changed = $this->setIfChanged(
+                $model,
+                ReviewSnapshotInterface::EXTERNAL_PRODUCT_ID,
+                $snapshot['external_product_id']
+            ) || $changed;
+            $changed = $this->setIfChanged(
+                $model,
+                ReviewSnapshotInterface::FERA_PRODUCT_ID,
+                $snapshot['fera_product_id']
+            ) || $changed;
+            $changed = $this->setIfChanged(
+                $model,
+                ReviewSnapshotInterface::PRODUCT_NAME,
+                $snapshot['product_name']
+            ) || $changed;
+            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::STATE, $snapshot['state']) || $changed;
+            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::IS_TEST, $snapshot['is_test']) || $changed;
+            $changed = $this->setIfChanged(
+                $model,
+                ReviewSnapshotInterface::FERA_UPDATED_AT,
+                $snapshot['fera_updated_at']
+            ) || $changed;
+        }
+
+        if ($model->getFeraCreatedAt() === null && $snapshot['fera_created_at'] !== null) {
+            $changed = $this->setIfChanged(
+                $model,
+                ReviewSnapshotInterface::FERA_CREATED_AT,
+                $snapshot['fera_created_at']
+            ) || $changed;
+        }
+
+        return $changed;
+    }
+
+    private function shouldApplyMutableFields(?string $storedVersion, ?string $incomingVersion): bool
+    {
+        return $storedVersion === null || ($incomingVersion !== null && $incomingVersion >= $storedVersion);
+    }
+
+    private function setIfChanged(ReviewSnapshotModel $model, string $field, mixed $value): bool
+    {
+        if ($this->currentValue($model, $field) === $value) {
+            return false;
+        }
+
+        $model->setData($field, $value);
+        return true;
+    }
+
+    private function currentValue(ReviewSnapshotModel $model, string $field): mixed
+    {
+        return match ($field) {
+            ReviewSnapshotInterface::HEADING => $model->getHeading(),
+            ReviewSnapshotInterface::BODY => $model->getBody(),
+            ReviewSnapshotInterface::RATING => $model->getRating(),
+            ReviewSnapshotInterface::MEDIA => $model->getMedia(),
+            ReviewSnapshotInterface::MAGENTO_STORE_ID => $model->getMagentoStoreId(),
+            ReviewSnapshotInterface::SUBJECT => $model->getSubject(),
+            ReviewSnapshotInterface::EXTERNAL_PRODUCT_ID => $model->getExternalProductId(),
+            ReviewSnapshotInterface::FERA_PRODUCT_ID => $model->getFeraProductId(),
+            ReviewSnapshotInterface::PRODUCT_NAME => $model->getProductName(),
+            ReviewSnapshotInterface::STATE => $model->getState(),
+            ReviewSnapshotInterface::IS_TEST => $model->getIsTest(),
+            ReviewSnapshotInterface::FERA_CREATED_AT => $model->getFeraCreatedAt(),
+            ReviewSnapshotInterface::FERA_UPDATED_AT => $model->getFeraUpdatedAt(),
+            default => throw new \LogicException('Unsupported review snapshot field ' . $field),
+        };
+    }
+
+    /**
+     * @return ReviewSnapshot
+     */
+    private function toSnapshot(ReviewSnapshotModel $model): array
+    {
+        return [
+            'review_id' => $model->getReviewId(),
+            'heading' => $model->getHeading(),
+            'body' => $model->getBody(),
+            'rating' => $model->getRating(),
+            'media' => $this->decodeMedia($model->getMedia()),
+            'magento_store_id' => $model->getMagentoStoreId(),
+            'subject' => $model->getSubject(),
+            'external_product_id' => $model->getExternalProductId(),
+            'fera_product_id' => $model->getFeraProductId(),
+            'product_name' => $model->getProductName(),
+            'state' => $model->getState(),
+            'is_test' => $model->getIsTest(),
+            'fera_created_at' => $model->getFeraCreatedAt(),
+            'fera_updated_at' => $model->getFeraUpdatedAt(),
+        ];
+    }
+
+    /**
+     * @param list<array{id: string, url: string}> $media
+     */
+    private function encodeMedia(array $media): string
+    {
+        return $this->json->serialize($this->mediaNormalizer->normalize($media));
     }
 
     /**
@@ -164,24 +226,5 @@ class SnapshotRepository
         }
 
         return $this->mediaNormalizer->normalize($decoded);
-    }
-
-    private function nullableInt(mixed $value): ?int
-    {
-        return $value === null || $value === '' ? null : (int) $value;
-    }
-
-    private function nullableString(mixed $value): ?string
-    {
-        return $value === null || $value === '' ? null : (string) $value;
-    }
-
-    private function nullableBool(mixed $value): ?bool
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return !in_array((string) $value, ['0', 'false'], true);
     }
 }

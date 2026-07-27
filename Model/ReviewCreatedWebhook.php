@@ -8,8 +8,10 @@ use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterfaceFactory as NegativeMessageInterfaceFactory;
 use Fera\Ai\Api\Data\Queue\NotifyPositiveReview\MessageInterfaceFactory as PositiveMessageInterfaceFactory;
 use Fera\Ai\Api\ReviewCreatedWebhookInterface;
+use Fera\Ai\Exception\ReviewSnapshotLockException;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Services\ReviewSnapshot\MediaNormalizer;
+use Fera\Ai\Services\ReviewSnapshot\ReviewSnapshotLock;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
@@ -28,6 +30,7 @@ use Throwable;
 class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
 {
     private const REVIEW_BODY_MAX_LENGTH = 200;
+    private const HTTP_SERVICE_UNAVAILABLE = 503;
 
     /**
      * @param Request $request
@@ -52,6 +55,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
         private MediaNormalizer $mediaNormalizer,
         private SnapshotBuilder $snapshotBuilder,
         private SnapshotRepository $snapshotRepository,
+        private ReviewSnapshotLock $snapshotLock,
         private StoreGroupService $storeGroupService
     ) {
     }
@@ -95,7 +99,20 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
                 WebapiException::HTTP_BAD_REQUEST
             );
         }
-        $this->snapshotRepository->save($snapshot);
+        try {
+            $this->snapshotLock->execute(
+                $snapshot['review_id'],
+                function () use ($snapshot): void {
+                    $this->snapshotRepository->save($snapshot);
+                }
+            );
+        } catch (ReviewSnapshotLockException) {
+            throw new WebapiException(
+                new Phrase('Review snapshot processing is busy'),
+                0,
+                self::HTTP_SERVICE_UNAVAILABLE
+            );
+        }
 
         $reviewId = $snapshot['review_id'];
         $rating = $snapshot['rating'];
