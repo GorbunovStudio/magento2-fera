@@ -26,7 +26,7 @@ class BackfillReviewsCommandTest extends TestCase
         $reviewsClient->expects(self::exactly(3))
             ->method('list')
             ->willReturnCallback(static function (int $page, int $pageSize, int $storeId): array {
-                self::assertSame(100, $pageSize);
+                self::assertSame(1, $pageSize);
                 if ($storeId === 10) {
                     return ['data' => [['id' => 'review-1']], 'meta' => ['page_count' => 1]];
                 }
@@ -72,7 +72,7 @@ class BackfillReviewsCommandTest extends TestCase
         );
         $tester = new CommandTester($command);
 
-        self::assertSame(1, $tester->execute([]));
+        self::assertSame(1, $tester->execute(['--page-size' => '1']));
         self::assertStringContainsString('accounts_failed=1', $tester->getDisplay());
         self::assertStringContainsString('fetched=2, saved=2', $tester->getDisplay());
         self::assertStringContainsString('incomplete_snapshots=0', $tester->getDisplay());

@@ -77,10 +77,38 @@ class ReviewUpdatedWebhookTest extends TestCase
         $this->runUpdate('pending_update', []);
     }
 
+    public function testStaleRejectedValuesDoNotPublish(): void
+    {
+        $this->runUpdate(
+            'approved',
+            [],
+            'stale body',
+            ['body' => 'newer body', 'fera_updated_at' => '2026-07-14 00:00:00'],
+            ['body' => 'newer body', 'fera_updated_at' => '2026-07-14 00:00:00']
+        );
+    }
+
+    public function testAcceptedUpdatePublishesEffectiveSnapshotContent(): void
+    {
+        $this->runUpdate(
+            'approved',
+            ['body'],
+            'incoming body',
+            ['body' => 'effective body', 'rating' => 4.0],
+            ['body' => 'previous body', 'rating' => 3.0]
+        );
+    }
+
     /**
      * @param list<string> $changedFields
      */
-    private function runUpdate(string $state, array $changedFields, string $reviewBody = ''): void
+    private function runUpdate(
+        string $state,
+        array $changedFields,
+        string $reviewBody = '',
+        array $effectiveOverrides = [],
+        array $previousOverrides = []
+    ): void
     {
         $payload = ['id' => 'review-1', 'state' => $state];
         $snapshot = [
@@ -99,6 +127,8 @@ class ReviewUpdatedWebhookTest extends TestCase
             'fera_created_at' => '2026-07-13 00:00:00',
             'fera_updated_at' => '2026-07-13 00:00:00',
         ];
+        $effectiveSnapshot = array_replace($snapshot, $effectiveOverrides);
+        $previousSnapshot = array_replace($snapshot, $previousOverrides);
 
         $request = $this->createMock(Request::class);
         $request->method('getParam')->with('jwt')->willReturn('jwt');
@@ -112,12 +142,18 @@ class ReviewUpdatedWebhookTest extends TestCase
         $snapshotBuilder = $this->createMock(SnapshotBuilder::class);
         $snapshotBuilder->method('build')->with($payload, 7)->willReturn($snapshot);
         $snapshotRepository = $this->createMock(SnapshotRepository::class);
-        $snapshotRepository->method('getByReviewId')->with('review-1')->willReturn($snapshot);
-        $snapshotRepository->expects(self::once())->method('save')->with($snapshot);
+        $snapshotRepository->method('getByReviewId')->with('review-1')->willReturn($previousSnapshot);
+        $snapshotRepository->expects(self::once())
+            ->method('save')
+            ->with($snapshot)
+            ->willReturn($effectiveSnapshot);
         $snapshotComparator = $this->createMock(SnapshotComparator::class);
-        $snapshotComparator->method('compare')->willReturn(
+        $snapshotComparator->expects(self::once())
+            ->method('compare')
+            ->with($previousSnapshot, $effectiveSnapshot)
+            ->willReturn(
             $changedFields === [] ? [] : ['rating' => ['before' => 4.0, 'after' => 5.0]]
-        );
+            );
         $storeGroupService = $this->createMock(StoreGroupService::class);
         $storeGroupService->expects(self::once())->method('getCanonicalStoreId')->with(9)->willReturn(7);
         $scopeConfig = $this->createMock(ScopeConfigInterface::class);
@@ -136,16 +172,25 @@ class ReviewUpdatedWebhookTest extends TestCase
         );
         $message = $this->createMock(MessageInterface::class);
         $message->method('setStoreId')->willReturnSelf();
-        $message->method('setReviewId')->willReturnSelf();
-        $message->method('setRating')->willReturnSelf();
+        $message->expects($changedFields === [] ? self::never() : self::once())
+            ->method('setReviewId')
+            ->with($effectiveSnapshot['review_id'])
+            ->willReturnSelf();
+        $message->expects($changedFields === [] ? self::never() : self::once())
+            ->method('setRating')
+            ->with($effectiveSnapshot['rating'])
+            ->willReturnSelf();
         $message->method('setFeraStoreId')->willReturnSelf();
         $message->method('setExternalOrderId')->willReturnSelf();
         $message->method('setCustomerName')->willReturnSelf();
         $message->method('setCustomerEmail')->willReturnSelf();
-        $message->method('setReviewTitle')->willReturnSelf();
+        $message->expects($changedFields === [] ? self::never() : self::once())
+            ->method('setReviewTitle')
+            ->with($effectiveSnapshot['heading'])
+            ->willReturnSelf();
         $message->expects($changedFields === [] ? self::never() : self::once())
             ->method('setReviewBody')
-            ->with($reviewBody)
+            ->with($effectiveSnapshot['body'])
             ->willReturnSelf();
         $message->method('setProductName')->willReturnSelf();
         $message->method('setExternalProductId')->willReturnSelf();

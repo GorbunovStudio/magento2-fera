@@ -9,6 +9,7 @@ use Fera\Ai\Model\ReviewSnapshot as ReviewSnapshotModel;
 use Fera\Ai\Model\ReviewSnapshotFactory;
 use Fera\Ai\Model\ResourceModel\ReviewSnapshot as ReviewSnapshotResource;
 use Fera\Ai\Model\ResourceModel\ReviewSnapshot\CollectionFactory as ReviewSnapshotCollectionFactory;
+use InvalidArgumentException;
 use Magento\Framework\Serialize\Serializer\Json;
 use RuntimeException;
 
@@ -41,20 +42,24 @@ class SnapshotRepository
 
     /**
      * @param ReviewSnapshot $snapshot
+     * @return ReviewSnapshot
      */
-    public function save(array $snapshot): void
+    public function save(array $snapshot): array
     {
         $model = $this->findByReviewId($snapshot['review_id']);
         if (!$model->getId()) {
             $model = $this->snapshotFactory->create();
             $this->applyNewSnapshot($model, $snapshot);
             $this->resource->save($model);
-            return;
+            return $this->toSnapshot($model);
         }
 
-        if ($this->applyExistingSnapshot($model, $snapshot)) {
+        $this->applyExistingSnapshot($model, $snapshot);
+        if ($model->hasDataChanges()) {
             $this->resource->save($model);
         }
+
+        return $this->toSnapshot($model);
     }
 
     public function countIncomplete(): int
@@ -101,88 +106,31 @@ class SnapshotRepository
     /**
      * @param ReviewSnapshot $snapshot
      */
-    private function applyExistingSnapshot(ReviewSnapshotModel $model, array $snapshot): bool
+    private function applyExistingSnapshot(ReviewSnapshotModel $model, array $snapshot): void
     {
-        $changed = false;
         if ($this->shouldApplyMutableFields($model->getFeraUpdatedAt(), $snapshot['fera_updated_at'])) {
-            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::HEADING, $snapshot['heading']);
-            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::BODY, $snapshot['body']) || $changed;
-            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::RATING, $snapshot['rating']) || $changed;
-            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::MEDIA, $this->encodeMedia($snapshot['media'])) || $changed;
-            $changed = $this->setIfChanged(
-                $model,
-                ReviewSnapshotInterface::MAGENTO_STORE_ID,
-                $snapshot['magento_store_id']
-            ) || $changed;
-            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::SUBJECT, $snapshot['subject']) || $changed;
-            $changed = $this->setIfChanged(
-                $model,
-                ReviewSnapshotInterface::EXTERNAL_PRODUCT_ID,
-                $snapshot['external_product_id']
-            ) || $changed;
-            $changed = $this->setIfChanged(
-                $model,
-                ReviewSnapshotInterface::FERA_PRODUCT_ID,
-                $snapshot['fera_product_id']
-            ) || $changed;
-            $changed = $this->setIfChanged(
-                $model,
-                ReviewSnapshotInterface::PRODUCT_NAME,
-                $snapshot['product_name']
-            ) || $changed;
-            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::STATE, $snapshot['state']) || $changed;
-            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::IS_TEST, $snapshot['is_test']) || $changed;
-            $changed = $this->setIfChanged(
-                $model,
-                ReviewSnapshotInterface::FERA_UPDATED_AT,
-                $snapshot['fera_updated_at']
-            ) || $changed;
+            $model->setHeading($snapshot['heading']);
+            $model->setBody($snapshot['body']);
+            $model->setRating($snapshot['rating']);
+            $model->setMedia($this->encodeMedia($snapshot['media']));
+            $model->setMagentoStoreId($snapshot['magento_store_id']);
+            $model->setSubject($snapshot['subject']);
+            $model->setExternalProductId($snapshot['external_product_id']);
+            $model->setFeraProductId($snapshot['fera_product_id']);
+            $model->setProductName($snapshot['product_name']);
+            $model->setState($snapshot['state']);
+            $model->setIsTest($snapshot['is_test']);
+            $model->setFeraUpdatedAt($snapshot['fera_updated_at']);
         }
 
         if ($model->getFeraCreatedAt() === null && $snapshot['fera_created_at'] !== null) {
-            $changed = $this->setIfChanged(
-                $model,
-                ReviewSnapshotInterface::FERA_CREATED_AT,
-                $snapshot['fera_created_at']
-            ) || $changed;
+            $model->setFeraCreatedAt($snapshot['fera_created_at']);
         }
-
-        return $changed;
     }
 
     private function shouldApplyMutableFields(?string $storedVersion, ?string $incomingVersion): bool
     {
         return $storedVersion === null || ($incomingVersion !== null && $incomingVersion >= $storedVersion);
-    }
-
-    private function setIfChanged(ReviewSnapshotModel $model, string $field, mixed $value): bool
-    {
-        if ($this->currentValue($model, $field) === $value) {
-            return false;
-        }
-
-        $model->setData($field, $value);
-        return true;
-    }
-
-    private function currentValue(ReviewSnapshotModel $model, string $field): mixed
-    {
-        return match ($field) {
-            ReviewSnapshotInterface::HEADING => $model->getHeading(),
-            ReviewSnapshotInterface::BODY => $model->getBody(),
-            ReviewSnapshotInterface::RATING => $model->getRating(),
-            ReviewSnapshotInterface::MEDIA => $model->getMedia(),
-            ReviewSnapshotInterface::MAGENTO_STORE_ID => $model->getMagentoStoreId(),
-            ReviewSnapshotInterface::SUBJECT => $model->getSubject(),
-            ReviewSnapshotInterface::EXTERNAL_PRODUCT_ID => $model->getExternalProductId(),
-            ReviewSnapshotInterface::FERA_PRODUCT_ID => $model->getFeraProductId(),
-            ReviewSnapshotInterface::PRODUCT_NAME => $model->getProductName(),
-            ReviewSnapshotInterface::STATE => $model->getState(),
-            ReviewSnapshotInterface::IS_TEST => $model->getIsTest(),
-            ReviewSnapshotInterface::FERA_CREATED_AT => $model->getFeraCreatedAt(),
-            ReviewSnapshotInterface::FERA_UPDATED_AT => $model->getFeraUpdatedAt(),
-            default => throw new \LogicException('Unsupported review snapshot field ' . $field),
-        };
     }
 
     /**
@@ -226,7 +174,12 @@ class SnapshotRepository
      */
     private function decodeMedia(string $media): array
     {
-        $decoded = $this->json->unserialize($media);
+        try {
+            $decoded = $this->json->unserialize($media);
+        } catch (InvalidArgumentException) {
+            return [];
+        }
+
         if (!is_array($decoded)) {
             return [];
         }

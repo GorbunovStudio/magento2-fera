@@ -114,11 +114,10 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
         array $currentSnapshot
     ): void {
         $previousSnapshot = $this->snapshotRepository->getByReviewId($currentSnapshot['review_id']);
+        $effectiveSnapshot = $this->snapshotRepository->save($currentSnapshot);
         $changedFields = $previousSnapshot === null
             ? []
-            : $this->snapshotComparator->compare($previousSnapshot, $currentSnapshot);
-
-        $this->snapshotRepository->save($currentSnapshot);
+            : $this->snapshotComparator->compare($previousSnapshot, $effectiveSnapshot);
 
         if ($previousSnapshot === null
             || $changedFields === []
@@ -134,14 +133,14 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
 
         $message = $this->messageFactory->create()
             ->setStoreId($storeId)
-            ->setReviewId($currentSnapshot['review_id'])
-            ->setRating($currentSnapshot['rating'])
+            ->setReviewId($effectiveSnapshot['review_id'])
+            ->setRating($effectiveSnapshot['rating'])
             ->setFeraStoreId($feraStoreId)
             ->setExternalOrderId($this->extractString($payload, 'external_order_id'))
             ->setCustomerName($this->extractNestedString($payload, ['customer', 'name']))
             ->setCustomerEmail($this->extractNestedString($payload, ['customer', 'email']))
-            ->setReviewTitle($currentSnapshot['heading'])
-            ->setReviewBody($currentSnapshot['body'])
+            ->setReviewTitle($effectiveSnapshot['heading'])
+            ->setReviewBody($effectiveSnapshot['body'])
             ->setProductName($this->extractNestedString($payload, ['product', 'name']))
             ->setExternalProductId($this->extractString($payload, 'external_product_id'))
             ->setChangedFieldsJson($changedFieldsJson);

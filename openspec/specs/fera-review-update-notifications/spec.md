@@ -93,16 +93,24 @@ The system SHALL expose separate store-scoped enabled settings for negative-revi
 
 ### Requirement: Review updates SHALL be detected by comparing selected fields with the previous snapshot
 
-The system SHALL compare current review values with the previous snapshot for `rating`, `heading`, `body`, and normalized `media`. The system SHALL publish a review-update notification only when a previous snapshot exists, at least one selected field changed, and review-update notifications are enabled.
+The system SHALL reconcile the incoming review snapshot using the snapshot source-version rules, then compare the effective stored review values with the previous snapshot for `rating`, `heading`, `body`, and normalized `media`. The system SHALL publish a review-update notification only when a previous snapshot exists, at least one selected field changed in the effective stored snapshot, and review-update notifications are enabled. Snapshot-derived notification content SHALL use the effective stored snapshot rather than rejected incoming values.
 
 #### Scenario: Changed selected fields publish a notification
 
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
 - **AND** a previous snapshot exists for the review
-- **AND** at least one of `rating`, `heading`, `body`, or normalized `media` differs from the previous snapshot
+- **AND** at least one of `rating`, `heading`, `body`, or normalized `media` differs after source-version reconciliation
 - **AND** review-update notifications are enabled for the store
-- **THEN** the system publishes a review-update notification message
-- **AND** the system saves the current snapshot as the latest known state
+- **THEN** the system publishes a review-update notification message using the effective stored snapshot
+- **AND** the system saves the effective snapshot as the latest known state
+
+#### Scenario: Stale mutable values do not publish a notification
+
+- **WHEN** Magento receives a valid Fera `review_updated` webhook with an older Fera update timestamp than the stored snapshot
+- **AND** source-version reconciliation rejects its mutable values
+- **THEN** the system retains the newer stored mutable values
+- **AND** the system does not publish a review-update notification when no selected field changed in the effective snapshot
+- **AND** a missing stored Fera creation timestamp may still be filled from the stale payload
 
 #### Scenario: Missing previous snapshot does not publish a notification
 
@@ -114,31 +122,31 @@ The system SHALL compare current review values with the previous snapshot for `r
 #### Scenario: Webhook state does not prevent notification publication
 
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
-- **AND** selected fields changed compared with the previous snapshot
+- **AND** selected fields changed in the effective snapshot compared with the previous snapshot
 - **AND** review-update notifications are enabled for the store
 - **THEN** the system publishes a review-update notification message
-- **AND** the system saves the current snapshot as the latest known state
+- **AND** the system saves the effective snapshot as the latest known state
 
 #### Scenario: No selected field changes do not publish a notification
 
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
-- **AND** `rating`, `heading`, `body`, and normalized `media` match the previous snapshot
-- **THEN** the system saves the current snapshot as the latest known state
+- **AND** `rating`, `heading`, `body`, and normalized `media` in the effective snapshot match the previous snapshot
+- **THEN** the system retains the effective snapshot as the latest known state
 - **AND** the system does not publish a review-update notification
 
 #### Scenario: Review-update notifications disabled do not publish a notification
 
 - **WHEN** Magento receives a valid Fera `review_updated` webhook
 - **AND** a previous snapshot exists for the review
-- **AND** at least one selected field changed compared with the previous snapshot
+- **AND** at least one selected field changed in the effective snapshot compared with the previous snapshot
 - **AND** review-update notifications are disabled for the store
-- **THEN** the system saves the current snapshot as the latest known state
+- **THEN** the system saves the effective snapshot as the latest known state
 - **AND** the system does not publish a review-update notification
 
 #### Scenario: Concurrent review-updated webhooks are serialized per review
 
 - **WHEN** Magento receives multiple valid Fera `review_updated` webhooks for the same store and review at the same time
-- **THEN** the system processes the snapshot load, comparison, queue publication decision, and snapshot save under a single per-review lock
+- **THEN** the system processes the snapshot load, reconciliation, comparison, queue publication decision, and snapshot save under a single per-review lock
 - **AND** later concurrent processing for that same review observes the snapshot saved by the earlier processing before deciding whether to publish
 - **AND** identical repeated payloads do not publish duplicate review-update notification messages
 

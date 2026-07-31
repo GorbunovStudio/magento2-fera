@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Fera\Ai\Test\Unit\Model;
 
 use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterfaceFactory;
+use Fera\Ai\Api\Data\Queue\NotifyPositiveReview\MessageInterfaceFactory as PositiveMessageInterfaceFactory;
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Model\ReviewCreatedWebhook;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
+use Fera\Ai\Services\ReviewSnapshot\MediaNormalizer;
 use Fera\Ai\Services\ReviewSnapshot\ReviewSnapshotLock;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
@@ -55,6 +57,8 @@ class ReviewCreatedWebhookTest extends TestCase
             $this->createMock(PublisherInterface::class),
             $jwtValidator,
             $this->createMock(MessageInterfaceFactory::class),
+            $this->createMock(PositiveMessageInterfaceFactory::class),
+            new MediaNormalizer(),
             $snapshotBuilder,
             $this->createMock(SnapshotRepository::class),
             $this->createMock(ReviewSnapshotLock::class),
@@ -115,10 +119,12 @@ class ReviewCreatedWebhookTest extends TestCase
         $storeGroupService->expects(self::once())->method('getCanonicalStoreId')->with(9)->willReturn(7);
         /** @var ScopeConfigInterface&MockObject $scopeConfig */
         $scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $scopeConfig->expects(self::once())
+        $scopeConfig->expects(self::exactly(2))
             ->method('isSetFlag')
-            ->with(ConfigOptionInterface::NEGATIVE_REVIEW_NOTIFICATIONS_ENABLED, ScopeInterface::SCOPE_STORE, 9)
-            ->willReturn(false);
+            ->willReturnMap([
+                [ConfigOptionInterface::NEGATIVE_REVIEW_NOTIFICATIONS_ENABLED, ScopeInterface::SCOPE_STORE, 9, false],
+                [ConfigOptionInterface::POSITIVE_REVIEW_NOTIFICATIONS_ENABLED, ScopeInterface::SCOPE_STORE, 9, false],
+            ]);
         /** @var PublisherInterface&MockObject $publisher */
         $publisher = $this->createMock(PublisherInterface::class);
         $publisher->expects(self::never())->method('publish')->with(TopicInterface::NOTIFY_NEGATIVE_REVIEW, self::anything());
@@ -130,6 +136,8 @@ class ReviewCreatedWebhookTest extends TestCase
             $publisher,
             $jwtValidator,
             $this->createMock(MessageInterfaceFactory::class),
+            $this->createMock(PositiveMessageInterfaceFactory::class),
+            new MediaNormalizer(),
             $snapshotBuilder,
             $snapshotRepository,
             $snapshotLock,

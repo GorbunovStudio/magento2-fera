@@ -170,7 +170,7 @@ class ReviewSnapshot extends AbstractModel implements ReviewSnapshotInterface
 
     public function setIsTest(?bool $value): static
     {
-        return $this->setData(self::IS_TEST, $value);
+        return $this->setData(self::IS_TEST, $value === null ? null : (int) $value);
     }
 
     public function setFeraCreatedAt(?string $value): static

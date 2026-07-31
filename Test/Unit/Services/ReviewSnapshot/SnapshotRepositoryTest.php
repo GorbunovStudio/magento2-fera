@@ -12,186 +12,131 @@ use Fera\Ai\Model\ResourceModel\ReviewSnapshot\Collection;
 use Fera\Ai\Model\ResourceModel\ReviewSnapshot\CollectionFactory;
 use Fera\Ai\Services\ReviewSnapshot\MediaNormalizer;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
+use InvalidArgumentException;
+use Magento\Framework\App\CacheInterface;
+use Magento\Framework\App\State;
+use Magento\Framework\Event\ManagerInterface;
+use Magento\Framework\Model\ActionValidator\RemoveAction;
+use Magento\Framework\Model\Context;
+use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class SnapshotRepositoryTest extends TestCase
 {
     public function testSaveCreatesNewEntityThroughFactory(): void
     {
-        /** @var Collection&MockObject $collection */
-        $collection = $this->createMock(Collection::class);
-        $collection->method('addFieldToFilter')->willReturnSelf();
-        $collection->method('setPageSize')->willReturnSelf();
-        $existing = $this->createMock(ReviewSnapshot::class);
-        $existing->method('getId')->willReturn(null);
-        $collection->method('getFirstItem')->willReturn($existing);
-
-        /** @var CollectionFactory&MockObject $collectionFactory */
-        $collectionFactory = $this->createMock(CollectionFactory::class);
-        $collectionFactory->method('create')->willReturn($collection);
-
-        $newSnapshot = $this->createMock(ReviewSnapshot::class);
-        foreach ([
-            'setReviewId',
-            'setHeading',
-            'setBody',
-            'setRating',
-            'setMedia',
-            'setMagentoStoreId',
-            'setSubject',
-            'setExternalProductId',
-            'setFeraProductId',
-            'setProductName',
-            'setState',
-            'setIsTest',
-            'setFeraCreatedAt',
-            'setFeraUpdatedAt',
-        ] as $method) {
-            $newSnapshot->method($method)->willReturnSelf();
-        }
-
-        /** @var ReviewSnapshotFactory&MockObject $snapshotFactory */
-        $snapshotFactory = $this->createMock(ReviewSnapshotFactory::class);
-        $snapshotFactory->expects(self::once())->method('create')->willReturn($newSnapshot);
-
-        /** @var ReviewSnapshotResource&MockObject $resource */
-        $resource = $this->createMock(ReviewSnapshotResource::class);
-        $resource->expects(self::once())->method('save')->with($newSnapshot);
-
-        /** @var Json&MockObject $json */
+        $newSnapshot = $this->existingSnapshotModel(['getId' => null]);
         $json = $this->createMock(Json::class);
         $json->expects(self::once())->method('serialize')->with([])->willReturn('[]');
+        $setup = $this->repositoryFor($newSnapshot, $json);
+        $setup['factory']->expects(self::once())->method('create')->willReturn($newSnapshot);
+        $setup['resource']->expects(self::once())->method('save')->with($newSnapshot);
 
-        $this->repository($resource, $snapshotFactory, $collectionFactory, $json)->save($this->snapshot());
+        $setup['repository']->save($this->snapshot());
     }
 
     public function testStaleSnapshotDoesNotOverwriteExistingEntity(): void
     {
-        /** @var Collection&MockObject $collection */
-        $collection = $this->createMock(Collection::class);
-        $collection->method('addFieldToFilter')->willReturnSelf();
-        $collection->method('setPageSize')->willReturnSelf();
-        $existing = $this->createMock(ReviewSnapshot::class);
-        $existing->method('getId')->willReturn(1);
-        $existing->method('getFeraUpdatedAt')->willReturn('2026-07-14 00:00:00');
-        $existing->method('getFeraCreatedAt')->willReturn('2026-07-13 00:00:00');
-        $collection->method('getFirstItem')->willReturn($existing);
+        $setup = $this->repositoryFor($this->existingSnapshotModel([
+            'getFeraUpdatedAt' => '2026-07-14 00:00:00',
+        ]));
+        $setup['resource']->expects(self::never())->method('save');
 
-        /** @var CollectionFactory&MockObject $collectionFactory */
-        $collectionFactory = $this->createMock(CollectionFactory::class);
-        $collectionFactory->method('create')->willReturn($collection);
-
-        /** @var ReviewSnapshotResource&MockObject $resource */
-        $resource = $this->createMock(ReviewSnapshotResource::class);
-        $resource->expects(self::never())->method('save');
-
-        $this->repository(
-            $resource,
-            $this->createMock(ReviewSnapshotFactory::class),
-            $collectionFactory,
-            $this->createMock(Json::class)
-        )->save($this->snapshot(['fera_updated_at' => '2026-07-12 00:00:00']));
+        $setup['repository']->save($this->snapshot(['fera_updated_at' => '2026-07-12 00:00:00']));
     }
 
     public function testEqualSourceVersionUpdatesChangedMutableField(): void
     {
-        /** @var Collection&MockObject $collection */
-        $collection = $this->createMock(Collection::class);
-        $collection->method('addFieldToFilter')->willReturnSelf();
-        $collection->method('setPageSize')->willReturnSelf();
-        $existing = $this->existingSnapshotModel();
-        $existing->method('getHeading')->willReturn('Old heading');
+        $existing = $this->existingSnapshotModel(['getHeading' => 'Old heading']);
         $existing->expects(self::once())
-            ->method('setData')
-            ->with(ReviewSnapshotInterface::HEADING, 'New heading')
+            ->method('setHeading')
+            ->with('New heading')
             ->willReturnSelf();
-        $collection->method('getFirstItem')->willReturn($existing);
-
-        /** @var CollectionFactory&MockObject $collectionFactory */
-        $collectionFactory = $this->createMock(CollectionFactory::class);
-        $collectionFactory->method('create')->willReturn($collection);
-        /** @var ReviewSnapshotResource&MockObject $resource */
-        $resource = $this->createMock(ReviewSnapshotResource::class);
-        $resource->expects(self::once())->method('save')->with($existing);
-        /** @var Json&MockObject $json */
+        $existing->method('hasDataChanges')->willReturn(true);
         $json = $this->createMock(Json::class);
         $json->expects(self::once())->method('serialize')->with([])->willReturn('[]');
+        $setup = $this->repositoryFor($existing, $json);
+        $setup['resource']->expects(self::once())->method('save')->with($existing);
 
-        $this->repository(
-            $resource,
-            $this->createMock(ReviewSnapshotFactory::class),
-            $collectionFactory,
-            $json
-        )->save($this->snapshot(['heading' => 'New heading']));
+        $setup['repository']->save($this->snapshot(['heading' => 'New heading']));
+    }
+
+    public function testNewerSourceVersionReturnsAcceptedSnapshot(): void
+    {
+        $existing = $this->loadedSnapshotModel([
+            'heading' => 'Old heading',
+            'rating' => '4.00',
+            'is_test' => '0',
+            'fera_updated_at' => '2026-07-13 00:00:00',
+        ]);
+        $snapshot = $this->snapshot([
+            'heading' => 'New heading',
+            'rating' => 4.5,
+            'is_test' => true,
+            'fera_updated_at' => '2026-07-14 00:00:00',
+        ]);
+        $setup = $this->repositoryFor($existing);
+        $setup['resource']->expects(self::once())->method('save')->with($existing);
+
+        self::assertSame(
+            $snapshot,
+            $setup['repository']->save($snapshot)
+        );
+    }
+
+    public function testUnchangedNumericAndBooleanValuesDoNotSave(): void
+    {
+        $existing = $this->loadedSnapshotModel([
+            'rating' => '5.00',
+            'magento_store_id' => '7',
+            'is_test' => '0',
+        ]);
+        $snapshot = $this->snapshot();
+        $setup = $this->repositoryFor($existing);
+        $setup['resource']->expects(self::never())->method('save');
+
+        self::assertSame(
+            $snapshot,
+            $setup['repository']->save($snapshot)
+        );
     }
 
     public function testStaleSnapshotCanFillMissingCreationTimestamp(): void
     {
-        /** @var Collection&MockObject $collection */
-        $collection = $this->createMock(Collection::class);
-        $collection->method('addFieldToFilter')->willReturnSelf();
-        $collection->method('setPageSize')->willReturnSelf();
-        $existing = $this->createMock(ReviewSnapshot::class);
-        $existing->method('getId')->willReturn(1);
-        $existing->method('getFeraUpdatedAt')->willReturn('2026-07-14 00:00:00');
-        $existing->method('getFeraCreatedAt')->willReturn(null);
+        $existing = $this->existingSnapshotModel([
+            'getFeraUpdatedAt' => '2026-07-14 00:00:00',
+            'getFeraCreatedAt' => null,
+        ]);
         $existing->expects(self::once())
-            ->method('setData')
-            ->with(ReviewSnapshotInterface::FERA_CREATED_AT, '2026-07-13 00:00:00')
+            ->method('setFeraCreatedAt')
+            ->with('2026-07-13 00:00:00')
             ->willReturnSelf();
-        $collection->method('getFirstItem')->willReturn($existing);
+        $existing->method('hasDataChanges')->willReturn(true);
+        $setup = $this->repositoryFor($existing);
+        $setup['resource']->expects(self::once())->method('save')->with($existing);
 
-        /** @var CollectionFactory&MockObject $collectionFactory */
-        $collectionFactory = $this->createMock(CollectionFactory::class);
-        $collectionFactory->method('create')->willReturn($collection);
-        /** @var ReviewSnapshotResource&MockObject $resource */
-        $resource = $this->createMock(ReviewSnapshotResource::class);
-        $resource->expects(self::once())->method('save')->with($existing);
-
-        $this->repository(
-            $resource,
-            $this->createMock(ReviewSnapshotFactory::class),
-            $collectionFactory,
-            $this->createMock(Json::class)
-        )->save($this->snapshot(['fera_updated_at' => '2026-07-12 00:00:00']));
+        $setup['repository']->save($this->snapshot(['fera_updated_at' => '2026-07-12 00:00:00']));
     }
 
     public function testGetByReviewIdMapsEntityToExistingSnapshotContract(): void
     {
-        /** @var Collection&MockObject $collection */
-        $collection = $this->createMock(Collection::class);
-        $collection->expects(self::once())
+        $model = $this->existingSnapshotModel([
+            'getHeading' => 'Heading',
+            'getBody' => 'Body',
+            'getRating' => 4.5,
+            'getFeraUpdatedAt' => '2026-07-14 00:00:00',
+        ]);
+        $json = $this->createMock(Json::class);
+        $json->expects(self::once())->method('unserialize')->with('[]')->willReturn([]);
+        $setup = $this->repositoryFor($model, $json);
+        $setup['collection']->expects(self::once())
             ->method('addFieldToFilter')
             ->with(ReviewSnapshotInterface::REVIEW_ID, 'review-1')
             ->willReturnSelf();
-        $collection->expects(self::once())->method('setPageSize')->with(1)->willReturnSelf();
-
-        $model = $this->createMock(ReviewSnapshot::class);
-        $model->method('getId')->willReturn(1);
-        $model->method('getReviewId')->willReturn('review-1');
-        $model->method('getHeading')->willReturn('Heading');
-        $model->method('getBody')->willReturn('Body');
-        $model->method('getRating')->willReturn(4.5);
-        $model->method('getMedia')->willReturn('[]');
-        $model->method('getMagentoStoreId')->willReturn(7);
-        $model->method('getSubject')->willReturn('product');
-        $model->method('getExternalProductId')->willReturn('42');
-        $model->method('getFeraProductId')->willReturn('fpro-1');
-        $model->method('getProductName')->willReturn('Product');
-        $model->method('getState')->willReturn('approved');
-        $model->method('getIsTest')->willReturn(false);
-        $model->method('getFeraCreatedAt')->willReturn('2026-07-13 00:00:00');
-        $model->method('getFeraUpdatedAt')->willReturn('2026-07-14 00:00:00');
-        $collection->method('getFirstItem')->willReturn($model);
-
-        /** @var CollectionFactory&MockObject $collectionFactory */
-        $collectionFactory = $this->createMock(CollectionFactory::class);
-        $collectionFactory->method('create')->willReturn($collection);
-        /** @var Json&MockObject $json */
-        $json = $this->createMock(Json::class);
-        $json->expects(self::once())->method('unserialize')->with('[]')->willReturn([]);
+        $setup['collection']->expects(self::once())->method('setPageSize')->with(1)->willReturnSelf();
 
         self::assertSame(
             [
@@ -210,13 +155,20 @@ class SnapshotRepositoryTest extends TestCase
                 'fera_created_at' => '2026-07-13 00:00:00',
                 'fera_updated_at' => '2026-07-14 00:00:00',
             ],
-            $this->repository(
-                $this->createMock(ReviewSnapshotResource::class),
-                $this->createMock(ReviewSnapshotFactory::class),
-                $collectionFactory,
-                $json
-            )->getByReviewId('review-1')
+            $setup['repository']->getByReviewId('review-1')
         );
+    }
+
+    public function testGetByReviewIdToleratesMalformedStoredMedia(): void
+    {
+        $json = $this->createMock(Json::class);
+        $json->expects(self::once())
+            ->method('unserialize')
+            ->with('malformed')
+            ->willThrowException(new InvalidArgumentException('Malformed JSON'));
+        $setup = $this->repositoryFor($this->existingSnapshotModel(['getMedia' => 'malformed']), $json);
+
+        self::assertSame([], $setup['repository']->getByReviewId('review-1')['media']);
     }
 
     public function testCountIncompleteUsesCollectionFilter(): void
@@ -275,24 +227,117 @@ class SnapshotRepositoryTest extends TestCase
     }
 
     /**
+     * @return array{
+     *     repository: SnapshotRepository,
+     *     resource: ReviewSnapshotResource,
+     *     factory: ReviewSnapshotFactory,
+     *     collection: Collection
+     * }
+     */
+    private function repositoryFor(ReviewSnapshot $model, ?Json $json = null): array
+    {
+        /** @var Collection&MockObject $collection */
+        $collection = $this->createMock(Collection::class);
+        $collection->method('addFieldToFilter')->willReturnSelf();
+        $collection->method('setPageSize')->willReturnSelf();
+        $collection->method('getFirstItem')->willReturn($model);
+
+        /** @var CollectionFactory&MockObject $collectionFactory */
+        $collectionFactory = $this->createMock(CollectionFactory::class);
+        $collectionFactory->method('create')->willReturn($collection);
+        /** @var ReviewSnapshotResource&MockObject $resource */
+        $resource = $this->createMock(ReviewSnapshotResource::class);
+        /** @var ReviewSnapshotFactory&MockObject $factory */
+        $factory = $this->createMock(ReviewSnapshotFactory::class);
+
+        return [
+            'repository' => $this->repository($resource, $factory, $collectionFactory, $json ?? new Json()),
+            'resource' => $resource,
+            'factory' => $factory,
+            'collection' => $collection,
+        ];
+    }
+
+    /**
      * @return ReviewSnapshot&MockObject
      */
-    private function existingSnapshotModel(): ReviewSnapshot
+    private function existingSnapshotModel(array $overrides = []): ReviewSnapshot
     {
         $model = $this->createMock(ReviewSnapshot::class);
-        $model->method('getId')->willReturn(1);
-        $model->method('getFeraUpdatedAt')->willReturn('2026-07-13 00:00:00');
-        $model->method('getBody')->willReturn('');
-        $model->method('getRating')->willReturn(5.0);
-        $model->method('getMedia')->willReturn('[]');
-        $model->method('getMagentoStoreId')->willReturn(7);
-        $model->method('getSubject')->willReturn('product');
-        $model->method('getExternalProductId')->willReturn('42');
-        $model->method('getFeraProductId')->willReturn('fpro-1');
-        $model->method('getProductName')->willReturn('Product');
-        $model->method('getState')->willReturn('approved');
-        $model->method('getIsTest')->willReturn(false);
-        $model->method('getFeraCreatedAt')->willReturn('2026-07-13 00:00:00');
+        foreach (array_replace([
+            'getId' => 1,
+            'getReviewId' => 'review-1',
+            'getHeading' => '',
+            'getBody' => '',
+            'getRating' => 5.0,
+            'getMedia' => '[]',
+            'getMagentoStoreId' => 7,
+            'getSubject' => 'product',
+            'getExternalProductId' => '42',
+            'getFeraProductId' => 'fpro-1',
+            'getProductName' => 'Product',
+            'getState' => 'approved',
+            'getIsTest' => false,
+            'getFeraCreatedAt' => '2026-07-13 00:00:00',
+            'getFeraUpdatedAt' => '2026-07-13 00:00:00',
+        ], $overrides) as $method => $value) {
+            $model->method($method)->willReturn($value);
+        }
+        foreach ([
+            'setReviewId',
+            'setHeading',
+            'setBody',
+            'setRating',
+            'setMedia',
+            'setMagentoStoreId',
+            'setSubject',
+            'setExternalProductId',
+            'setFeraProductId',
+            'setProductName',
+            'setState',
+            'setIsTest',
+            'setFeraUpdatedAt',
+            'setFeraCreatedAt',
+        ] as $method) {
+            $model->method($method)->willReturnSelf();
+        }
+
+        return $model;
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     */
+    private function loadedSnapshotModel(array $overrides = []): ReviewSnapshot
+    {
+        $context = $this->createMock(Context::class);
+        $context->method('getAppState')->willReturn($this->createMock(State::class));
+        $context->method('getEventDispatcher')->willReturn($this->createMock(ManagerInterface::class));
+        $context->method('getCacheManager')->willReturn($this->createMock(CacheInterface::class));
+        $context->method('getLogger')->willReturn($this->createMock(LoggerInterface::class));
+        $context->method('getActionValidator')->willReturn($this->createMock(RemoveAction::class));
+        $resource = $this->createMock(ReviewSnapshotResource::class);
+        $resource->method('getIdFieldName')->willReturn('id');
+        $model = new ReviewSnapshot($context, new Registry(), $resource);
+        $model->setData(array_replace([
+            'id' => 1,
+            'review_id' => 'review-1',
+            'heading' => '',
+            'body' => '',
+            'rating' => '5.00',
+            'media' => '[]',
+            'magento_store_id' => '7',
+            'subject' => 'product',
+            'external_product_id' => '42',
+            'fera_product_id' => 'fpro-1',
+            'product_name' => 'Product',
+            'state' => 'approved',
+            'is_test' => '0',
+            'fera_created_at' => '2026-07-13 00:00:00',
+            'fera_updated_at' => '2026-07-13 00:00:00',
+        ], $overrides));
+        $model->setOrigData();
+        $model->setDataChanges(false);
 
         return $model;
     }

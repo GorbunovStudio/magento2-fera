@@ -20,6 +20,7 @@ use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ResponseInterface;
 
 class HandlerTest extends TestCase
 {
@@ -54,14 +55,19 @@ class HandlerTest extends TestCase
             ->method('post')
             ->with(
                 'https://hooks.example/negative',
-                self::callback(function (array $options): bool {
-                    $payload = $options['json'] ?? [];
-                    $encoded = json_encode($payload);
-                    return is_string($encoded)
-                        && str_contains($encoded, 'https://cdn.example/photo.jpg')
-                        && str_contains($encoded, 'https://cdn.example/video.mp4');
-                })
-            );
+                self::anything()
+            )
+            ->willReturnCallback(function (string $url, array $options): ResponseInterface {
+                self::assertSame('https://hooks.example/negative', $url);
+                self::assertSame(2.0, $options['connect_timeout'] ?? null);
+                self::assertSame(5.0, $options['timeout'] ?? null);
+                $encoded = json_encode($options['json'] ?? [], JSON_UNESCAPED_SLASHES);
+                self::assertIsString($encoded);
+                self::assertStringContainsString('https://cdn.example/photo.jpg', $encoded);
+                self::assertStringContainsString('https://cdn.example/video.mp4', $encoded);
+
+                return $this->createMock(ResponseInterface::class);
+            });
 
         $clientFactory = $this->createMock(ClientFactory::class);
         $clientFactory->method('create')->willReturn($client);
