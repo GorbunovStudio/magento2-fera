@@ -18,6 +18,7 @@ use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 
 class HandlerTest extends TestCase
@@ -29,17 +30,22 @@ class HandlerTest extends TestCase
             ->method('post')
             ->with(
                 'https://hooks.example/positive',
-                self::callback(function (array $options): bool {
-                    $payload = $options['json'] ?? [];
-                    $encoded = json_encode($payload);
-                    return is_string($encoded)
-                        && str_contains($encoded, 'Positive Review Alert')
-                        && str_contains($encoded, 'View in Fera')
-                        && str_contains($encoded, 'https://cdn.example/photo.jpg')
-                        && str_contains($encoded, 'https://cdn.example/video.mp4')
-                        && !str_contains($encoded, 'thumbnail');
-                })
-            );
+                self::anything()
+            )
+            ->willReturnCallback(function (string $url, array $options): ResponseInterface {
+                self::assertSame('https://hooks.example/positive', $url);
+                self::assertSame(2.0, $options['connect_timeout'] ?? null);
+                self::assertSame(5.0, $options['timeout'] ?? null);
+                $encoded = json_encode($options['json'] ?? [], JSON_UNESCAPED_SLASHES);
+                self::assertIsString($encoded);
+                self::assertStringContainsString('Positive Review Alert', $encoded);
+                self::assertStringContainsString('View in Fera', $encoded);
+                self::assertStringContainsString('https://cdn.example/photo.jpg', $encoded);
+                self::assertStringContainsString('https://cdn.example/video.mp4', $encoded);
+                self::assertStringNotContainsString('thumbnail', $encoded);
+
+                return $this->createMock(ResponseInterface::class);
+            });
 
         $eventManager = $this->createMock(EventManager::class);
         $eventManager->expects(self::once())

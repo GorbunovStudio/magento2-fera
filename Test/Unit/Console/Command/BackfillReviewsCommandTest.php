@@ -7,6 +7,7 @@ namespace Fera\Ai\Test\Unit\Console\Command;
 use Fera\Ai\Api\ApiClient\ReviewsClientInterface;
 use Fera\Ai\Console\Command\BackfillReviewsCommand;
 use Fera\Ai\Helper\Data as FeraHelper;
+use Fera\Ai\Services\ReviewSnapshot\ReviewSnapshotLock;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
@@ -25,7 +26,7 @@ class BackfillReviewsCommandTest extends TestCase
         $reviewsClient->expects(self::exactly(3))
             ->method('list')
             ->willReturnCallback(static function (int $page, int $pageSize, int $storeId): array {
-                self::assertSame(100, $pageSize);
+                self::assertSame(1, $pageSize);
                 if ($storeId === 10) {
                     return ['data' => [['id' => 'review-1']], 'meta' => ['page_count' => 1]];
                 }
@@ -48,6 +49,14 @@ class BackfillReviewsCommandTest extends TestCase
         $snapshotRepository->expects(self::exactly(2))->method('save');
         $snapshotRepository->method('countIncomplete')->willReturn(0);
 
+        /** @var ReviewSnapshotLock&MockObject $snapshotLock */
+        $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
+        $snapshotLock->expects(self::exactly(2))
+            ->method('execute')
+            ->willReturnCallback(static function (string $reviewId, callable $operation): mixed {
+                return $operation();
+            });
+
         /** @var StoreGroupService&MockObject $storeGroupService */
         $storeGroupService = $this->createMock(StoreGroupService::class);
         $storeGroupService->method('getByFeraAccount')->willReturn([10 => [10], 20 => [20]]);
@@ -56,13 +65,14 @@ class BackfillReviewsCommandTest extends TestCase
             $reviewsClient,
             $snapshotBuilder,
             $snapshotRepository,
+            $snapshotLock,
             $storeGroupService,
             $this->createMock(AppState::class),
             $this->createMock(FeraHelper::class)
         );
         $tester = new CommandTester($command);
 
-        self::assertSame(1, $tester->execute([]));
+        self::assertSame(1, $tester->execute(['--page-size' => '1']));
         self::assertStringContainsString('accounts_failed=1', $tester->getDisplay());
         self::assertStringContainsString('fetched=2, saved=2', $tester->getDisplay());
         self::assertStringContainsString('incomplete_snapshots=0', $tester->getDisplay());
@@ -82,6 +92,9 @@ class BackfillReviewsCommandTest extends TestCase
         $snapshotRepository = $this->createMock(SnapshotRepository::class);
         $snapshotRepository->expects(self::never())->method('countIncomplete');
 
+        /** @var ReviewSnapshotLock&MockObject $snapshotLock */
+        $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
+
         /** @var StoreGroupService&MockObject $storeGroupService */
         $storeGroupService = $this->createMock(StoreGroupService::class);
         $storeGroupService->method('getByFeraAccount')->willReturn([]);
@@ -90,6 +103,7 @@ class BackfillReviewsCommandTest extends TestCase
             $reviewsClient,
             $snapshotBuilder,
             $snapshotRepository,
+            $snapshotLock,
             $storeGroupService,
             $this->createMock(AppState::class),
             $this->createMock(FeraHelper::class)
@@ -118,6 +132,10 @@ class BackfillReviewsCommandTest extends TestCase
         $snapshotRepository->expects(self::never())->method('save');
         $snapshotRepository->method('countIncomplete')->willReturn(1);
 
+        /** @var ReviewSnapshotLock&MockObject $snapshotLock */
+        $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
+        $snapshotLock->expects(self::never())->method('execute');
+
         /** @var StoreGroupService&MockObject $storeGroupService */
         $storeGroupService = $this->createMock(StoreGroupService::class);
         $storeGroupService->method('getByFeraAccount')->willReturn([10 => [10]]);
@@ -126,6 +144,7 @@ class BackfillReviewsCommandTest extends TestCase
             $reviewsClient,
             $snapshotBuilder,
             $snapshotRepository,
+            $snapshotLock,
             $storeGroupService,
             $this->createMock(AppState::class),
             $this->createMock(FeraHelper::class)

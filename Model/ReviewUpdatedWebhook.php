@@ -7,15 +7,16 @@ namespace Fera\Ai\Model;
 use Fera\Ai\Api\Data\Queue\NotifyReviewUpdate\MessageInterfaceFactory;
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Api\ReviewUpdatedWebhookInterface;
+use Fera\Ai\Exception\ReviewSnapshotLockException;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
+use Fera\Ai\Services\ReviewSnapshot\ReviewSnapshotLock;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotBuilder;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotComparator;
 use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
 use InvalidArgumentException;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\Lock\LockManagerInterface;
 use Magento\Framework\MessageQueue\PublisherInterface;
 use Magento\Framework\Phrase;
 use Magento\Framework\Webapi\Exception as WebapiException;
@@ -26,12 +27,11 @@ use RuntimeException;
 use Throwable;
 
 /**
- * @phpstan-import-type ReviewSnapshot from SnapshotBuilder
+ * @phpstan-import-type ReviewSnapshot from SnapshotBuilder as ReviewSnapshotData
  */
 class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
 {
     private const HTTP_SERVICE_UNAVAILABLE = 503;
-    private const LOCK_WAIT_TIMEOUT_SECONDS = 10;
 
     public function __construct(
         private Request $request,
@@ -43,7 +43,7 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
         private SnapshotBuilder $snapshotBuilder,
         private SnapshotRepository $snapshotRepository,
         private SnapshotComparator $snapshotComparator,
-        private LockManagerInterface $lockManager,
+        private ReviewSnapshotLock $snapshotLock,
         private StoreGroupService $storeGroupService
     ) {
     }
@@ -82,19 +82,19 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
                 WebapiException::HTTP_BAD_REQUEST
             );
         }
-        $lockName = $this->buildLockName($storeId, $currentSnapshot['review_id']);
-        if (!$this->lockManager->lock($lockName, self::LOCK_WAIT_TIMEOUT_SECONDS)) {
+        try {
+            $this->snapshotLock->execute(
+                $currentSnapshot['review_id'],
+                function () use ($storeId, $feraStoreId, $payload, $currentSnapshot): void {
+                    $this->processReviewUpdate($storeId, $feraStoreId, $payload, $currentSnapshot);
+                }
+            );
+        } catch (ReviewSnapshotLockException) {
             throw new WebapiException(
                 new Phrase('Review update processing is busy'),
                 0,
                 self::HTTP_SERVICE_UNAVAILABLE
             );
-        }
-
-        try {
-            $this->processReviewUpdate($storeId, $feraStoreId, $payload, $currentSnapshot);
-        } finally {
-            $this->lockManager->unlock($lockName);
         }
     }
 
@@ -103,8 +103,7 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
      * @param string $feraStoreId
      * @param mixed[] $payload
      * @phpstan-param array<string, mixed> $payload
-     * @param mixed[] $currentSnapshot
-     * @phpstan-param ReviewSnapshot $currentSnapshot
+     * @param ReviewSnapshotData $currentSnapshot
      * @return void
      * @throws \RuntimeException
      */
@@ -115,11 +114,10 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
         array $currentSnapshot
     ): void {
         $previousSnapshot = $this->snapshotRepository->getByReviewId($currentSnapshot['review_id']);
+        $effectiveSnapshot = $this->snapshotRepository->save($currentSnapshot);
         $changedFields = $previousSnapshot === null
             ? []
-            : $this->snapshotComparator->compare($previousSnapshot, $currentSnapshot);
-
-        $this->snapshotRepository->save($currentSnapshot);
+            : $this->snapshotComparator->compare($previousSnapshot, $effectiveSnapshot);
 
         if ($previousSnapshot === null
             || $changedFields === []
@@ -135,24 +133,19 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
 
         $message = $this->messageFactory->create()
             ->setStoreId($storeId)
-            ->setReviewId($currentSnapshot['review_id'])
-            ->setRating($currentSnapshot['rating'])
+            ->setReviewId($effectiveSnapshot['review_id'])
+            ->setRating($effectiveSnapshot['rating'])
             ->setFeraStoreId($feraStoreId)
             ->setExternalOrderId($this->extractString($payload, 'external_order_id'))
             ->setCustomerName($this->extractNestedString($payload, ['customer', 'name']))
             ->setCustomerEmail($this->extractNestedString($payload, ['customer', 'email']))
-            ->setReviewTitle($currentSnapshot['heading'])
-            ->setReviewBody($currentSnapshot['body'])
+            ->setReviewTitle($effectiveSnapshot['heading'])
+            ->setReviewBody($effectiveSnapshot['body'])
             ->setProductName($this->extractNestedString($payload, ['product', 'name']))
             ->setExternalProductId($this->extractString($payload, 'external_product_id'))
             ->setChangedFieldsJson($changedFieldsJson);
 
         $this->publisher->publish(TopicInterface::NOTIFY_REVIEW_UPDATE, $message);
-    }
-
-    private function buildLockName(int $storeId, string $reviewId): string
-    {
-        return 'fera_review_updated_' . $storeId . '_' . hash('sha256', $reviewId);
     }
 
     private function areReviewUpdateNotificationsEnabled(int $storeId): bool
