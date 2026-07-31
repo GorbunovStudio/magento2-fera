@@ -17,4 +17,4 @@
 ## 4. Validation
 
 - [x] 4.1 Replace SQL implementation assertions with entity, repository, lock, and producer behavior tests.
-- [ ] 4.2 Run relevant unit tests, static analysis, and available integration validation; resolve any failures.
+- [x] 4.2 Run relevant unit tests, static analysis, and available integration validation; resolve any failures.

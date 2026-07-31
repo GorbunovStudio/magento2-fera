@@ -10,6 +10,7 @@ use Fera\Ai\Model\ReviewSnapshotFactory;
 use Fera\Ai\Model\ResourceModel\ReviewSnapshot as ReviewSnapshotResource;
 use Fera\Ai\Model\ResourceModel\ReviewSnapshot\CollectionFactory as ReviewSnapshotCollectionFactory;
 use Magento\Framework\Serialize\Serializer\Json;
+use RuntimeException;
 
 /**
  * @phpstan-import-type ReviewSnapshot from SnapshotBuilder
@@ -104,7 +105,7 @@ class SnapshotRepository
     {
         $changed = false;
         if ($this->shouldApplyMutableFields($model->getFeraUpdatedAt(), $snapshot['fera_updated_at'])) {
-            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::HEADING, $snapshot['heading']) || $changed;
+            $changed = $this->setIfChanged($model, ReviewSnapshotInterface::HEADING, $snapshot['heading']);
             $changed = $this->setIfChanged($model, ReviewSnapshotInterface::BODY, $snapshot['body']) || $changed;
             $changed = $this->setIfChanged($model, ReviewSnapshotInterface::RATING, $snapshot['rating']) || $changed;
             $changed = $this->setIfChanged($model, ReviewSnapshotInterface::MEDIA, $this->encodeMedia($snapshot['media'])) || $changed;
@@ -212,7 +213,12 @@ class SnapshotRepository
      */
     private function encodeMedia(array $media): string
     {
-        return $this->json->serialize($this->mediaNormalizer->normalize($media));
+        $encoded = $this->json->serialize($this->mediaNormalizer->normalize($media));
+        if (!is_string($encoded)) {
+            throw new RuntimeException('Unable to encode review snapshot media');
+        }
+
+        return $encoded;
     }
 
     /**

@@ -94,6 +94,11 @@ class ReviewSnapshot extends AbstractModel implements ReviewSnapshotInterface
         if ($value === null || $value === '') {
             return null;
         }
+        if (!is_scalar($value)) {
+            throw new UnexpectedValueException(
+                'Incorrect type for ' . self::IS_TEST . ': expected scalar, got ' . get_debug_type($value)
+            );
+        }
 
         return !in_array((string) $value, ['0', 'false'], true);
     }

@@ -27,7 +27,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * @phpstan-import-type ReviewSnapshot from SnapshotBuilder
+ * @phpstan-import-type ReviewSnapshot from SnapshotBuilder as ReviewSnapshotData
  */
 class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
 {
@@ -103,8 +103,7 @@ class ReviewUpdatedWebhook implements ReviewUpdatedWebhookInterface
      * @param string $feraStoreId
      * @param mixed[] $payload
      * @phpstan-param array<string, mixed> $payload
-     * @param mixed[] $currentSnapshot
-     * @phpstan-param ReviewSnapshot $currentSnapshot
+     * @param ReviewSnapshotData $currentSnapshot
      * @return void
      * @throws \RuntimeException
      */
