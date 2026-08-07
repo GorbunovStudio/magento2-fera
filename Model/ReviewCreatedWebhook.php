@@ -29,7 +29,6 @@ use Throwable;
 
 class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
 {
-    private const REVIEW_BODY_MAX_LENGTH = 200;
     private const HTTP_SERVICE_UNAVAILABLE = 503;
 
     /**
@@ -276,16 +275,7 @@ class ReviewCreatedWebhook implements ReviewCreatedWebhookInterface
 
     private function normalizeReviewBody(string $value): string
     {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-
-        if (mb_strlen($value) <= self::REVIEW_BODY_MAX_LENGTH) {
-            return $value;
-        }
-
-        return rtrim(mb_substr($value, 0, self::REVIEW_BODY_MAX_LENGTH));
+        return trim($value);
     }
 
     /**

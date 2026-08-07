@@ -176,7 +176,7 @@ The system SHALL send a Slack notification for qualifying review updates that cl
 
 - **WHEN** changed fields are included in a review-update notification
 - **THEN** the Slack payload starts the review content with a `Review before changes` group
-- **AND** the `Review before changes` group includes the full review context using before-change values for changed review fields
+- **AND** the `Review before changes` group includes the available review context using before-change values for changed review fields, subject to Slack's section text limit
 - **AND** the `Review before changes` group does not include a media list
 - **AND** the Slack payload contains an `After changes` group after the before-change review context
 - **AND** the `After changes` group includes only fields that changed
@@ -203,6 +203,16 @@ The system SHALL send a Slack notification for qualifying review updates that cl
 - **WHEN** a review-update notification lacks optional context such as customer name, product name, order information, or Fera review link
 - **THEN** the system still sends the Slack notification
 - **AND** missing optional fields are represented with a safe fallback value
+
+### Requirement: Review-update Slack review sections SHALL enforce Slack's section text limit
+
+The review-update Slack handler SHALL preserve changed review values until Slack payload rendering. It SHALL enforce the 3,000-character limit on each complete review-related `section.text`, including labels and changed title/body values, by truncating at the Slack payload boundary and appending `...` when truncation is required.
+
+#### Scenario: Long review-update text is truncated as a complete Slack section
+- **WHEN** before-change or after-change review content would make its complete Slack section exceed 3,000 characters
+- **THEN** the handler truncates the complete section rather than truncating the review value before section construction
+- **AND** the rendered section is no longer than 3,000 characters
+- **AND** the rendered section ends with `...`
 
 ### Requirement: Review-update Slack notification SHALL include the required action buttons
 

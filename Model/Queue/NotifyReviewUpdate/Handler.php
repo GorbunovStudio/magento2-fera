@@ -41,7 +41,7 @@ class Handler
 {
     private const SLACK_CONNECT_TIMEOUT_SECONDS = 2.0;
     private const SLACK_TIMEOUT_SECONDS = 5.0;
-    private const MAX_SLACK_FIELD_TEXT_LENGTH = 3000;
+    private const MAX_SLACK_SECTION_TEXT_LENGTH = 3000;
 
     public function __construct(
         private ScopeConfigInterface $scopeConfig,
@@ -358,8 +358,10 @@ class Handler
                 'type' => 'section',
                 'text' => [
                     'type' => 'mrkdwn',
-                    'text' => '*Title:* ' . $this->formatChangedValue('heading', $title) . "\n"
-                        . '*Review:* ' . $this->formatChangedValue('body', $review),
+                    'text' => $this->truncateSlackSectionText(
+                        '*Title:* ' . $this->formatChangedValue('heading', $title) . "\n"
+                            . '*Review:* ' . $this->formatChangedValue('body', $review)
+                    ),
                 ],
             ],
         ];
@@ -396,7 +398,7 @@ class Handler
                 'type' => 'section',
                 'text' => [
                     'type' => 'mrkdwn',
-                    'text' => $reviewText,
+                    'text' => $this->truncateSlackSectionText($reviewText),
                 ],
             ];
         }
@@ -414,7 +416,9 @@ class Handler
                 'type' => 'section',
                 'text' => [
                     'type' => 'mrkdwn',
-                    'text' => $this->formatChangedFieldText('media', 'New media attached', $newMedia),
+                    'text' => $this->truncateSlackSectionText(
+                        $this->formatChangedFieldText('media', 'New media attached', $newMedia)
+                    ),
                 ],
             ];
         }
@@ -584,11 +588,11 @@ class Handler
         }
 
         if (is_scalar($value)) {
-            return $this->truncateSlackFieldText($this->escapeSlack((string) $value));
+            return $this->escapeSlack((string) $value);
         }
 
         $encoded = json_encode($value);
-        return $this->truncateSlackFieldText($this->escapeSlack(is_string($encoded) ? $encoded : ''));
+        return $this->escapeSlack(is_string($encoded) ? $encoded : '');
     }
 
     private function formatMediaValue(mixed $value): string
@@ -613,7 +617,7 @@ class Handler
             return '-';
         }
 
-        return $this->truncateSlackFieldText($this->escapeSlack(implode("\n", $urls)));
+        return $this->escapeSlack(implode("\n", $urls));
     }
 
     private function formatRating(float $rating): string
@@ -666,12 +670,12 @@ class Handler
         return str_replace(['&', '<', '>'], ['&amp;', '&lt;', '&gt;'], $value);
     }
 
-    private function truncateSlackFieldText(string $value): string
+    private function truncateSlackSectionText(string $value): string
     {
-        if (mb_strlen($value) <= self::MAX_SLACK_FIELD_TEXT_LENGTH) {
+        if (mb_strlen($value) <= self::MAX_SLACK_SECTION_TEXT_LENGTH) {
             return $value;
         }
 
-        return rtrim(mb_substr($value, 0, self::MAX_SLACK_FIELD_TEXT_LENGTH - 3)) . '...';
+        return rtrim(mb_substr($value, 0, self::MAX_SLACK_SECTION_TEXT_LENGTH - 3)) . '...';
     }
 }

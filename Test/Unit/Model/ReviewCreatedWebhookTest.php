@@ -9,6 +9,7 @@ use Fera\Ai\Api\Data\Queue\NotifyPositiveReview\MessageInterfaceFactory as Posit
 use Fera\Ai\Api\Data\Queue\TopicInterface;
 use Fera\Ai\Interface\ConfigOptionInterface;
 use Fera\Ai\Model\ReviewCreatedWebhook;
+use Fera\Ai\Model\Queue\NotifyNegativeReview\Message;
 use Fera\Ai\Services\FeraWebhookJwtValidator;
 use Fera\Ai\Services\ReviewSnapshot\MediaNormalizer;
 use Fera\Ai\Services\ReviewSnapshot\ReviewSnapshotLock;
@@ -28,6 +29,109 @@ use PHPUnit\Framework\TestCase;
 
 class ReviewCreatedWebhookTest extends TestCase
 {
+    public function testPublishesCompleteReviewBodyToNegativeReviewQueue(): void
+    {
+        $reviewBody = rtrim(str_repeat('This is a detailed customer review. ', 8));
+        $payload = [
+            'id' => 'review-1',
+            'rating' => 1,
+            'body' => $reviewBody,
+        ];
+        $snapshot = [
+            'review_id' => 'review-1',
+            'heading' => '',
+            'body' => $reviewBody,
+            'rating' => 1.0,
+            'media' => [],
+            'magento_store_id' => 7,
+            'subject' => 'product',
+            'external_product_id' => '42',
+            'fera_product_id' => 'fpro-1',
+            'product_name' => 'Product',
+            'state' => 'approved',
+            'is_test' => false,
+            'fera_created_at' => '2026-07-13 00:00:00',
+            'fera_updated_at' => '2026-07-13 00:00:00',
+        ];
+
+        $request = $this->createMock(Request::class);
+        $request->method('getParam')->with('jwt')->willReturn('jwt');
+        $request->method('getBodyParams')->willReturn($payload);
+        $store = $this->createMock(StoreInterface::class);
+        $store->method('getId')->willReturn(9);
+        $storeManager = $this->createMock(StoreManagerInterface::class);
+        $storeManager->method('getStore')->willReturn($store);
+        $jwtValidator = $this->createMock(FeraWebhookJwtValidator::class);
+        $jwtValidator->method('validateToken')->willReturn(['store_id' => 'fera-store']);
+        $snapshotBuilder = $this->createMock(SnapshotBuilder::class);
+        $snapshotBuilder->expects(self::once())->method('build')->with($payload, 7)->willReturn($snapshot);
+        $snapshotRepository = $this->createMock(SnapshotRepository::class);
+        $snapshotRepository->expects(self::once())->method('save')->with($snapshot);
+        $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
+        $snapshotLock->expects(self::once())
+            ->method('execute')
+            ->with('review-1', self::isType('callable'))
+            ->willReturnCallback(static function (string $reviewId, callable $operation): mixed {
+                return $operation();
+            });
+        $storeGroupService = $this->createMock(StoreGroupService::class);
+        $storeGroupService->expects(self::once())->method('getCanonicalStoreId')->with(9)->willReturn(7);
+
+        $scopeConfig = $this->createMock(ScopeConfigInterface::class);
+        $scopeConfig->method('isSetFlag')->willReturnMap([
+            [ConfigOptionInterface::NEGATIVE_REVIEW_NOTIFICATIONS_ENABLED, ScopeInterface::SCOPE_STORE, 9, true],
+            [ConfigOptionInterface::POSITIVE_REVIEW_NOTIFICATIONS_ENABLED, ScopeInterface::SCOPE_STORE, 9, false],
+        ]);
+        $scopeConfig->method('getValue')->with(
+            ConfigOptionInterface::REVIEW_NOTIFICATIONS_RATING_THRESHOLD,
+            ScopeInterface::SCOPE_STORE,
+            9
+        )->willReturn(3);
+
+        $message = (new Message())
+            ->setStoreId(9)
+            ->setReviewId('review-1')
+            ->setRating(1.0)
+            ->setFeraStoreId('fera-store')
+            ->setExternalOrderId('')
+            ->setCustomerName('')
+            ->setCustomerEmail('')
+            ->setReviewTitle('')
+            ->setReviewBody('')
+            ->setProductName('')
+            ->setExternalProductId('')
+            ->setMediaJson('[]');
+        $negativeMessageFactory = $this->createMock(MessageInterfaceFactory::class);
+        $negativeMessageFactory->expects(self::once())->method('create')->willReturn($message);
+
+        $publisher = $this->createMock(PublisherInterface::class);
+        $publisher->expects(self::once())
+            ->method('publish')
+            ->with(
+                TopicInterface::NOTIFY_NEGATIVE_REVIEW,
+                self::callback(static function (Message $publishedMessage) use ($reviewBody): bool {
+                    return $publishedMessage->getReviewBody() === $reviewBody;
+                })
+            );
+
+        $webhook = new ReviewCreatedWebhook(
+            $request,
+            $scopeConfig,
+            $storeManager,
+            $publisher,
+            $jwtValidator,
+            $negativeMessageFactory,
+            $this->createMock(PositiveMessageInterfaceFactory::class),
+            new MediaNormalizer(),
+            $snapshotBuilder,
+            $snapshotRepository,
+            $snapshotLock,
+            $storeGroupService
+        );
+
+        $webhook->execute();
+    }
+
     public function testTranslatesInvalidSnapshotArgumentToBadRequest(): void
     {
         $payload = ['id' => ''];

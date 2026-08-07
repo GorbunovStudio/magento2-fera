@@ -66,6 +66,11 @@ class HandlerTest extends TestCase
                 self::assertStringContainsString('https://cdn.example/photo.jpg', $encoded);
                 self::assertStringContainsString('https://cdn.example/video.mp4', $encoded);
 
+                $reviewText = $options['json']['blocks'][4]['text']['text'] ?? null;
+                self::assertIsString($reviewText);
+                self::assertLessThanOrEqual(3000, mb_strlen($reviewText));
+                self::assertStringEndsWith('...', $reviewText);
+
                 return $this->createMock(ResponseInterface::class);
             });
 
@@ -81,7 +86,7 @@ class HandlerTest extends TestCase
             ->setCustomerName('Ada')
             ->setCustomerEmail('ada@example.com')
             ->setReviewTitle('Oh no')
-            ->setReviewBody('Not great')
+            ->setReviewBody(str_repeat('Not great. ', 400))
             ->setProductName('Plush')
             ->setExternalProductId('sku-1')
             ->setMediaJson($this->encodeMedia([

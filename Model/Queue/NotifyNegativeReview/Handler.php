@@ -44,6 +44,7 @@ class Handler
 {
     private const SLACK_CONNECT_TIMEOUT_SECONDS = 2.0;
     private const SLACK_TIMEOUT_SECONDS = 5.0;
+    private const MAX_SLACK_SECTION_TEXT_LENGTH = 3000;
 
     public function __construct(
         private ScopeConfigInterface $scopeConfig,
@@ -353,9 +354,11 @@ class Handler
                     'type' => 'section',
                     'text' => [
                         'type' => 'mrkdwn',
-                        'text' => "*Customer:* {$customerName}\n"
-                            . "*Title:* {$reviewTitle}\n"
-                            . "*Review:*\n" . $reviewBody,
+                        'text' => $this->truncateSlackSectionText(
+                            "*Customer:* {$customerName}\n"
+                                . "*Title:* {$reviewTitle}\n"
+                                . "*Review:*\n" . $reviewBody
+                        ),
                     ],
                 ],
                 ...$this->buildMediaBlocks($notificationData['media']),
@@ -444,6 +447,15 @@ class Handler
         return str_repeat('★', $ratingRounded)
             . str_repeat('☆', $maxStars - $ratingRounded)
             . ' (' . $ratingRounded . '/' . $maxStars . ')';
+    }
+
+    private function truncateSlackSectionText(string $value): string
+    {
+        if (mb_strlen($value) <= self::MAX_SLACK_SECTION_TEXT_LENGTH) {
+            return $value;
+        }
+
+        return rtrim(mb_substr($value, 0, self::MAX_SLACK_SECTION_TEXT_LENGTH - 3)) . '...';
     }
 
     /**

@@ -59,6 +59,16 @@ The shared Fera module SHALL send a positive-review Slack payload that clearly i
 - **WHEN** a positive-review notification resolves to a Magento order
 - **THEN** the Slack notification includes a `View Magento Order` action
 
+### Requirement: Created-review Slack review sections SHALL enforce Slack's section text limit
+
+The shared Fera module SHALL preserve review text without applying Slack's length limit during webhook normalization, snapshot persistence, or notification message creation. When rendering positive or negative created-review Slack notifications, the respective Slack handler SHALL enforce the 3,000-character limit on the complete review `section.text`, including its labels, and SHALL append `...` when truncation is required.
+
+#### Scenario: Long created-review text is truncated only at Slack rendering
+- **WHEN** a created review body would make the complete Slack review section exceed 3,000 characters
+- **THEN** webhook, snapshot, and notification message processing do not truncate the review body to the Slack limit
+- **AND** the created-review Slack handler sends a review section no longer than 3,000 characters
+- **AND** the rendered review section ends with `...`
+
 ### Requirement: Created-review Slack notifications SHALL render uploaded media using full media URLs
 
 The shared Fera module SHALL render customer-submitted media in created-review Slack notifications using full media `url` values from Fera media payloads. This SHALL apply to both positive-review Slack notifications and existing negative-review Slack notifications.
