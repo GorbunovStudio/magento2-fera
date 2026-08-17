@@ -110,7 +110,7 @@ class ReviewUpdatedWebhookTest extends TestCase
         array $previousOverrides = []
     ): void
     {
-        $payload = ['id' => 'review-1', 'state' => $state];
+        $payload = ['id' => 'review-1', 'state' => $state, 'external_order_id' => '1001'];
         $snapshot = [
             'review_id' => 'review-1',
             'heading' => '',
@@ -119,6 +119,7 @@ class ReviewUpdatedWebhookTest extends TestCase
             'media' => [],
             'magento_store_id' => 7,
             'subject' => 'product',
+            'external_order_id' => '1001',
             'external_product_id' => '42',
             'fera_product_id' => 'fpro-1',
             'product_name' => 'Product',

@@ -28,11 +28,17 @@ class BackfillReviewsCommandTest extends TestCase
             ->willReturnCallback(static function (int $page, int $pageSize, int $storeId): array {
                 self::assertSame(1, $pageSize);
                 if ($storeId === 10) {
-                    return ['data' => [['id' => 'review-1']], 'meta' => ['page_count' => 1]];
+                    return [
+                        'data' => [['id' => 'review-1', 'external_order_id' => '1001']],
+                        'meta' => ['page_count' => 1],
+                    ];
                 }
 
                 if ($storeId === 20 && $page === 1) {
-                    return ['data' => [['id' => 'review-2']], 'meta' => ['page_count' => 2]];
+                    return [
+                        'data' => [['id' => 'review-2']],
+                        'meta' => ['page_count' => 2],
+                    ];
                 }
 
                 throw new RuntimeException('simulated account failure');
@@ -42,11 +48,22 @@ class BackfillReviewsCommandTest extends TestCase
         $snapshotBuilder = $this->createMock(SnapshotBuilder::class);
         $snapshotBuilder->expects(self::exactly(2))
             ->method('build')
-            ->willReturnCallback(static fn(array $review): array => ['review_id' => $review['id']]);
+            ->willReturnCallback(static fn(array $review): array => [
+                'review_id' => $review['id'],
+                'external_order_id' => $review['external_order_id'] ?? null,
+            ]);
 
         /** @var SnapshotRepository&MockObject $snapshotRepository */
         $snapshotRepository = $this->createMock(SnapshotRepository::class);
-        $snapshotRepository->expects(self::exactly(2))->method('save');
+        $snapshotRepository->expects(self::exactly(2))
+            ->method('save')
+            ->with(self::callback(static function (array $snapshot): bool {
+                return match ($snapshot['review_id']) {
+                    'review-1' => $snapshot['external_order_id'] === '1001',
+                    'review-2' => $snapshot['external_order_id'] === null,
+                    default => false,
+                };
+            }));
         $snapshotRepository->method('countIncomplete')->willReturn(0);
 
         /** @var ReviewSnapshotLock&MockObject $snapshotLock */

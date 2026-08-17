@@ -14,6 +14,7 @@ interface ReviewSnapshotInterface
     public const MEDIA = 'media';
     public const MAGENTO_STORE_ID = 'magento_store_id';
     public const SUBJECT = 'subject';
+    public const EXTERNAL_ORDER_ID = 'external_order_id';
     public const EXTERNAL_PRODUCT_ID = 'external_product_id';
     public const FERA_PRODUCT_ID = 'fera_product_id';
     public const PRODUCT_NAME = 'product_name';
@@ -35,6 +36,8 @@ interface ReviewSnapshotInterface
     public function getMagentoStoreId(): ?int;
 
     public function getSubject(): ?string;
+
+    public function getExternalOrderId(): ?string;
 
     public function getExternalProductId(): ?string;
 
@@ -63,6 +66,8 @@ interface ReviewSnapshotInterface
     public function setMagentoStoreId(?int $value): static;
 
     public function setSubject(?string $value): static;
+
+    public function setExternalOrderId(?string $value): static;
 
     public function setExternalProductId(?string $value): static;
 

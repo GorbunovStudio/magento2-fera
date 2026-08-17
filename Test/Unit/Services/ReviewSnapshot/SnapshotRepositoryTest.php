@@ -42,10 +42,14 @@ class SnapshotRepositoryTest extends TestCase
     {
         $setup = $this->repositoryFor($this->existingSnapshotModel([
             'getFeraUpdatedAt' => '2026-07-14 00:00:00',
+            'getExternalOrderId' => 'stored-order',
         ]));
         $setup['resource']->expects(self::never())->method('save');
 
-        $setup['repository']->save($this->snapshot(['fera_updated_at' => '2026-07-12 00:00:00']));
+        $setup['repository']->save($this->snapshot([
+            'external_order_id' => 'stale-order',
+            'fera_updated_at' => '2026-07-12 00:00:00',
+        ]));
     }
 
     public function testEqualSourceVersionUpdatesChangedMutableField(): void
@@ -70,12 +74,14 @@ class SnapshotRepositoryTest extends TestCase
             'heading' => 'Old heading',
             'rating' => '4.00',
             'is_test' => '0',
+            'external_order_id' => 'old-order',
             'fera_updated_at' => '2026-07-13 00:00:00',
         ]);
         $snapshot = $this->snapshot([
             'heading' => 'New heading',
             'rating' => 4.5,
             'is_test' => true,
+            'external_order_id' => 'new-order',
             'fera_updated_at' => '2026-07-14 00:00:00',
         ]);
         $setup = $this->repositoryFor($existing);
@@ -121,6 +127,44 @@ class SnapshotRepositoryTest extends TestCase
         $setup['repository']->save($this->snapshot(['fera_updated_at' => '2026-07-12 00:00:00']));
     }
 
+    public function testStaleSnapshotFillsMissingExternalOrderIdWithoutOverwritingReviewState(): void
+    {
+        $existing = $this->loadedSnapshotModel([
+            'heading' => 'Newer heading',
+            'external_order_id' => null,
+            'fera_updated_at' => '2026-07-14 00:00:00',
+        ]);
+        $setup = $this->repositoryFor($existing);
+        $setup['resource']->expects(self::once())->method('save')->with($existing);
+
+        $effective = $setup['repository']->save($this->snapshot([
+            'heading' => 'Stale heading',
+            'external_order_id' => 'backfill-order',
+            'fera_updated_at' => '2026-07-12 00:00:00',
+        ]));
+
+        self::assertSame('backfill-order', $effective['external_order_id']);
+        self::assertSame('Newer heading', $effective['heading']);
+        self::assertSame('2026-07-14 00:00:00', $effective['fera_updated_at']);
+    }
+
+    public function testNewerSnapshotPreservesStoredExternalOrderIdWhenIncomingValueIsOmitted(): void
+    {
+        $existing = $this->loadedSnapshotModel([
+            'external_order_id' => 'stored-order',
+            'fera_updated_at' => '2026-07-13 00:00:00',
+        ]);
+        $setup = $this->repositoryFor($existing);
+        $setup['resource']->expects(self::never())->method('save');
+
+        $effective = $setup['repository']->save($this->snapshot([
+            'external_order_id' => null,
+            'fera_updated_at' => '2026-07-14 00:00:00',
+        ]));
+
+        self::assertSame('stored-order', $effective['external_order_id']);
+    }
+
     public function testGetByReviewIdMapsEntityToExistingSnapshotContract(): void
     {
         $model = $this->existingSnapshotModel([
@@ -147,6 +191,7 @@ class SnapshotRepositoryTest extends TestCase
                 'media' => [],
                 'magento_store_id' => 7,
                 'subject' => 'product',
+                'external_order_id' => 'order-1',
                 'external_product_id' => '42',
                 'fera_product_id' => 'fpro-1',
                 'product_name' => 'Product',
@@ -207,6 +252,7 @@ class SnapshotRepositoryTest extends TestCase
             'media' => [],
             'magento_store_id' => 7,
             'subject' => 'product',
+            'external_order_id' => 'order-1',
             'external_product_id' => '42',
             'fera_product_id' => 'fpro-1',
             'product_name' => 'Product',
@@ -273,6 +319,7 @@ class SnapshotRepositoryTest extends TestCase
             'getMedia' => '[]',
             'getMagentoStoreId' => 7,
             'getSubject' => 'product',
+            'getExternalOrderId' => 'order-1',
             'getExternalProductId' => '42',
             'getFeraProductId' => 'fpro-1',
             'getProductName' => 'Product',
@@ -291,6 +338,7 @@ class SnapshotRepositoryTest extends TestCase
             'setMedia',
             'setMagentoStoreId',
             'setSubject',
+            'setExternalOrderId',
             'setExternalProductId',
             'setFeraProductId',
             'setProductName',
@@ -328,6 +376,7 @@ class SnapshotRepositoryTest extends TestCase
             'media' => '[]',
             'magento_store_id' => '7',
             'subject' => 'product',
+            'external_order_id' => 'order-1',
             'external_product_id' => '42',
             'fera_product_id' => 'fpro-1',
             'product_name' => 'Product',

@@ -113,6 +113,16 @@ Backfill mappings for store with ID 1:
 php bin/magento fera:products:backfill-mappings --store-id 1
 ```
 
+### Backfill Review Snapshot Order Associations
+
+After deploying the review snapshot schema, run `php bin/magento setup:upgrade` in the consuming Magento application, then run the existing review backfill without `--dry-run`:
+
+```bash
+php bin/magento fera:reviews:backfill
+```
+
+The command is idempotent and preserves its existing account grouping, paging, error handling, and summary counters. It does not publish review notifications. To inspect records that Fera did not associate with an order, query `fera_review_snapshots` for rows where `external_order_id IS NULL`; this does not change the `incomplete_snapshots` reporting counter.
+
 ### Export Past Orders
 
 Use this command to export historical fulfilled orders to Fera.ai so you can run one-time review campaigns without impacting the automatic review request quotas. The command skips orders that were already exported and works in batches to limit memory usage.

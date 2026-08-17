@@ -62,6 +62,7 @@
             "media": true,
             "magento_store_id": true,
             "subject": true,
+            "external_order_id": true,
             "external_product_id": true,
             "fera_product_id": true,
             "product_name": true,
@@ -79,7 +80,8 @@
         "index": {
             "FERA_REVIEW_SNAPSHOTS_STORE_SUBJECT_CREATED_AT_IDX": true,
             "FERA_REVIEW_SNAPSHOTS_FERA_PRODUCT_ID_IDX": true,
-            "FERA_REVIEW_SNAPSHOTS_EXTERNAL_PRODUCT_ID_IDX": true
+            "FERA_REVIEW_SNAPSHOTS_EXTERNAL_PRODUCT_ID_IDX": true,
+            "FERA_REVIEW_SNAPSHOTS_EXTERNAL_ORDER_ID_IDX": true
         }
     }
 }
