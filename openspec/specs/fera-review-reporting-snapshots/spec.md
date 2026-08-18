@@ -2,7 +2,7 @@
 
 Define the reporting dimensions and backfill behavior for Fera review snapshots.
 
-# Requirements
+## Requirements
 
 ### Requirement: Fera review snapshots SHALL retain the dimensions required for reporting
 The system SHALL retain one latest snapshot for each globally unique Fera `review_id`. In addition to the existing notification-comparison fields, the snapshot SHALL retain the canonical Magento store ID for the Fera account, `subject`, `external_product_id`, Fera `product.id`, nullable product name, `state`, `is_test`, original Fera creation timestamp, and latest Fera update timestamp. The system SHALL NOT persist `is_verified` for this capability.
@@ -85,6 +85,25 @@ For each account, the command SHALL page through `GET /v3/private/reviews` with 
 - **THEN** the command reports the affected account using only non-sensitive identifiers and aggregate counters
 - **AND** the command continues with independent accounts where safe
 - **AND** the command returns a non-zero exit status after processing finishes
+
+### Requirement: Existing review snapshots SHALL be enriched with external order associations by backfill
+`fera:reviews:backfill` SHALL map `external_order_id` returned by `GET /v3/private/reviews` through the shared snapshot builder and repository. A rerun SHALL enrich an existing snapshot with a missing association without creating a duplicate row, invoking webhook handlers, or publishing queue or Slack messages.
+
+#### Scenario: A rerun enriches a legacy snapshot
+- **WHEN** the List Reviews API returns a review whose `review_id` already exists locally with `external_order_id` set to `NULL`
+- **AND** the returned review has a non-empty `external_order_id`
+- **THEN** the backfill retains one snapshot row for that review
+- **AND** the snapshot stores the returned external order association
+
+#### Scenario: A backfill row has no external order ID
+- **WHEN** the List Reviews API returns a review without a usable `external_order_id`
+- **THEN** the backfill leaves a missing association as `NULL`
+- **AND** does not infer an association from local Magento data
+
+#### Scenario: Backfill preserves its operational contract while enriching associations
+- **WHEN** an operator runs `fera:reviews:backfill` to enrich external order associations
+- **THEN** the command retains its existing account grouping, paging, dry-run behavior, per-account error handling, and summary counters
+- **AND** the command does not publish review notifications
 
 ### Requirement: The product-review report SHALL use only the required snapshot fields
 The reporting SQL query SHALL read only product-review snapshots and the Magento store name needed to aggregate them: canonical Magento store ID and display name, product identifiers and display name, rating, state, test flag, and Fera creation/update timestamps. The query SHALL not select review heading, review body, media, customer data, Fera secrets, webhook URLs, or raw webhook payloads.

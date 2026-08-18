@@ -20,4 +20,4 @@
 
 - [x] 4.1 Add unit coverage for builder normalization, typed entity accessors, repository insert/read/equal-or-newer update, stale `NULL` enrichment, and preservation of a non-empty association on omitted or stale input.
 - [x] 4.2 Extend backfill and webhook tests to cover external order propagation while confirming no review-update comparison or notification behavior changes.
-- [ ] 4.3 Run focused PHPUnit tests, PHPStan, coding-standard checks, and OpenSpec validation; run a consuming-Magento integration check for the deployed column, index, and backfill persistence behavior.
+- [x] 4.3 Run focused PHPUnit tests, PHPStan, coding-standard checks, and OpenSpec validation; run a consuming-Magento integration check for the deployed column, index, and backfill persistence behavior.
