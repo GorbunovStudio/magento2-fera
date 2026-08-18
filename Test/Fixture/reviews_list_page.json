@@ -8,6 +8,7 @@
       "is_test": false,
       "created_at": "2026-07-13T18:00:00Z",
       "updated_at": "2026-07-13T18:00:00Z",
+      "external_order_id": "1001",
       "product": {
         "id": "fpro_001",
         "external_id": "magento-42",

@@ -2,7 +2,7 @@
 
 Define the native SQL artifact and aggregation contract for weekly Fera product-review reporting.
 
-# Requirements
+## Requirements
 
 ### Requirement: The SQL query SHALL aggregate product reviews by store and product
 The change SHALL provide `sql-query-36377.sql`, a native MySQL 8 query over `fera_review_snapshots` joined to the Magento `store` table. The query SHALL return a separate store aggregate for every canonical Magento store and a product breakdown within that store. Every result row SHALL use only product-review snapshots and reporting columns selected by the query.

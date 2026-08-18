@@ -33,6 +33,14 @@ class SnapshotComparatorTest extends TestCase
         self::assertArrayHasKey('media', (new SnapshotComparator())->compare($previous, $current));
     }
 
+    public function testIgnoresExternalOrderIdChanges(): void
+    {
+        $previous = $this->snapshot([], 'order-1');
+        $current = $this->snapshot([], 'order-2');
+
+        self::assertSame([], (new SnapshotComparator())->compare($previous, $current));
+    }
+
     /**
      * @param list<array{id: string, url: string}> $media
      * @return array{
@@ -43,6 +51,7 @@ class SnapshotComparatorTest extends TestCase
      *     media: list<array{id: string, url: string}>,
      *     magento_store_id: int|null,
      *     subject: string|null,
+     *     external_order_id: string|null,
      *     external_product_id: string|null,
      *     fera_product_id: string|null,
      *     product_name: string|null,
@@ -52,7 +61,7 @@ class SnapshotComparatorTest extends TestCase
      *     fera_updated_at: string|null
      * }
      */
-    private function snapshot(array $media): array
+    private function snapshot(array $media, string $externalOrderId = 'order-1'): array
     {
         return [
             'review_id' => 'review-1',
@@ -62,6 +71,7 @@ class SnapshotComparatorTest extends TestCase
             'media' => $media,
             'magento_store_id' => 7,
             'subject' => 'product',
+            'external_order_id' => $externalOrderId,
             'external_product_id' => 'product-1',
             'fera_product_id' => 'fera-product-1',
             'product_name' => 'Product',

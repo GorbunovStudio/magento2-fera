@@ -94,6 +94,7 @@ class SnapshotRepository
         $model->setMedia($this->encodeMedia($snapshot['media']));
         $model->setMagentoStoreId($snapshot['magento_store_id']);
         $model->setSubject($snapshot['subject']);
+        $model->setExternalOrderId($snapshot['external_order_id']);
         $model->setExternalProductId($snapshot['external_product_id']);
         $model->setFeraProductId($snapshot['fera_product_id']);
         $model->setProductName($snapshot['product_name']);
@@ -108,7 +109,13 @@ class SnapshotRepository
      */
     private function applyExistingSnapshot(ReviewSnapshotModel $model, array $snapshot): void
     {
-        if ($this->shouldApplyMutableFields($model->getFeraUpdatedAt(), $snapshot['fera_updated_at'])) {
+        $shouldApplyMutableFields = $this->shouldApplyMutableFields(
+            $model->getFeraUpdatedAt(),
+            $snapshot['fera_updated_at']
+        );
+        $storedExternalOrderId = $model->getExternalOrderId();
+
+        if ($shouldApplyMutableFields) {
             $model->setHeading($snapshot['heading']);
             $model->setBody($snapshot['body']);
             $model->setRating($snapshot['rating']);
@@ -121,6 +128,11 @@ class SnapshotRepository
             $model->setState($snapshot['state']);
             $model->setIsTest($snapshot['is_test']);
             $model->setFeraUpdatedAt($snapshot['fera_updated_at']);
+        }
+
+        if ($snapshot['external_order_id'] !== null
+            && ($storedExternalOrderId === null || $shouldApplyMutableFields)) {
+            $model->setExternalOrderId($snapshot['external_order_id']);
         }
 
         if ($model->getFeraCreatedAt() === null && $snapshot['fera_created_at'] !== null) {
@@ -146,6 +158,7 @@ class SnapshotRepository
             'media' => $this->decodeMedia($model->getMedia()),
             'magento_store_id' => $model->getMagentoStoreId(),
             'subject' => $model->getSubject(),
+            'external_order_id' => $model->getExternalOrderId(),
             'external_product_id' => $model->getExternalProductId(),
             'fera_product_id' => $model->getFeraProductId(),
             'product_name' => $model->getProductName(),

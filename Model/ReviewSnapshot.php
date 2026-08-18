@@ -68,6 +68,11 @@ class ReviewSnapshot extends AbstractModel implements ReviewSnapshotInterface
         return $this->nullableString(self::SUBJECT);
     }
 
+    public function getExternalOrderId(): ?string
+    {
+        return $this->nullableString(self::EXTERNAL_ORDER_ID);
+    }
+
     public function getExternalProductId(): ?string
     {
         return $this->nullableString(self::EXTERNAL_PRODUCT_ID);
@@ -146,6 +151,11 @@ class ReviewSnapshot extends AbstractModel implements ReviewSnapshotInterface
     public function setSubject(?string $value): static
     {
         return $this->setData(self::SUBJECT, $value);
+    }
+
+    public function setExternalOrderId(?string $value): static
+    {
+        return $this->setData(self::EXTERNAL_ORDER_ID, $value);
     }
 
     public function setExternalProductId(?string $value): static

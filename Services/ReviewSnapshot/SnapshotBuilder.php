@@ -19,6 +19,7 @@ use Throwable;
  *     media: ReviewMedia,
  *     magento_store_id: int|null,
  *     subject: string|null,
+ *     external_order_id: string|null,
  *     external_product_id: string|null,
  *     fera_product_id: string|null,
  *     product_name: string|null,
@@ -54,6 +55,7 @@ class SnapshotBuilder
             'media' => $this->mediaNormalizer->normalize($payload['media'] ?? []),
             'magento_store_id' => $magentoStoreId,
             'subject' => $subject,
+            'external_order_id' => $this->extractNullableString($payload, 'external_order_id'),
             'external_product_id' => $isProductReview
                 ? $this->resolveExternalProductId($payload, $product)
                 : null,

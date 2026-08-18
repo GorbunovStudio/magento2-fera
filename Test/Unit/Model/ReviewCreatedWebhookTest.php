@@ -36,6 +36,7 @@ class ReviewCreatedWebhookTest extends TestCase
             'id' => 'review-1',
             'rating' => 1,
             'body' => $reviewBody,
+            'external_order_id' => '1001',
         ];
         $snapshot = [
             'review_id' => 'review-1',
@@ -45,6 +46,7 @@ class ReviewCreatedWebhookTest extends TestCase
             'media' => [],
             'magento_store_id' => 7,
             'subject' => 'product',
+            'external_order_id' => '1001',
             'external_product_id' => '42',
             'fera_product_id' => 'fpro-1',
             'product_name' => 'Product',
@@ -93,7 +95,7 @@ class ReviewCreatedWebhookTest extends TestCase
             ->setReviewId('review-1')
             ->setRating(1.0)
             ->setFeraStoreId('fera-store')
-            ->setExternalOrderId('')
+            ->setExternalOrderId('1001')
             ->setCustomerName('')
             ->setCustomerEmail('')
             ->setReviewTitle('')
@@ -183,6 +185,7 @@ class ReviewCreatedWebhookTest extends TestCase
             'media' => [],
             'magento_store_id' => 7,
             'subject' => 'product',
+            'external_order_id' => null,
             'external_product_id' => '42',
             'fera_product_id' => 'fpro-1',
             'product_name' => 'Product',
