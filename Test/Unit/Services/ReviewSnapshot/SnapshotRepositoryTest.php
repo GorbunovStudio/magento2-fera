@@ -21,6 +21,7 @@ use Magento\Framework\Model\Context;
 use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -31,8 +32,9 @@ class SnapshotRepositoryTest extends TestCase
         $newSnapshot = $this->existingSnapshotModel(['getId' => null]);
         $json = $this->createMock(Json::class);
         $json->expects(self::once())->method('serialize')->with([])->willReturn('[]');
-        $setup = $this->repositoryFor($newSnapshot, $json);
-        $setup['factory']->expects(self::once())->method('create')->willReturn($newSnapshot);
+        $factory = $this->createMock(ReviewSnapshotFactory::class);
+        $factory->expects(self::once())->method('create')->willReturn($newSnapshot);
+        $setup = $this->repositoryFor($newSnapshot, $json, $factory);
         $setup['resource']->expects(self::once())->method('save')->with($newSnapshot);
 
         $setup['repository']->save($this->snapshot());
@@ -54,7 +56,7 @@ class SnapshotRepositoryTest extends TestCase
 
     public function testEqualSourceVersionUpdatesChangedMutableField(): void
     {
-        $existing = $this->existingSnapshotModel(['getHeading' => 'Old heading']);
+        $existing = $this->existingSnapshotMock(['getHeading' => 'Old heading']);
         $existing->expects(self::once())
             ->method('setHeading')
             ->with('New heading')
@@ -112,7 +114,7 @@ class SnapshotRepositoryTest extends TestCase
 
     public function testStaleSnapshotCanFillMissingCreationTimestamp(): void
     {
-        $existing = $this->existingSnapshotModel([
+        $existing = $this->existingSnapshotMock([
             'getFeraUpdatedAt' => '2026-07-14 00:00:00',
             'getFeraCreatedAt' => null,
         ]);
@@ -176,12 +178,15 @@ class SnapshotRepositoryTest extends TestCase
         ]);
         $json = $this->createMock(Json::class);
         $json->expects(self::once())->method('unserialize')->with('[]')->willReturn([]);
-        $setup = $this->repositoryFor($model, $json);
-        $setup['collection']->expects(self::once())
+        $collection = $this->createMock(Collection::class);
+        $collection->expects(self::once())
             ->method('addFieldToFilter')
             ->with(ReviewSnapshotInterface::REVIEW_ID, 'review-1')
             ->willReturnSelf();
-        $setup['collection']->expects(self::once())->method('setPageSize')->with(1)->willReturnSelf();
+        $collection->expects(self::once())->method('setPageSize')->with(1)->willReturnSelf();
+        $collection->method('getFirstItem')->willReturn($model);
+        $setup = $this->repositoryFor($model, $json, null, $collection);
+        $setup['resource']->expects(self::never())->method('save');
 
         self::assertSame(
             [
@@ -213,6 +218,7 @@ class SnapshotRepositoryTest extends TestCase
             ->with('malformed')
             ->willThrowException(new InvalidArgumentException('Malformed JSON'));
         $setup = $this->repositoryFor($this->existingSnapshotModel(['getMedia' => 'malformed']), $json);
+        $setup['resource']->expects(self::never())->method('save');
 
         self::assertSame([], $setup['repository']->getByReviewId('review-1')['media']);
     }
@@ -231,10 +237,10 @@ class SnapshotRepositoryTest extends TestCase
         self::assertSame(
             3,
             $this->repository(
-                $this->createMock(ReviewSnapshotResource::class),
-                $this->createMock(ReviewSnapshotFactory::class),
+                $this->createStub(ReviewSnapshotResource::class),
+                $this->createStub(ReviewSnapshotFactory::class),
                 $collectionFactory,
-                $this->createMock(Json::class)
+                $this->createStub(Json::class)
             )->countIncomplete()
         );
     }
@@ -276,41 +282,69 @@ class SnapshotRepositoryTest extends TestCase
     /**
      * @return array{
      *     repository: SnapshotRepository,
-     *     resource: ReviewSnapshotResource,
-     *     factory: ReviewSnapshotFactory,
-     *     collection: Collection
+     *     resource: ReviewSnapshotResource&MockObject
      * }
      */
-    private function repositoryFor(ReviewSnapshot $model, ?Json $json = null): array
-    {
-        /** @var Collection&MockObject $collection */
-        $collection = $this->createMock(Collection::class);
-        $collection->method('addFieldToFilter')->willReturnSelf();
-        $collection->method('setPageSize')->willReturnSelf();
-        $collection->method('getFirstItem')->willReturn($model);
+    private function repositoryFor(
+        ReviewSnapshot $model,
+        ?Json $json = null,
+        ?ReviewSnapshotFactory $factory = null,
+        ?Collection $collection = null
+    ): array {
+        if ($collection === null) {
+            $collection = $this->createStub(Collection::class);
+            $collection->method('addFieldToFilter')->willReturnSelf();
+            $collection->method('setPageSize')->willReturnSelf();
+            $collection->method('getFirstItem')->willReturn($model);
+        }
 
-        /** @var CollectionFactory&MockObject $collectionFactory */
-        $collectionFactory = $this->createMock(CollectionFactory::class);
+        /** @var CollectionFactory&Stub $collectionFactory */
+        $collectionFactory = $this->createStub(CollectionFactory::class);
         $collectionFactory->method('create')->willReturn($collection);
         /** @var ReviewSnapshotResource&MockObject $resource */
         $resource = $this->createMock(ReviewSnapshotResource::class);
-        /** @var ReviewSnapshotFactory&MockObject $factory */
-        $factory = $this->createMock(ReviewSnapshotFactory::class);
 
         return [
-            'repository' => $this->repository($resource, $factory, $collectionFactory, $json ?? new Json()),
+            'repository' => $this->repository(
+                $resource,
+                $factory ?? $this->createStub(ReviewSnapshotFactory::class),
+                $collectionFactory,
+                $json ?? new Json()
+            ),
             'resource' => $resource,
-            'factory' => $factory,
-            'collection' => $collection,
         ];
     }
 
     /**
-     * @return ReviewSnapshot&MockObject
+     * @param array<string, mixed> $overrides
+     * @return ReviewSnapshot&Stub
      */
     private function existingSnapshotModel(array $overrides = []): ReviewSnapshot
     {
+        $model = $this->createStub(ReviewSnapshot::class);
+        $this->configureSnapshotModel($model, $overrides);
+
+        return $model;
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     * @return ReviewSnapshot&MockObject
+     */
+    private function existingSnapshotMock(array $overrides = []): ReviewSnapshot
+    {
         $model = $this->createMock(ReviewSnapshot::class);
+        $this->configureSnapshotModel($model, $overrides);
+
+        return $model;
+    }
+
+    /**
+     * @param ReviewSnapshot&Stub $model
+     * @param array<string, mixed> $overrides
+     */
+    private function configureSnapshotModel(Stub $model, array $overrides): void
+    {
         foreach (array_replace([
             'getId' => 1,
             'getReviewId' => 'review-1',
@@ -350,8 +384,6 @@ class SnapshotRepositoryTest extends TestCase
         ] as $method) {
             $model->method($method)->willReturnSelf();
         }
-
-        return $model;
     }
 
     /**
@@ -359,13 +391,13 @@ class SnapshotRepositoryTest extends TestCase
      */
     private function loadedSnapshotModel(array $overrides = []): ReviewSnapshot
     {
-        $context = $this->createMock(Context::class);
-        $context->method('getAppState')->willReturn($this->createMock(State::class));
-        $context->method('getEventDispatcher')->willReturn($this->createMock(ManagerInterface::class));
-        $context->method('getCacheManager')->willReturn($this->createMock(CacheInterface::class));
-        $context->method('getLogger')->willReturn($this->createMock(LoggerInterface::class));
-        $context->method('getActionValidator')->willReturn($this->createMock(RemoveAction::class));
-        $resource = $this->createMock(ReviewSnapshotResource::class);
+        $context = $this->createStub(Context::class);
+        $context->method('getAppState')->willReturn($this->createStub(State::class));
+        $context->method('getEventDispatcher')->willReturn($this->createStub(ManagerInterface::class));
+        $context->method('getCacheManager')->willReturn($this->createStub(CacheInterface::class));
+        $context->method('getLogger')->willReturn($this->createStub(LoggerInterface::class));
+        $context->method('getActionValidator')->willReturn($this->createStub(RemoveAction::class));
+        $resource = $this->createStub(ReviewSnapshotResource::class);
         $resource->method('getIdFieldName')->willReturn('id');
         $model = new ReviewSnapshot($context, new Registry(), $resource);
         $model->setData(array_replace([
