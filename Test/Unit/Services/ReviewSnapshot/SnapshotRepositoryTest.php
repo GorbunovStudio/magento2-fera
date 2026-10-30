@@ -155,7 +155,7 @@ class SnapshotRepositoryTest extends TestCase
             'fera_updated_at' => '2026-07-13 00:00:00',
         ]);
         $setup = $this->repositoryFor($existing);
-        $setup['resource']->expects(self::never())->method('save');
+        $setup['resource']->expects(self::once())->method('save')->with($existing);
 
         $effective = $setup['repository']->save($this->snapshot([
             'external_order_id' => null,
@@ -163,6 +163,7 @@ class SnapshotRepositoryTest extends TestCase
         ]));
 
         self::assertSame('stored-order', $effective['external_order_id']);
+        self::assertSame('2026-07-14 00:00:00', $effective['fera_updated_at']);
     }
 
     public function testGetByReviewIdMapsEntityToExistingSnapshotContract(): void
