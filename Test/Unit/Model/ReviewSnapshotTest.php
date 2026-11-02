@@ -19,13 +19,13 @@ class ReviewSnapshotTest extends TestCase
 {
     public function testExternalOrderIdAccessorSupportsNullableStrings(): void
     {
-        $context = $this->createMock(Context::class);
-        $context->method('getAppState')->willReturn($this->createMock(State::class));
-        $context->method('getEventDispatcher')->willReturn($this->createMock(ManagerInterface::class));
-        $context->method('getCacheManager')->willReturn($this->createMock(CacheInterface::class));
-        $context->method('getLogger')->willReturn($this->createMock(LoggerInterface::class));
-        $context->method('getActionValidator')->willReturn($this->createMock(RemoveAction::class));
-        $resource = $this->createMock(ReviewSnapshotResource::class);
+        $context = $this->createStub(Context::class);
+        $context->method('getAppState')->willReturn($this->createStub(State::class));
+        $context->method('getEventDispatcher')->willReturn($this->createStub(ManagerInterface::class));
+        $context->method('getCacheManager')->willReturn($this->createStub(CacheInterface::class));
+        $context->method('getLogger')->willReturn($this->createStub(LoggerInterface::class));
+        $context->method('getActionValidator')->willReturn($this->createStub(RemoveAction::class));
+        $resource = $this->createStub(ReviewSnapshotResource::class);
         $resource->method('getIdFieldName')->willReturn('id');
         $model = new ReviewSnapshot($context, new Registry(), $resource);
 

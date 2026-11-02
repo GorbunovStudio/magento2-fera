@@ -49,7 +49,7 @@ class HandlerTest extends TestCase
                 self::assertLessThanOrEqual(3000, mb_strlen($reviewText));
                 self::assertStringEndsWith('...', $reviewText);
 
-                return $this->createMock(ResponseInterface::class);
+                return $this->createStub(ResponseInterface::class);
             });
 
         $eventManager = $this->createMock(EventManager::class);
@@ -69,7 +69,7 @@ class HandlerTest extends TestCase
         $client = $this->createMock(Client::class);
         $client->expects(self::once())->method('post');
 
-        $eventManager = $this->createMock(EventManager::class);
+        $eventManager = $this->createStub(EventManager::class);
         $eventManager->method('dispatch')->willThrowException(new RuntimeException('observer failed'));
 
         $handler = $this->createHandler($client, $eventManager);
@@ -81,7 +81,7 @@ class HandlerTest extends TestCase
         $client = $this->createMock(Client::class);
         $client->expects(self::never())->method('post');
 
-        $handler = $this->createHandler($client, $this->createMock(EventManager::class), false);
+        $handler = $this->createHandler($client, $this->createStub(EventManager::class), false);
         $handler->process($this->createMessage());
     }
 
@@ -90,7 +90,7 @@ class HandlerTest extends TestCase
         $client = $this->createMock(Client::class);
         $client->expects(self::never())->method('post');
 
-        $handler = $this->createHandler($client, $this->createMock(EventManager::class), true, 5);
+        $handler = $this->createHandler($client, $this->createStub(EventManager::class), true, 5);
         $handler->process($this->createMessage(4));
     }
 
@@ -119,7 +119,7 @@ class HandlerTest extends TestCase
             ->setProductName('')
             ->setMediaJson('[]');
 
-        $handler = $this->createHandler($client, $this->createMock(EventManager::class));
+        $handler = $this->createHandler($client, $this->createStub(EventManager::class));
         $handler->process($message);
     }
 
@@ -141,7 +141,7 @@ class HandlerTest extends TestCase
 
         $message = $this->createMessage()->setMediaJson('{invalid');
 
-        $handler = $this->createHandler($client, $this->createMock(EventManager::class));
+        $handler = $this->createHandler($client, $this->createStub(EventManager::class));
         $handler->process($message);
     }
 
@@ -167,23 +167,23 @@ class HandlerTest extends TestCase
                 [ConfigOptionInterface::APP_URL, ScopeInterface::SCOPE_STORE, 1, 'https://app.fera.ai'],
             ]);
 
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getName')->willReturn('Main Store');
         $store->method('getCode')->willReturn('main');
 
         $storeManager = $this->createMock(StoreManagerInterface::class);
         $storeManager->method('getStore')->with(1)->willReturn($store);
 
-        $clientFactory = $this->createMock(ClientFactory::class);
+        $clientFactory = $this->createStub(ClientFactory::class);
         $clientFactory->method('create')->willReturn($client);
 
         return new Handler(
             $scopeConfig,
-            $this->createMock(OrderRepositoryInterface::class),
-            $this->createMock(UrlInterface::class),
+            $this->createStub(OrderRepositoryInterface::class),
+            $this->createStub(UrlInterface::class),
             $clientFactory,
             $storeManager,
-            $this->createMock(Logger::class),
+            $this->createStub(Logger::class),
             $eventManager
         );
     }

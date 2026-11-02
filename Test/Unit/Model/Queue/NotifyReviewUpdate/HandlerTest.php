@@ -52,7 +52,7 @@ class HandlerTest extends TestCase
                     self::assertStringEndsWith('...', $reviewText);
                 }
 
-                return $this->createMock(ResponseInterface::class);
+                return $this->createStub(ResponseInterface::class);
             });
 
         $scopeConfig = $this->createMock(ScopeConfigInterface::class);
@@ -69,24 +69,24 @@ class HandlerTest extends TestCase
             ],
         ]);
 
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getName')->willReturn('Main Store');
         $store->method('getCode')->willReturn('main');
 
         $storeManager = $this->createMock(StoreManagerInterface::class);
         $storeManager->method('getStore')->with(1)->willReturn($store);
 
-        $clientFactory = $this->createMock(ClientFactory::class);
+        $clientFactory = $this->createStub(ClientFactory::class);
         $clientFactory->method('create')->willReturn($client);
 
         $handler = new Handler(
             $scopeConfig,
-            $this->createMock(OrderRepositoryInterface::class),
-            $this->createMock(UrlInterface::class),
+            $this->createStub(OrderRepositoryInterface::class),
+            $this->createStub(UrlInterface::class),
             $clientFactory,
             $storeManager,
-            $this->createMock(Logger::class),
-            $this->createMock(EventManager::class)
+            $this->createStub(Logger::class),
+            $this->createStub(EventManager::class)
         );
 
         $message = (new Message())

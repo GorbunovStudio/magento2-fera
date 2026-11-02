@@ -43,7 +43,7 @@ class HandlerTest extends TestCase
                 [ConfigOptionInterface::REVIEW_NOTIFICATIONS_EMAIL_RECIPIENTS, ScopeInterface::SCOPE_STORE, 1, ''],
             ]);
 
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getName')->willReturn('Main Store');
         $store->method('getCode')->willReturn('main');
 
@@ -71,10 +71,10 @@ class HandlerTest extends TestCase
                 self::assertLessThanOrEqual(3000, mb_strlen($reviewText));
                 self::assertStringEndsWith('...', $reviewText);
 
-                return $this->createMock(ResponseInterface::class);
+                return $this->createStub(ResponseInterface::class);
             });
 
-        $clientFactory = $this->createMock(ClientFactory::class);
+        $clientFactory = $this->createStub(ClientFactory::class);
         $clientFactory->method('create')->willReturn($client);
 
         $message = (new Message())
@@ -96,14 +96,14 @@ class HandlerTest extends TestCase
 
         $handler = new Handler(
             $scopeConfig,
-            $this->createMock(OrderRepositoryInterface::class),
-            $this->createMock(UrlInterface::class),
-            $this->createMock(TransportBuilder::class),
-            $this->createMock(EmailAddress::class),
+            $this->createStub(OrderRepositoryInterface::class),
+            $this->createStub(UrlInterface::class),
+            $this->createStub(TransportBuilder::class),
+            $this->createStub(EmailAddress::class),
             $clientFactory,
             $storeManager,
-            $this->createMock(Logger::class),
-            $this->createMock(EventManager::class)
+            $this->createStub(Logger::class),
+            $this->createStub(EventManager::class)
         );
 
         $handler->process($message);
