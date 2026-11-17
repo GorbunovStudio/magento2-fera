@@ -13,6 +13,7 @@ use Fera\Ai\Services\ReviewSnapshot\SnapshotRepository;
 use Fera\Ai\Services\StoreGroupService;
 use Magento\Framework\App\State as AppState;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -74,8 +75,8 @@ class BackfillReviewsCommandTest extends TestCase
                 return $operation();
             });
 
-        /** @var StoreGroupService&MockObject $storeGroupService */
-        $storeGroupService = $this->createMock(StoreGroupService::class);
+        /** @var StoreGroupService&Stub $storeGroupService */
+        $storeGroupService = $this->createStub(StoreGroupService::class);
         $storeGroupService->method('getByFeraAccount')->willReturn([10 => [10], 20 => [20]]);
 
         $command = new BackfillReviewsCommand(
@@ -84,8 +85,8 @@ class BackfillReviewsCommandTest extends TestCase
             $snapshotRepository,
             $snapshotLock,
             $storeGroupService,
-            $this->createMock(AppState::class),
-            $this->createMock(FeraHelper::class)
+            $this->createStub(AppState::class),
+            $this->createStub(FeraHelper::class)
         );
         $tester = new CommandTester($command);
 
@@ -102,18 +103,18 @@ class BackfillReviewsCommandTest extends TestCase
         $reviewsClient = $this->createMock(ReviewsClientInterface::class);
         $reviewsClient->expects(self::never())->method('list');
 
-        /** @var SnapshotBuilder&MockObject $snapshotBuilder */
-        $snapshotBuilder = $this->createMock(SnapshotBuilder::class);
+        /** @var SnapshotBuilder&Stub $snapshotBuilder */
+        $snapshotBuilder = $this->createStub(SnapshotBuilder::class);
 
         /** @var SnapshotRepository&MockObject $snapshotRepository */
         $snapshotRepository = $this->createMock(SnapshotRepository::class);
         $snapshotRepository->expects(self::never())->method('countIncomplete');
 
-        /** @var ReviewSnapshotLock&MockObject $snapshotLock */
-        $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
+        /** @var ReviewSnapshotLock&Stub $snapshotLock */
+        $snapshotLock = $this->createStub(ReviewSnapshotLock::class);
 
-        /** @var StoreGroupService&MockObject $storeGroupService */
-        $storeGroupService = $this->createMock(StoreGroupService::class);
+        /** @var StoreGroupService&Stub $storeGroupService */
+        $storeGroupService = $this->createStub(StoreGroupService::class);
         $storeGroupService->method('getByFeraAccount')->willReturn([]);
 
         $command = new BackfillReviewsCommand(
@@ -122,8 +123,8 @@ class BackfillReviewsCommandTest extends TestCase
             $snapshotRepository,
             $snapshotLock,
             $storeGroupService,
-            $this->createMock(AppState::class),
-            $this->createMock(FeraHelper::class)
+            $this->createStub(AppState::class),
+            $this->createStub(FeraHelper::class)
         );
         $tester = new CommandTester($command);
 
@@ -153,8 +154,8 @@ class BackfillReviewsCommandTest extends TestCase
         $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
         $snapshotLock->expects(self::never())->method('execute');
 
-        /** @var StoreGroupService&MockObject $storeGroupService */
-        $storeGroupService = $this->createMock(StoreGroupService::class);
+        /** @var StoreGroupService&Stub $storeGroupService */
+        $storeGroupService = $this->createStub(StoreGroupService::class);
         $storeGroupService->method('getByFeraAccount')->willReturn([10 => [10]]);
 
         $command = new BackfillReviewsCommand(
@@ -163,8 +164,8 @@ class BackfillReviewsCommandTest extends TestCase
             $snapshotRepository,
             $snapshotLock,
             $storeGroupService,
-            $this->createMock(AppState::class),
-            $this->createMock(FeraHelper::class)
+            $this->createStub(AppState::class),
+            $this->createStub(FeraHelper::class)
         );
         $tester = new CommandTester($command);
 

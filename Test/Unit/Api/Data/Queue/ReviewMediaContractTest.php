@@ -6,14 +6,13 @@ namespace Fera\Ai\Test\Unit\Api\Data\Queue;
 
 use Fera\Ai\Api\Data\Queue\NotifyNegativeReview\MessageInterface as NegativeMessageInterface;
 use Fera\Ai\Api\Data\Queue\NotifyPositiveReview\MessageInterface as PositiveMessageInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
 class ReviewMediaContractTest extends TestCase
 {
-    /**
-     * @dataProvider createdReviewMessageContractsProvider
-     */
+    #[DataProvider('createdReviewMessageContractsProvider')]
     public function testCreatedReviewMessageContractsExposeMediaJsonInsteadOfRawMediaArray(string $interface): void
     {
         self::assertFalse(method_exists($interface, 'getMedia'));

@@ -25,6 +25,7 @@ use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class ReviewCreatedWebhookTest extends TestCase
@@ -59,11 +60,11 @@ class ReviewCreatedWebhookTest extends TestCase
         $request = $this->createMock(Request::class);
         $request->method('getParam')->with('jwt')->willReturn('jwt');
         $request->method('getBodyParams')->willReturn($payload);
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getId')->willReturn(9);
-        $storeManager = $this->createMock(StoreManagerInterface::class);
+        $storeManager = $this->createStub(StoreManagerInterface::class);
         $storeManager->method('getStore')->willReturn($store);
-        $jwtValidator = $this->createMock(FeraWebhookJwtValidator::class);
+        $jwtValidator = $this->createStub(FeraWebhookJwtValidator::class);
         $jwtValidator->method('validateToken')->willReturn(['store_id' => 'fera-store']);
         $snapshotBuilder = $this->createMock(SnapshotBuilder::class);
         $snapshotBuilder->expects(self::once())->method('build')->with($payload, 7)->willReturn($snapshot);
@@ -72,7 +73,7 @@ class ReviewCreatedWebhookTest extends TestCase
         $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
         $snapshotLock->expects(self::once())
             ->method('execute')
-            ->with('review-1', self::isType('callable'))
+            ->with('review-1', self::callback(static fn (mixed $operation): bool => is_callable($operation)))
             ->willReturnCallback(static function (string $reviewId, callable $operation): mixed {
                 return $operation();
             });
@@ -123,7 +124,7 @@ class ReviewCreatedWebhookTest extends TestCase
             $publisher,
             $jwtValidator,
             $negativeMessageFactory,
-            $this->createMock(PositiveMessageInterfaceFactory::class),
+            $this->createStub(PositiveMessageInterfaceFactory::class),
             new MediaNormalizer(),
             $snapshotBuilder,
             $snapshotRepository,
@@ -140,13 +141,13 @@ class ReviewCreatedWebhookTest extends TestCase
         $request = $this->createMock(Request::class);
         $request->method('getParam')->with('jwt')->willReturn('jwt');
         $request->method('getBodyParams')->willReturn($payload);
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getId')->willReturn(9);
-        $storeManager = $this->createMock(StoreManagerInterface::class);
+        $storeManager = $this->createStub(StoreManagerInterface::class);
         $storeManager->method('getStore')->willReturn($store);
-        $jwtValidator = $this->createMock(FeraWebhookJwtValidator::class);
+        $jwtValidator = $this->createStub(FeraWebhookJwtValidator::class);
         $jwtValidator->method('validateToken')->willReturn(['store_id' => 'fera-store']);
-        $snapshotBuilder = $this->createMock(SnapshotBuilder::class);
+        $snapshotBuilder = $this->createStub(SnapshotBuilder::class);
         $snapshotBuilder->method('build')->willThrowException(
             new InvalidArgumentException('Field "id" must be a non-empty string')
         );
@@ -158,16 +159,16 @@ class ReviewCreatedWebhookTest extends TestCase
 
         $webhook = new ReviewCreatedWebhook(
             $request,
-            $this->createMock(ScopeConfigInterface::class),
+            $this->createStub(ScopeConfigInterface::class),
             $storeManager,
-            $this->createMock(PublisherInterface::class),
+            $this->createStub(PublisherInterface::class),
             $jwtValidator,
-            $this->createMock(MessageInterfaceFactory::class),
-            $this->createMock(PositiveMessageInterfaceFactory::class),
+            $this->createStub(MessageInterfaceFactory::class),
+            $this->createStub(PositiveMessageInterfaceFactory::class),
             new MediaNormalizer(),
             $snapshotBuilder,
-            $this->createMock(SnapshotRepository::class),
-            $this->createMock(ReviewSnapshotLock::class),
+            $this->createStub(SnapshotRepository::class),
+            $this->createStub(ReviewSnapshotLock::class),
             $storeGroupService
         );
 
@@ -199,13 +200,13 @@ class ReviewCreatedWebhookTest extends TestCase
         $request = $this->createMock(Request::class);
         $request->method('getParam')->with('jwt')->willReturn('jwt');
         $request->method('getBodyParams')->willReturn($payload);
-        /** @var StoreManagerInterface&MockObject $storeManager */
-        $storeManager = $this->createMock(StoreManagerInterface::class);
-        $store = $this->createMock(StoreInterface::class);
+        /** @var StoreManagerInterface&Stub $storeManager */
+        $storeManager = $this->createStub(StoreManagerInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getId')->willReturn(9);
         $storeManager->method('getStore')->willReturn($store);
-        /** @var FeraWebhookJwtValidator&MockObject $jwtValidator */
-        $jwtValidator = $this->createMock(FeraWebhookJwtValidator::class);
+        /** @var FeraWebhookJwtValidator&Stub $jwtValidator */
+        $jwtValidator = $this->createStub(FeraWebhookJwtValidator::class);
         $jwtValidator->method('validateToken')->willReturn(['store_id' => 'fera-store']);
         /** @var SnapshotBuilder&MockObject $snapshotBuilder */
         $snapshotBuilder = $this->createMock(SnapshotBuilder::class);
@@ -217,7 +218,7 @@ class ReviewCreatedWebhookTest extends TestCase
         $snapshotLock = $this->createMock(ReviewSnapshotLock::class);
         $snapshotLock->expects(self::once())
             ->method('execute')
-            ->with('review-1', self::isType('callable'))
+            ->with('review-1', self::callback(static fn (mixed $operation): bool => is_callable($operation)))
             ->willReturnCallback(static function (string $reviewId, callable $operation): mixed {
                 return $operation();
             });
@@ -242,8 +243,8 @@ class ReviewCreatedWebhookTest extends TestCase
             $storeManager,
             $publisher,
             $jwtValidator,
-            $this->createMock(MessageInterfaceFactory::class),
-            $this->createMock(PositiveMessageInterfaceFactory::class),
+            $this->createStub(MessageInterfaceFactory::class),
+            $this->createStub(PositiveMessageInterfaceFactory::class),
             new MediaNormalizer(),
             $snapshotBuilder,
             $snapshotRepository,
